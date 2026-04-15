@@ -8,6 +8,8 @@ import email.encoders
 import email.mime.base
 import email.mime.multipart
 import email.mime.text
+import hashlib
+import hmac
 import json
 import mimetypes
 import os
@@ -60,6 +62,11 @@ MINIMAX_API_KEY = (
     or legacy_local_config("MINIMAX_API_TOKEN")
 )
 MINIMAX_API_TOKEN = MINIMAX_API_KEY
+ADMIN_KEY = (
+    os.getenv("ADMIN_KEY")
+    or legacy_local_config("ADMIN_KEY")
+    or (hashlib.sha256(f"terry-admin:{MINIMAX_API_KEY}".encode("utf-8")).hexdigest()[:24] if MINIMAX_API_KEY else "")
+)
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
 SMTP_USER = os.getenv("SMTP_USER") or legacy_local_config("SMTP_USER")
@@ -218,9 +225,14 @@ INDEX_HTML = r"""<!doctype html>
               <div class="hint" data-i18n="promptHint">Include style, mood, instruments, tempo, and any references.</div>
             </div>
             <div class="field">
-              <label for="lyrics" data-i18n="lyricsLabel">Lyrics (optional)</label>
+              <label for="lyricsIdea" data-i18n="lyricsIdeaLabel">Lyrics Brief for AI (optional)</label>
+              <textarea id="lyricsIdea" maxlength="2500" placeholder="Tell the story, feelings, images, language, chorus idea, or fragments you want in the lyrics."></textarea>
+              <div class="hint" data-i18n="lyricsIdeaHint">If finished lyrics are empty, Terry Music will ask AI to write lyrics from this brief.</div>
+            </div>
+            <div class="field">
+              <label for="lyrics" data-i18n="lyricsLabel">Finished Lyrics (optional)</label>
               <textarea id="lyrics" maxlength="3500" placeholder="[Verse]\nYour lyrics here...\n[Hook]\nYour chorus..."></textarea>
-              <div class="hint" data-i18n="lyricsHint">Use tags like [Verse], [Hook], [Chorus]. Leave empty for instrumental or auto lyrics.</div>
+              <div class="hint" data-i18n="lyricsHint">Paste exact lyrics here if you already have them. Exact lyrics take priority over the lyrics brief.</div>
             </div>
             <div class="checks">
               <label class="check">
@@ -272,7 +284,8 @@ INDEX_HTML = r"""<!doctype html>
         createTitle: "Create Music", createDesc: "Fill in the form. Terry Music will generate the track and keep it available for download.",
         emailLabel: "Email Address (optional)", emailHint: "Optional. The download button is the main way to get your MP3.",
         promptLabel: "Music Style Prompt", promptHint: "Include style, mood, instruments, tempo, and any references.",
-        lyricsLabel: "Lyrics (optional)", lyricsHint: "Use tags like [Verse], [Hook], [Chorus]. Leave empty for instrumental or auto lyrics.",
+        lyricsIdeaLabel: "Lyrics Brief for AI (optional)", lyricsIdeaHint: "If finished lyrics are empty, Terry Music will ask AI to write lyrics from this brief.",
+        lyricsLabel: "Finished Lyrics (optional)", lyricsHint: "Paste exact lyrics here if you already have them. Exact lyrics take priority over the lyrics brief.",
         instrumental: "Instrumental", instrumentalHint: "No vocals. Lyrics will be ignored.",
         autoLyrics: "Auto-generate Lyrics", autoLyricsHint: "AI writes lyrics from your prompt.",
         advanced: "More Parameters", genre: "Genre", mood: "Mood", instruments: "Instruments", tempo: "Tempo Feel", bpm: "BPM", key: "Musical Key",
@@ -286,7 +299,8 @@ INDEX_HTML = r"""<!doctype html>
         createTitle: "创建音乐", createDesc: "填写表单，Terry Music 会生成音乐，并保留下载按钮。",
         emailLabel: "邮箱地址（可选）", emailHint: "可不填写。下载按钮是获取 MP3 的主要方式。",
         promptLabel: "音乐风格描述", promptHint: "写清风格、情绪、乐器、速度和参考对象。",
-        lyricsLabel: "歌词（可选）", lyricsHint: "可用 [Verse]、[Hook]、[Chorus]。纯音乐或自动歌词可留空。",
+        lyricsIdeaLabel: "歌词需求描述（可选）", lyricsIdeaHint: "如果没有填写完整歌词，Terry Music 会让 AI 根据这里的故事、感受、片段或概念生成歌词。",
+        lyricsLabel: "完整歌词（可选）", lyricsHint: "如果你已经有确定歌词，粘贴在这里。完整歌词会优先于歌词需求描述。",
         instrumental: "纯音乐", instrumentalHint: "无人声，歌词会被忽略。",
         autoLyrics: "自动生成歌词", autoLyricsHint: "AI 根据描述写歌词。",
         advanced: "更多参数", genre: "流派", mood: "情绪", instruments: "乐器", tempo: "节奏感", bpm: "BPM", key: "调性",
@@ -306,6 +320,7 @@ INDEX_HTML = r"""<!doctype html>
     const instrumental = document.getElementById("instrumental");
     const lyricsOptimizer = document.getElementById("lyricsOptimizer");
     const lyrics = document.getElementById("lyrics");
+    const lyricsIdea = document.getElementById("lyricsIdea");
     const clientId = (() => {
       const key = "terry_music_client_id";
       let id = localStorage.getItem(key);
@@ -376,12 +391,14 @@ INDEX_HTML = r"""<!doctype html>
       if (!res.ok) alert(t("deleteFailed"));
       await loadJobs();
     }
-    instrumental.addEventListener("change", () => {
+    function syncInstrumentalFields() {
       const off = instrumental.checked;
       lyrics.disabled = off;
+      lyricsIdea.disabled = off;
       lyricsOptimizer.disabled = off;
       if (off) lyricsOptimizer.checked = false;
-    });
+    }
+    instrumental.addEventListener("change", syncInstrumentalFields);
     document.getElementById("langBtn").addEventListener("click", () => {
       lang = lang === "en" ? "zh" : "en";
       applyLang();
@@ -392,7 +409,7 @@ INDEX_HTML = r"""<!doctype html>
       submitBtn.disabled = true;
       const get = id => document.getElementById(id).value.trim();
       const payload = {
-        email: get("email"), prompt: get("prompt"), lyrics: get("lyrics"),
+        email: get("email"), prompt: get("prompt"), lyrics: get("lyrics"), lyrics_idea: get("lyricsIdea"),
         is_instrumental: instrumental.checked, lyrics_optimizer: lyricsOptimizer.checked,
         genre: get("genre"), mood: get("mood"), instruments: get("instruments"), tempo: get("tempo"), bpm: get("bpm"), key: get("key"),
         vocals: get("vocals"), structure: get("structure"), references: get("references"), avoid: get("avoid"), use_case: get("useCase"), extra: get("extra")
@@ -403,6 +420,7 @@ INDEX_HTML = r"""<!doctype html>
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
         form.reset();
         document.getElementById("prompt").value = "Cinematic electronic pop, confident and bright, polished production, strong hook";
+        syncInstrumentalFields();
         await loadJobs();
       } catch (error) {
         formError.textContent = error.message;
@@ -413,6 +431,108 @@ INDEX_HTML = r"""<!doctype html>
     applyLang();
     loadJobs();
     setInterval(loadJobs, 3000);
+  </script>
+</body>
+</html>
+"""
+
+ADMIN_HTML = r"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Terry Music Admin</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b0d0c; --panel:#141716; --line:#2d3430; --text:#f4f7f1; --muted:#a7b0aa; --accent:#50d890; --danger:#ff756d; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; font-size:16px; }
+    main { width:min(1180px, calc(100% - 28px)); margin:0 auto; padding:24px 0 56px; }
+    header { display:flex; justify-content:space-between; gap:14px; align-items:center; margin-bottom:18px; }
+    h1 { margin:0; font-size:28px; }
+    .muted { color:var(--muted); }
+    button, a.button { border:0; border-radius:8px; background:var(--accent); color:#06100b; padding:10px 13px; font-weight:800; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; }
+    .grid { display:grid; gap:12px; }
+    .card { border:1px solid var(--line); border-radius:8px; background:var(--panel); padding:14px; }
+    .row { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap; }
+    .title { margin:0 0 8px; font-weight:800; line-height:1.35; }
+    .meta { display:flex; gap:10px; flex-wrap:wrap; color:var(--muted); font-size:13px; }
+    .badge { border:1px solid var(--line); border-radius:8px; padding:4px 8px; font-size:12px; font-weight:800; text-transform:uppercase; }
+    .completed { color:var(--accent); } .error { color:var(--danger); }
+    details { margin-top:10px; }
+    summary { cursor:pointer; color:var(--muted); }
+    pre { white-space:pre-wrap; overflow-wrap:anywhere; color:var(--muted); line-height:1.45; font-family:inherit; margin:8px 0 0; }
+    .empty { border:1px dashed var(--line); border-radius:8px; padding:18px; color:var(--muted); }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>Terry Music Admin</h1>
+        <div id="summary" class="muted">Loading all jobs...</div>
+      </div>
+      <button id="refresh" type="button">Refresh</button>
+    </header>
+    <section id="jobs" class="grid"></section>
+  </main>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const adminKey = params.get("key") || "";
+    const jobsBox = document.getElementById("jobs");
+    const summary = document.getElementById("summary");
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+    function formatDate(value) {
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? "" : date.toLocaleString("en-GB", {dateStyle:"medium", timeStyle:"short"});
+    }
+    function render(jobs) {
+      summary.textContent = `${jobs.length} total job${jobs.length === 1 ? "" : "s"}`;
+      if (!jobs.length) {
+        jobsBox.innerHTML = `<div class="empty">No generated tracks yet.</div>`;
+        return;
+      }
+      jobsBox.innerHTML = jobs.map(job => {
+        const download = job.download_url ? `<a class="button" href="${escapeHtml(job.download_url)}" download="${escapeHtml(job.file_name || "terry-music.mp3")}">Download MP3</a>` : "";
+        const details = [
+          job.lyrics_idea ? `<details><summary>Lyrics brief</summary><pre>${escapeHtml(job.lyrics_idea)}</pre></details>` : "",
+          job.lyrics ? `<details><summary>Finished lyrics</summary><pre>${escapeHtml(job.lyrics)}</pre></details>` : "",
+          job.error ? `<details open><summary>Error</summary><pre>${escapeHtml(job.error)}</pre></details>` : ""
+        ].join("");
+        return `<article class="card">
+          <div class="row">
+            <div>
+              <p class="title">${escapeHtml(job.prompt || "Untitled")}</p>
+              <div class="meta">
+                <span class="badge ${escapeHtml(job.status)}">${escapeHtml(job.status || "unknown")}</span>
+                <span>${formatDate(job.created_at)}</span>
+                <span>${job.is_instrumental ? "Instrumental" : "Vocal"}</span>
+                <span>${escapeHtml(job.email || "No email")}</span>
+                <span title="${escapeHtml(job.owner_id || "")}">Client ${escapeHtml(String(job.owner_id || "").slice(0, 12))}</span>
+              </div>
+            </div>
+            ${download}
+          </div>
+          ${details}
+        </article>`;
+      }).join("");
+    }
+    async function load() {
+      summary.textContent = "Loading all jobs...";
+      try {
+        const res = await fetch(`/api/admin/jobs?key=${encodeURIComponent(adminKey)}`, {cache:"no-store"});
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        render(data.jobs || []);
+      } catch (error) {
+        summary.textContent = "Unable to load admin data";
+        jobsBox.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
+      }
+    }
+    document.getElementById("refresh").addEventListener("click", load);
+    load();
+    setInterval(load, 5000);
   </script>
 </body>
 </html>
@@ -462,6 +582,82 @@ def public_job(job: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def admin_job(job: dict[str, Any]) -> dict[str, Any]:
+    result = public_job(job)
+    result.update({
+        "owner_id": job.get("owner_id"),
+        "lyrics": job.get("lyrics", ""),
+        "lyrics_idea": job.get("lyrics_idea", ""),
+        "generated_lyrics": bool(job.get("generated_lyrics")),
+        "extra": job.get("extra", {}),
+    })
+    if job.get("status") == "completed" and job.get("file_path"):
+        result["download_url"] = f"/download/{urllib.parse.quote(str(job['id']))}?admin_key={urllib.parse.quote(ADMIN_KEY)}"
+    return result
+
+
+def clean_generated_lyrics(text: str) -> str:
+    cleaned = re.sub(r"\x1b\[[0-9;]*m", "", text).strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```[a-zA-Z]*\s*", "", cleaned)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+    prefixes = ("lyrics:", "song lyrics:", "here are the lyrics:", "以下是歌词：", "歌词：")
+    lower = cleaned.lower()
+    for prefix in prefixes:
+        if lower.startswith(prefix):
+            cleaned = cleaned[len(prefix):].strip()
+            break
+    return cleaned[:3500].strip()
+
+
+def generate_lyrics_from_text_model(job: dict[str, Any]) -> str:
+    prompt = str(job.get("prompt", "")).strip()
+    lyrics_idea = str(job.get("lyrics_idea", "")).strip()
+    extra = job.get("extra", {}) if isinstance(job.get("extra"), dict) else {}
+    context = {
+        "music_style_prompt": prompt,
+        "lyrics_brief": lyrics_idea or "No separate lyrics brief was provided. Infer a complete lyric concept from the music style prompt.",
+        "genre": extra.get("genre", ""),
+        "mood": extra.get("mood", ""),
+        "vocal_style": extra.get("vocals", ""),
+        "structure": extra.get("structure", ""),
+        "avoid": extra.get("avoid", ""),
+        "use_case": extra.get("use_case", ""),
+        "extra_details": extra.get("extra", ""),
+    }
+    system = (
+        "You are a professional songwriter. Write complete, singable lyrics only. "
+        "Output only the lyrics, with no explanation, no markdown fences, and no notes. "
+        "Use structure tags such as [Verse], [Pre-Chorus], [Chorus], [Bridge], and [Outro] where natural. "
+        "Write in the same language as the lyrics brief unless the user explicitly requests another language. "
+        "Respect the requested story, feelings, fragments, mood, and imagery. Avoid unsafe or explicit content if requested."
+    )
+    message = (
+        "Create finished song lyrics for MiniMax music generation.\n\n"
+        f"{json.dumps(context, ensure_ascii=False, indent=2)}\n\n"
+        "Requirements:\n"
+        "- Output only lyrics.\n"
+        "- Include clear section tags.\n"
+        "- Make the chorus memorable and repeatable.\n"
+        "- Keep the lyrics under 3,500 characters.\n"
+        "- Do not describe what you are doing."
+    )
+    output = run_mmx([
+        "text", "chat",
+        "--system", system,
+        "--message", message,
+        "--max-tokens", "1600",
+        "--temperature", "0.75",
+        "--non-interactive",
+        "--quiet",
+        "--output", "text",
+    ], timeout=180)
+    lyrics = clean_generated_lyrics(output)
+    if not lyrics:
+        raise RuntimeError("MiniMax text model returned empty lyrics.")
+    return lyrics
+
+
 def mark_job(job_id: str, **updates: Any) -> None:
     with JOBS_LOCK:
         job = JOBS.get(job_id)
@@ -472,7 +668,7 @@ def mark_job(job_id: str, **updates: Any) -> None:
         save_jobs_locked()
 
 
-def run_mmx(args: list[str]) -> None:
+def run_mmx(args: list[str], timeout: int = 900) -> str:
     if not MINIMAX_API_KEY:
         raise RuntimeError("MINIMAX_API_KEY is not configured.")
     env = os.environ.copy()
@@ -483,10 +679,11 @@ def run_mmx(args: list[str]) -> None:
     env["PATH"] = os.pathsep.join(path_parts)
     env["MINIMAX_API_KEY"] = MINIMAX_API_KEY
     env["MINIMAX_API_TOKEN"] = MINIMAX_API_KEY
-    result = subprocess.run([MMX_BIN] + args, capture_output=True, text=True, env=env, timeout=900)
+    result = subprocess.run([MMX_BIN] + args, capture_output=True, text=True, env=env, timeout=timeout)
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "Unknown mmx error").strip()
         raise RuntimeError(detail)
+    return result.stdout.strip()
 
 
 def send_email(to_email: str, file_path: Path, prompt: str) -> bool:
@@ -522,15 +719,20 @@ def generate_music(job_id: str) -> None:
     mark_job(job_id, status="running", error=None)
     try:
         prompt = str(job["prompt"])
+        lyrics = str(job.get("lyrics", "")).strip()
+        lyrics_idea = str(job.get("lyrics_idea", "")).strip()
+        if not job.get("is_instrumental") and not lyrics and (lyrics_idea or job.get("lyrics_optimizer")):
+            lyrics = generate_lyrics_from_text_model(job)
+            mark_job(job_id, lyrics=lyrics, generated_lyrics=True)
         stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
         out_path = OUTPUT_DIR / f"terry_music_{stamp}_{safe_name(prompt)}_{job_id[:8]}.mp3"
         args = ["music", "generate", "--prompt", prompt, "--out", str(out_path), "--non-interactive"]
         if job.get("is_instrumental"):
             args.append("--instrumental")
+        elif lyrics:
+            args.extend(["--lyrics", lyrics])
         elif job.get("lyrics_optimizer"):
             args.append("--lyrics-optimizer")
-        elif job.get("lyrics"):
-            args.extend(["--lyrics", str(job["lyrics"])])
         option_map = {
             "genre": "--genre", "mood": "--mood", "instruments": "--instruments", "tempo": "--tempo",
             "bpm": "--bpm", "key": "--key", "vocals": "--vocals", "structure": "--structure",
@@ -554,6 +756,13 @@ class MusicHandler(BaseHTTPRequestHandler):
 
     def log_message(self, fmt: str, *args: Any) -> None:
         print(f"{self.log_date_time_string()} {self.address_string()} {fmt % args}")
+
+    def is_admin_request(self, parsed: urllib.parse.ParseResult | None = None) -> bool:
+        key = self.headers.get("X-Admin-Key", "")
+        if parsed is not None:
+            query = urllib.parse.parse_qs(parsed.query)
+            key = key or (query.get("key") or query.get("admin_key") or [""])[0]
+        return bool(ADMIN_KEY and key and hmac.compare_digest(key, ADMIN_KEY))
 
     def send_json(self, payload: dict[str, Any], status: HTTPStatus = HTTPStatus.OK) -> None:
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -584,14 +793,36 @@ class MusicHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(data)
             return
+        if path == "/admin":
+            data = ADMIN_HTML.encode("utf-8")
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(data)
+            return
         if path == "/api/health":
             self.send_json({
                 "ok": True,
                 "minimax_configured": bool(MINIMAX_API_KEY),
+                "admin_configured": bool(ADMIN_KEY),
                 "smtp_configured": bool(SMTP_USER and SMTP_PASSWORD),
                 "smtp_host": SMTP_HOST,
                 "smtp_port": SMTP_PORT,
             })
+            return
+        if path == "/api/admin/jobs":
+            if not self.is_admin_request(parsed):
+                self.send_json({"error": "Unauthorized"}, HTTPStatus.UNAUTHORIZED)
+                return
+            with JOBS_LOCK:
+                jobs = sorted(
+                    [admin_job(job) for job in JOBS.values()],
+                    key=lambda item: str(item.get("created_at", "")),
+                    reverse=True,
+                )
+            self.send_json({"jobs": jobs})
             return
         if path == "/api/jobs":
             client_id = normalize_client_id(self.headers.get("X-Client-Id"))
@@ -632,16 +863,19 @@ class MusicHandler(BaseHTTPRequestHandler):
             prompt = str(form.get("prompt", "")).strip()
             email_addr = str(form.get("email", "")).strip()
             lyrics = str(form.get("lyrics", "")).strip()
+            lyrics_idea = str(form.get("lyrics_idea", "")).strip()
             is_instrumental = bool(form.get("is_instrumental"))
-            lyrics_optimizer = bool(form.get("lyrics_optimizer")) and not is_instrumental
+            lyrics_optimizer = bool(form.get("lyrics_optimizer") or lyrics_idea) and not is_instrumental
             if not prompt:
                 raise ValueError("Prompt is required.")
             if len(prompt) > 2000:
                 raise ValueError("Prompt must be 2000 characters or fewer.")
             if len(lyrics) > 3500:
                 raise ValueError("Lyrics must be 3500 characters or fewer.")
+            if len(lyrics_idea) > 2500:
+                raise ValueError("Lyrics brief must be 2500 characters or fewer.")
             if not is_instrumental and not lyrics and not lyrics_optimizer:
-                raise ValueError("Lyrics are required for vocal tracks unless auto lyrics is enabled.")
+                raise ValueError("Lyrics, a lyrics brief, or auto lyrics are required for vocal tracks.")
             extra = {key: str(form.get(key, "")).strip() for key in ("genre", "mood", "instruments", "tempo", "bpm", "key", "vocals", "structure", "references", "avoid", "use_case", "extra")}
         except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
@@ -656,8 +890,10 @@ class MusicHandler(BaseHTTPRequestHandler):
             "prompt": prompt,
             "email": email_addr,
             "lyrics": lyrics,
+            "lyrics_idea": lyrics_idea,
             "is_instrumental": is_instrumental,
             "lyrics_optimizer": lyrics_optimizer,
+            "generated_lyrics": False,
             "file_name": None,
             "file_path": None,
             "error": None,
@@ -689,10 +925,12 @@ class MusicHandler(BaseHTTPRequestHandler):
     def handle_download(self, encoded_job_id: str, query_string: str) -> None:
         job_id = urllib.parse.unquote(encoded_job_id)
         query = urllib.parse.parse_qs(query_string)
+        admin_key = (query.get("admin_key") or query.get("key") or [""])[0]
+        admin_ok = bool(ADMIN_KEY and admin_key and hmac.compare_digest(admin_key, ADMIN_KEY))
         client_id = normalize_client_id(self.headers.get("X-Client-Id") or (query.get("client_id") or [""])[0])
         with JOBS_LOCK:
             job = JOBS.get(job_id)
-            if not job or job.get("owner_id") != client_id:
+            if not job or (not admin_ok and job.get("owner_id") != client_id):
                 self.send_text("Job not found", HTTPStatus.NOT_FOUND)
                 return
             if job.get("status") != "completed" or not job.get("file_path"):

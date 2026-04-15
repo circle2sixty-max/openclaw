@@ -34,6 +34,22 @@ Email delivery is optional. Render Free web services can block outbound SMTP por
 
 For compatibility with older local setup, the app also accepts `MINIMAX_API_TOKEN` and passes it through to `mmx-cli` as `MINIMAX_API_KEY`.
 
+## Admin
+
+The admin page lists all jobs from all browsers and provides admin download links:
+
+```text
+/admin?key=YOUR_ADMIN_KEY
+```
+
+If `ADMIN_KEY` is not set, the app derives a stable admin key from the MiniMax key. This is convenient for a private tool, but a dedicated `ADMIN_KEY` is better before sharing widely.
+
+## Lyrics Helper
+
+Users can either paste finished lyrics or describe the lyrics they want in their own language. When a lyrics brief is provided and finished lyrics are empty, Terry Music calls the MiniMax text model first, constrains the response to song lyrics only, then passes those generated lyrics to the music generator.
+
 ## Notes
 
 Each browser gets a local client id, so the Jobs panel only shows that browser's own jobs. This is not a login system; it is a lightweight privacy boundary for a private friends-only tool.
+
+Render Free storage is not a permanent archive. Generated MP3 files remain available while the service filesystem is alive, but a later restart or redeploy may remove files. Use R2/S3 or another object store if every generated track must be kept permanently.
