@@ -2,10 +2,12 @@
 
 Private AI music generator for friends. It generates MP3 tracks with MiniMax music-2.6 and emails the result to the address entered in the form.
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/circle2sixty-max/openclaw)
+
 ## Local Run
 
 ```bash
-python3 minimax_music_tool.py
+python3 app.py
 ```
 
 Open:

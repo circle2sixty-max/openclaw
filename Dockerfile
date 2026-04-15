@@ -8,9 +8,9 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY minimax_music_tool.py /app/minimax_music_tool.py
+COPY app.py /app/app.py
 
 ENV HOST=0.0.0.0
 ENV PYTHONUNBUFFERED=1
 
-CMD ["python3", "minimax_music_tool.py"]
+CMD ["python3", "app.py"]

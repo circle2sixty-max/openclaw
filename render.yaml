@@ -3,6 +3,7 @@ services:
     name: terry-music
     runtime: docker
     region: singapore
+    healthCheckPath: /api/health
     envVars:
       - key: MINIMAX_API_TOKEN
         sync: false
