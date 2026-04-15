@@ -186,7 +186,7 @@ INDEX_HTML = r"""<!doctype html>
     <div class="top">
       <div>
         <h1>Terry Music</h1>
-        <p id="subtitle" class="subtitle">Describe a music style, generate an MP3, and send it to an email address.</p>
+        <p id="subtitle" class="subtitle">Describe a music style, generate an MP3, and download it when it is ready.</p>
       </div>
       <div class="top-actions">
         <div class="pill">music-2.6</div>
@@ -197,14 +197,14 @@ INDEX_HTML = r"""<!doctype html>
       <section class="panel">
         <div class="panel-head">
           <h2 data-i18n="createTitle">Create Music</h2>
-          <p data-i18n="createDesc">Fill in the form. Terry Music will email the track and keep it available for download.</p>
+          <p data-i18n="createDesc">Fill in the form. Terry Music will generate the track and keep it available for download.</p>
         </div>
         <div class="panel-body">
           <form id="jobForm">
             <div class="field">
-              <label for="email" data-i18n="emailLabel">Email Address</label>
-              <input id="email" type="email" placeholder="your@email.com" required>
-              <div class="hint" data-i18n="emailHint">The MP3 will be sent here when ready.</div>
+              <label for="email" data-i18n="emailLabel">Email Address (optional)</label>
+              <input id="email" type="email" placeholder="your@email.com">
+              <div class="hint" data-i18n="emailHint">Optional. The download button is the main way to get your MP3.</div>
             </div>
             <div class="field">
               <label for="prompt" data-i18n="promptLabel">Music Style Prompt</label>
@@ -262,9 +262,9 @@ INDEX_HTML = r"""<!doctype html>
   <script>
     const I18N = {
       en: {
-        subtitle: "Describe a music style, generate an MP3, and send it to an email address.",
-        createTitle: "Create Music", createDesc: "Fill in the form. Terry Music will email the track and keep it available for download.",
-        emailLabel: "Email Address", emailHint: "The MP3 will be sent here when ready.",
+        subtitle: "Describe a music style, generate an MP3, and download it when it is ready.",
+        createTitle: "Create Music", createDesc: "Fill in the form. Terry Music will generate the track and keep it available for download.",
+        emailLabel: "Email Address (optional)", emailHint: "Optional. The download button is the main way to get your MP3.",
         promptLabel: "Music Style Prompt", promptHint: "Include style, mood, instruments, tempo, and any references.",
         lyricsLabel: "Lyrics (optional)", lyricsHint: "Use tags like [Verse], [Hook], [Chorus]. Leave empty for instrumental or auto lyrics.",
         instrumental: "Instrumental", instrumentalHint: "No vocals. Lyrics will be ignored.",
@@ -276,9 +276,9 @@ INDEX_HTML = r"""<!doctype html>
         download: "Download MP3", delete: "Delete", sent: "Sent to", instrumentalMode: "Instrumental", vocalMode: "Vocal", deleteConfirm: "Delete this job?", deleteFailed: "Delete failed"
       },
       zh: {
-        subtitle: "描述音乐风格，生成 MP3，并发送到指定邮箱。",
-        createTitle: "创建音乐", createDesc: "填写表单，Terry Music 会发送邮件，并保留下载按钮。",
-        emailLabel: "邮箱地址", emailHint: "MP3 生成完成后会发送到这里。",
+        subtitle: "描述音乐风格，生成 MP3，完成后可直接下载。",
+        createTitle: "创建音乐", createDesc: "填写表单，Terry Music 会生成音乐，并保留下载按钮。",
+        emailLabel: "邮箱地址（可选）", emailHint: "可不填写。下载按钮是获取 MP3 的主要方式。",
         promptLabel: "音乐风格描述", promptHint: "写清风格、情绪、乐器、速度和参考对象。",
         lyricsLabel: "歌词（可选）", lyricsHint: "可用 [Verse]、[Hook]、[Chorus]。纯音乐或自动歌词可留空。",
         instrumental: "纯音乐", instrumentalHint: "无人声，歌词会被忽略。",
@@ -627,8 +627,6 @@ class MusicHandler(BaseHTTPRequestHandler):
             lyrics = str(form.get("lyrics", "")).strip()
             is_instrumental = bool(form.get("is_instrumental"))
             lyrics_optimizer = bool(form.get("lyrics_optimizer")) and not is_instrumental
-            if not email_addr:
-                raise ValueError("Email is required.")
             if not prompt:
                 raise ValueError("Prompt is required.")
             if len(prompt) > 2000:

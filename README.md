@@ -1,6 +1,6 @@
 # Terry Music
 
-Private AI music generator for friends. It generates MP3 tracks with MiniMax music-2.6 and emails the result to the address entered in the form.
+Private AI music generator for friends. It generates MP3 tracks with MiniMax music-2.6 and provides a direct download button when the track is ready.
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/circle2sixty-max/openclaw)
 
@@ -26,13 +26,11 @@ Set these environment variables in Render:
 
 ```text
 MINIMAX_API_TOKEN
-SMTP_USER
-SMTP_PASSWORD
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=465
 ```
 
 Recommended Render region: Singapore. It is the closest Render region to China while still usable from the UK. For better China reliability, attach a custom domain and test from a mainland China network before sharing widely.
+
+Email delivery is optional. Render Free web services can block outbound SMTP ports, so the deploy flow is download-first by default.
 
 ## Notes
 

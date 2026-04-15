@@ -220,7 +220,7 @@ INDEX_HTML = r"""<!doctype html>
     <div class="header">
       <div>
         <h1>🎵 Terry Music</h1>
-        <p class="subtitle" id="subtitle">Describe a music style, AI generates an MP3 and sends it to your email.</p>
+        <p class="subtitle" id="subtitle">Describe a music style, generate an MP3, and download it when it is ready.</p>
       </div>
       <div class="header-right">
         <div class="badge-brand">music-2.6</div>
@@ -233,15 +233,15 @@ INDEX_HTML = r"""<!doctype html>
       <section class="panel">
         <div class="panel-header">
           <h2 id="create-title">Create Music</h2>
-          <p id="create-desc">Fill in the details below. Terry Music will generate your track and email it to you.</p>
+          <p id="create-desc">Fill in the details below. Terry Music will generate your track and keep it available for download.</p>
         </div>
         <div class="panel-body">
           <form id="job-form">
             <!-- Email -->
             <div class="field">
-              <label for="email">📧 Email Address</label>
-              <input id="email" name="email" type="email" placeholder="your@email.com" required>
-              <div class="hint" id="email-hint">Your MP3 will be sent to this email when it is ready.</div>
+              <label for="email">📧 Email Address (optional)</label>
+              <input id="email" name="email" type="email" placeholder="your@email.com">
+              <div class="hint" id="email-hint">Optional. The download button is the main way to get your MP3.</div>
             </div>
 
             <!-- Prompt -->
@@ -346,7 +346,7 @@ Your chorus..."></textarea>
       <section class="panel">
         <div class="panel-header">
           <h2 id="jobs-title" data-i18n="jobsTitle">Jobs</h2>
-          <p id="jobs-desc" data-i18n="jobsDesc">Real-time status. MP3 will be sent to your email when done.</p>
+          <p id="jobs-desc" data-i18n="jobsDesc">Real-time status. Download appears when the MP3 is ready.</p>
         </div>
         <div id="jobs" class="jobs">
           <div class="empty" id="jobs-empty">No jobs yet. Fill in the form to start creating.</div>
@@ -359,11 +359,11 @@ Your chorus..."></textarea>
     // ── i18n ──────────────────────────────────────────────────────
     const I18N = {
       en: {
-        subtitle: "Describe a music style, AI generates an MP3 and sends it to your email.",
+        subtitle: "Describe a music style, generate an MP3, and download it when it is ready.",
         createTitle: "Create Music",
-        createDesc: "Fill in the details below. Terry Music will generate your track and email it to you.",
-        emailLabel: "📧 Email Address",
-        emailHint: "Your MP3 will be sent to this email when it is ready.",
+        createDesc: "Fill in the details below. Terry Music will generate your track and keep it available for download.",
+        emailLabel: "📧 Email Address (optional)",
+        emailHint: "Optional. The download button is the main way to get your MP3.",
         emailPH: "your@email.com",
         promptLabel: "🎶 Music Style Prompt",
         promptPH: "Describe the style, mood, instruments, BPM...",
@@ -390,7 +390,7 @@ Your chorus..."></textarea>
         extra: "💡 Extra Details", extraPH: "Any additional notes...",
         submitBtn: "🎵 Generate Music",
         jobsTitle: "Jobs",
-        jobsDesc: "Real-time status. MP3 will be sent to your email when done.",
+        jobsDesc: "Real-time status. Download appears when the MP3 is ready.",
         empty: "No jobs yet. Fill in the form to start creating.",
         running: "Generating",
         queued: "Queued",
@@ -407,11 +407,11 @@ Your chorus..."></textarea>
         deleteFailed: "Delete failed",
       },
       zh: {
-        subtitle: "描述音乐风格，AI 生成 MP3，完成后发送到你的邮箱。",
+        subtitle: "描述音乐风格，生成 MP3，完成后可直接下载。",
         createTitle: "创建音乐",
-        createDesc: "填写以下信息，AI 将生成专属音乐并发送到你的邮箱。",
-        emailLabel: "📧 邮箱地址",
-        emailHint: "音乐生成完成后，MP3 将自动发送到你的邮箱。",
+        createDesc: "填写以下信息，AI 将生成专属音乐，并保留下载按钮。",
+        emailLabel: "📧 邮箱地址（可选）",
+        emailHint: "可不填写。下载按钮是获取 MP3 的主要方式。",
         emailPH: "your@email.com",
         promptLabel: "🎶 音乐风格描述",
         promptPH: "描述风格、情绪、乐器、BPM...",
@@ -438,7 +438,7 @@ Your chorus..."></textarea>
         extra: "💡 其他要求", extraPH: "任何额外细节...",
         submitBtn: "🎵 生成音乐",
         jobsTitle: "生成任务",
-        jobsDesc: "实时状态，完成后 MP3 将发送到你的邮箱。",
+        jobsDesc: "实时状态。MP3 准备好后会出现下载按钮。",
         empty: "暂无任务，填写上方表单开始创作。",
         running: "生成中",
         queued: "排队中",
@@ -1150,8 +1150,6 @@ class MusicHandler(BaseHTTPRequestHandler):
             is_instrumental = bool(form.get("is_instrumental"))
             lyrics_optimizer = bool(form.get("lyrics_optimizer")) and not is_instrumental
             email = str(form.get("email", "")).strip()
-            if not email:
-                raise ValueError("Email is required.")
             if not prompt:
                 raise ValueError("Prompt is required.")
             if len(prompt) > 2000:
