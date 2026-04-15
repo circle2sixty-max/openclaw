@@ -27,6 +27,15 @@ from typing import Any
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "5050"))
 MMX_BIN = shutil.which("mmx") or "/Users/yuantao/.npm-global/bin/mmx"
+MMX_PATH_HINTS = [
+    "/opt/homebrew/bin",
+    str(Path.home() / ".npm-global" / "bin"),
+    "/usr/local/bin",
+    "/usr/bin",
+    "/bin",
+    "/usr/sbin",
+    "/sbin",
+]
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", str(Path.home() / "terry_music_outputs")))
 JOBS_DB = OUTPUT_DIR / "jobs.json"
 MAX_BODY_BYTES = 1024 * 1024
@@ -461,6 +470,11 @@ def run_mmx(args: list[str]) -> None:
     if not MINIMAX_API_TOKEN:
         raise RuntimeError("MINIMAX_API_TOKEN is not configured.")
     env = os.environ.copy()
+    path_parts = [part for part in env.get("PATH", "").split(os.pathsep) if part]
+    for path_hint in reversed(MMX_PATH_HINTS):
+        if path_hint not in path_parts:
+            path_parts.insert(0, path_hint)
+    env["PATH"] = os.pathsep.join(path_parts)
     env["MINIMAX_API_TOKEN"] = MINIMAX_API_TOKEN
     result = subprocess.run([MMX_BIN] + args, capture_output=True, text=True, env=env, timeout=900)
     if result.returncode != 0:

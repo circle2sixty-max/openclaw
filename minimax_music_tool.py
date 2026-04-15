@@ -38,6 +38,15 @@ from typing import Any
 HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", "5050"))
 MMX_BIN = shutil.which("mmx") or "/Users/yuantao/.npm-global/bin/mmx"
+MMX_PATH_HINTS = [
+    "/opt/homebrew/bin",
+    str(Path.home() / ".npm-global" / "bin"),
+    "/usr/local/bin",
+    "/usr/bin",
+    "/bin",
+    "/usr/sbin",
+    "/sbin",
+]
 
 
 def _legacy_local_config(name: str) -> str:
@@ -956,6 +965,11 @@ def sanitize_lyrics(text: str) -> str:
 def run_mmx(args: list[str]) -> bytes:
     """Run mmx CLI and return stdout bytes."""
     env = os.environ.copy()
+    path_parts = [part for part in env.get("PATH", "").split(os.pathsep) if part]
+    for path_hint in reversed(MMX_PATH_HINTS):
+        if path_hint not in path_parts:
+            path_parts.insert(0, path_hint)
+    env["PATH"] = os.pathsep.join(path_parts)
     env["MINIMAX_API_TOKEN"] = MINIMAX_API_TOKEN
     result = subprocess.run(
         [MMX_BIN] + args,
