@@ -166,6 +166,17 @@ INDEX_HTML = r"""<!doctype html>
     }
     button:hover, .download-link:hover { background: var(--accent-strong); }
     button:disabled { opacity: .65; cursor: wait; }
+    .secondary-btn {
+      min-height: 36px;
+      padding: 8px 12px;
+      border: 1px solid rgba(80,216,144,.32);
+      background: rgba(80,216,144,.12);
+      color: var(--accent);
+      font-size: 13px;
+    }
+    .secondary-btn:hover { background: rgba(80,216,144,.2); }
+    .assist-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+    .assist-msg { min-height: 18px; }
     .error-text { color: var(--danger); min-height: 20px; font-size: 14px; }
     .jobs { display: grid; gap: 10px; padding: 14px 16px 16px; }
     .empty { border: 1px dashed var(--line); border-radius: 8px; padding: 18px; color: var(--muted); text-align: center; }
@@ -220,6 +231,11 @@ INDEX_HTML = r"""<!doctype html>
               <div class="hint" data-i18n="emailHint">Optional. The download button is the main way to get your MP3.</div>
             </div>
             <div class="field">
+              <label for="songTitle" data-i18n="titleLabel">Song Title (optional)</label>
+              <input id="songTitle" type="text" maxlength="120" placeholder="Leave empty and AI will name the song">
+              <div class="hint" data-i18n="titleHint">If empty, Terry Music will create a title from the lyrics before saving the MP3.</div>
+            </div>
+            <div class="field">
               <label for="prompt" data-i18n="promptLabel">Music Style Prompt</label>
               <input id="prompt" type="text" maxlength="2000" required value="Cinematic electronic pop, confident and bright, polished production, strong hook">
               <div class="hint" data-i18n="promptHint">Include style, mood, instruments, tempo, and any references.</div>
@@ -228,6 +244,10 @@ INDEX_HTML = r"""<!doctype html>
               <label for="lyricsIdea" data-i18n="lyricsIdeaLabel">Lyrics Brief for AI (optional)</label>
               <textarea id="lyricsIdea" maxlength="2500" placeholder="Tell the story, feelings, images, language, chorus idea, or fragments you want in the lyrics."></textarea>
               <div class="hint" data-i18n="lyricsIdeaHint">If finished lyrics are empty, Terry Music will ask AI to write lyrics from this brief.</div>
+              <div class="assist-row">
+                <button id="generateLyricsBtn" class="secondary-btn" type="button" data-i18n="generateLyrics">Generate Lyrics</button>
+                <div id="lyricsAssistMessage" class="hint assist-msg"></div>
+              </div>
             </div>
             <div class="field">
               <label for="lyrics" data-i18n="lyricsLabel">Finished Lyrics (optional)</label>
@@ -283,8 +303,11 @@ INDEX_HTML = r"""<!doctype html>
         subtitle: "Describe a music style, generate an MP3, and download it when it is ready.",
         createTitle: "Create Music", createDesc: "Fill in the form. Terry Music will generate the track and keep it available for download.",
         emailLabel: "Email Address (optional)", emailHint: "Optional. The download button is the main way to get your MP3.",
+        titleLabel: "Song Title (optional)", titleHint: "If empty, Terry Music will create a title from the lyrics before saving the MP3.",
         promptLabel: "Music Style Prompt", promptHint: "Include style, mood, instruments, tempo, and any references.",
         lyricsIdeaLabel: "Lyrics Brief for AI (optional)", lyricsIdeaHint: "If finished lyrics are empty, Terry Music will ask AI to write lyrics from this brief.",
+        generateLyrics: "Generate Lyrics", generatingLyrics: "Generating lyrics...", lyricsGenerated: "Lyrics added below. You can edit them before generating music.",
+        lyricsAssistNeedBrief: "Add a lyrics brief or music style prompt first.", lyricsAssistFailed: "Lyrics generation failed.",
         lyricsLabel: "Finished Lyrics (optional)", lyricsHint: "Paste exact lyrics here if you already have them. Exact lyrics take priority over the lyrics brief.",
         instrumental: "Instrumental", instrumentalHint: "No vocals. Lyrics will be ignored.",
         autoLyrics: "Auto-generate Lyrics", autoLyricsHint: "AI writes lyrics from your prompt.",
@@ -298,8 +321,11 @@ INDEX_HTML = r"""<!doctype html>
         subtitle: "描述音乐风格，生成 MP3，完成后可直接下载。",
         createTitle: "创建音乐", createDesc: "填写表单，Terry Music 会生成音乐，并保留下载按钮。",
         emailLabel: "邮箱地址（可选）", emailHint: "可不填写。下载按钮是获取 MP3 的主要方式。",
+        titleLabel: "歌名（可选）", titleHint: "不填写时，Terry Music 会根据歌词分析生成歌名，并用作 MP3 文件名。",
         promptLabel: "音乐风格描述", promptHint: "写清风格、情绪、乐器、速度和参考对象。",
         lyricsIdeaLabel: "歌词需求描述（可选）", lyricsIdeaHint: "如果没有填写完整歌词，Terry Music 会让 AI 根据这里的故事、感受、片段或概念生成歌词。",
+        generateLyrics: "生成歌词", generatingLyrics: "正在生成歌词...", lyricsGenerated: "歌词已填入下方，你可以编辑后再生成音乐。",
+        lyricsAssistNeedBrief: "请先填写歌词需求描述或音乐风格。", lyricsAssistFailed: "歌词生成失败。",
         lyricsLabel: "完整歌词（可选）", lyricsHint: "如果你已经有确定歌词，粘贴在这里。完整歌词会优先于歌词需求描述。",
         instrumental: "纯音乐", instrumentalHint: "无人声，歌词会被忽略。",
         autoLyrics: "自动生成歌词", autoLyricsHint: "AI 根据描述写歌词。",
@@ -321,6 +347,8 @@ INDEX_HTML = r"""<!doctype html>
     const lyricsOptimizer = document.getElementById("lyricsOptimizer");
     const lyrics = document.getElementById("lyrics");
     const lyricsIdea = document.getElementById("lyricsIdea");
+    const generateLyricsBtn = document.getElementById("generateLyricsBtn");
+    const lyricsAssistMessage = document.getElementById("lyricsAssistMessage");
     const clientId = (() => {
       const key = "terry_music_client_id";
       let id = localStorage.getItem(key);
@@ -360,6 +388,7 @@ INDEX_HTML = r"""<!doctype html>
       jobsBox.innerHTML = lastJobs.map(job => {
         const status = escapeHtml(job.status || "unknown");
         const fileName = escapeHtml(job.file_name || "terry-music.mp3");
+        const title = escapeHtml(job.song_title || job.prompt || "Untitled");
         const mode = job.is_instrumental ? t("instrumentalMode") : t("vocalMode");
         const downloadUrl = job.download_url ? `${escapeHtml(job.download_url)}?client_id=${encodeURIComponent(clientId)}` : "";
         const download = job.status === "completed" && job.download_url
@@ -369,7 +398,7 @@ INDEX_HTML = r"""<!doctype html>
         const err = job.error ? `<div class="job-error">${escapeHtml(job.error)}</div>` : "";
         const canDelete = job.status !== "running" && job.status !== "queued";
         return `<div class="job">
-          <div class="job-top"><p class="job-title">${escapeHtml(job.prompt || "Untitled")}</p><span class="badge ${status}">${statusLabel(status)}</span></div>
+          <div class="job-top"><p class="job-title">${title}</p><span class="badge ${status}">${statusLabel(status)}</span></div>
           <div class="meta"><span>${mode}</span><span>${formatDate(job.created_at)}</span>${sent}</div>
           ${err}${download}
           ${canDelete ? `<button class="delete-btn" type="button" onclick="deleteJob('${escapeHtml(job.id)}')">${t("delete")}</button>` : ""}
@@ -391,14 +420,50 @@ INDEX_HTML = r"""<!doctype html>
       if (!res.ok) alert(t("deleteFailed"));
       await loadJobs();
     }
+    function collectPayload() {
+      const get = id => document.getElementById(id).value.trim();
+      return {
+        email: get("email"), song_title: get("songTitle"), prompt: get("prompt"), lyrics: get("lyrics"), lyrics_idea: get("lyricsIdea"),
+        is_instrumental: instrumental.checked, lyrics_optimizer: lyricsOptimizer.checked,
+        genre: get("genre"), mood: get("mood"), instruments: get("instruments"), tempo: get("tempo"), bpm: get("bpm"), key: get("key"),
+        vocals: get("vocals"), structure: get("structure"), references: get("references"), avoid: get("avoid"), use_case: get("useCase"), extra: get("extra")
+      };
+    }
+    function setLyricsAssistMessage(message, isError = false) {
+      lyricsAssistMessage.textContent = message;
+      lyricsAssistMessage.style.color = isError ? "var(--danger)" : "var(--muted)";
+    }
     function syncInstrumentalFields() {
       const off = instrumental.checked;
       lyrics.disabled = off;
       lyricsIdea.disabled = off;
       lyricsOptimizer.disabled = off;
+      generateLyricsBtn.disabled = off;
       if (off) lyricsOptimizer.checked = false;
     }
     instrumental.addEventListener("change", syncInstrumentalFields);
+    generateLyricsBtn.addEventListener("click", async () => {
+      setLyricsAssistMessage("");
+      const payload = collectPayload();
+      if (!payload.prompt && !payload.lyrics_idea) {
+        setLyricsAssistMessage(t("lyricsAssistNeedBrief"), true);
+        return;
+      }
+      generateLyricsBtn.disabled = true;
+      generateLyricsBtn.textContent = t("generatingLyrics");
+      try {
+        const res = await fetch("/api/lyrics", {method: "POST", headers: headers({"Content-Type": "application/json"}), body: JSON.stringify(payload)});
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || t("lyricsAssistFailed"));
+        lyrics.value = data.lyrics || "";
+        setLyricsAssistMessage(t("lyricsGenerated"));
+      } catch (error) {
+        setLyricsAssistMessage(error.message || t("lyricsAssistFailed"), true);
+      } finally {
+        generateLyricsBtn.textContent = t("generateLyrics");
+        generateLyricsBtn.disabled = instrumental.checked;
+      }
+    });
     document.getElementById("langBtn").addEventListener("click", () => {
       lang = lang === "en" ? "zh" : "en";
       applyLang();
@@ -407,18 +472,13 @@ INDEX_HTML = r"""<!doctype html>
       event.preventDefault();
       formError.textContent = "";
       submitBtn.disabled = true;
-      const get = id => document.getElementById(id).value.trim();
-      const payload = {
-        email: get("email"), prompt: get("prompt"), lyrics: get("lyrics"), lyrics_idea: get("lyricsIdea"),
-        is_instrumental: instrumental.checked, lyrics_optimizer: lyricsOptimizer.checked,
-        genre: get("genre"), mood: get("mood"), instruments: get("instruments"), tempo: get("tempo"), bpm: get("bpm"), key: get("key"),
-        vocals: get("vocals"), structure: get("structure"), references: get("references"), avoid: get("avoid"), use_case: get("useCase"), extra: get("extra")
-      };
+      const payload = collectPayload();
       try {
         const res = await fetch("/api/jobs", {method: "POST", headers: headers({"Content-Type": "application/json"}), body: JSON.stringify(payload)});
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
         form.reset();
+        setLyricsAssistMessage("");
         document.getElementById("prompt").value = "Cinematic electronic pop, confident and bright, polished production, strong hook";
         syncInstrumentalFields();
         await loadJobs();
@@ -495,7 +555,9 @@ ADMIN_HTML = r"""<!doctype html>
       }
       jobsBox.innerHTML = jobs.map(job => {
         const download = job.download_url ? `<a class="button" href="${escapeHtml(job.download_url)}" download="${escapeHtml(job.file_name || "terry-music.mp3")}">Download MP3</a>` : "";
+        const title = escapeHtml(job.song_title || job.prompt || "Untitled");
         const details = [
+          job.prompt ? `<details><summary>Music prompt</summary><pre>${escapeHtml(job.prompt)}</pre></details>` : "",
           job.lyrics_idea ? `<details><summary>Lyrics brief</summary><pre>${escapeHtml(job.lyrics_idea)}</pre></details>` : "",
           job.lyrics ? `<details><summary>Finished lyrics</summary><pre>${escapeHtml(job.lyrics)}</pre></details>` : "",
           job.error ? `<details open><summary>Error</summary><pre>${escapeHtml(job.error)}</pre></details>` : ""
@@ -503,7 +565,7 @@ ADMIN_HTML = r"""<!doctype html>
         return `<article class="card">
           <div class="row">
             <div>
-              <p class="title">${escapeHtml(job.prompt || "Untitled")}</p>
+              <p class="title">${title}</p>
               <div class="meta">
                 <span class="badge ${escapeHtml(job.status)}">${escapeHtml(job.status || "unknown")}</span>
                 <span>${formatDate(job.created_at)}</span>
@@ -555,6 +617,25 @@ def safe_name(value: str, fallback: str = "terry-music") -> str:
     return (text or fallback)[:80]
 
 
+def download_file_name(title: str, fallback: str = "terry-music") -> str:
+    base = re.sub(r"[\x00-\x1f\x7f<>:\"/\\|?*]+", "-", title).strip(" .-_")
+    base = re.sub(r"\s+", " ", base)[:120].strip(" .-_")
+    if not base:
+        base = fallback
+    if not base.lower().endswith(".mp3"):
+        base = f"{base}.mp3"
+    return base
+
+
+def ascii_header_file_name(file_name: str) -> str:
+    if file_name.lower().endswith(".mp3"):
+        stem = file_name[:-4]
+    else:
+        stem = file_name
+    safe_stem = safe_name(stem, "terry-music")
+    return f"{safe_stem}.mp3"
+
+
 def load_jobs() -> None:
     global JOBS
     if not JOBS_DB.exists():
@@ -576,7 +657,7 @@ def save_jobs_locked() -> None:
 
 
 def public_job(job: dict[str, Any]) -> dict[str, Any]:
-    result = {key: job.get(key) for key in ("id", "status", "created_at", "updated_at", "prompt", "email", "is_instrumental", "lyrics_optimizer", "file_name", "error", "email_sent")}
+    result = {key: job.get(key) for key in ("id", "status", "created_at", "updated_at", "prompt", "song_title", "generated_title", "email", "is_instrumental", "lyrics_optimizer", "file_name", "error", "email_sent")}
     if job.get("status") == "completed" and job.get("file_path"):
         result["download_url"] = f"/download/{urllib.parse.quote(str(job['id']))}"
     return result
@@ -608,6 +689,26 @@ def clean_generated_lyrics(text: str) -> str:
             cleaned = cleaned[len(prefix):].strip()
             break
     return cleaned[:3500].strip()
+
+
+def clean_song_title(text: str) -> str:
+    cleaned = re.sub(r"\x1b\[[0-9;]*m", "", text).strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```[a-zA-Z]*\s*", "", cleaned)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+    prefixes = ("title:", "song title:", "歌名：", "标题：")
+    lower = cleaned.lower()
+    for prefix in prefixes:
+        if lower.startswith(prefix):
+            cleaned = cleaned[len(prefix):].strip()
+            break
+    lines = [line.strip(" \t\r\n\"'`“”‘’") for line in cleaned.splitlines() if line.strip()]
+    title = lines[0] if lines else ""
+    title = re.sub(r"^\s*[-*#]+\s*", "", title).strip(" \t\r\n\"'`“”‘’")
+    title = re.sub(r"\s+", " ", title)
+    if title.lower().endswith(".mp3"):
+        title = title[:-4].strip(" .-_")
+    return title[:120].strip()
 
 
 def generate_lyrics_from_text_model(job: dict[str, Any]) -> str:
@@ -656,6 +757,41 @@ def generate_lyrics_from_text_model(job: dict[str, Any]) -> str:
     if not lyrics:
         raise RuntimeError("MiniMax text model returned empty lyrics.")
     return lyrics
+
+
+def generate_title_from_text_model(job: dict[str, Any], lyrics: str) -> str:
+    prompt = str(job.get("prompt", "")).strip()
+    lyrics_idea = str(job.get("lyrics_idea", "")).strip()
+    extra = job.get("extra", {}) if isinstance(job.get("extra"), dict) else {}
+    context = {
+        "music_style_prompt": prompt,
+        "lyrics": lyrics,
+        "lyrics_brief": lyrics_idea,
+        "genre": extra.get("genre", ""),
+        "mood": extra.get("mood", ""),
+        "vocal_style": extra.get("vocals", ""),
+        "use_case": extra.get("use_case", ""),
+    }
+    system = (
+        "You are a music editor naming a song. Create exactly one concise song title. "
+        "Output only the title, with no explanation, no quotes, and no markdown. "
+        "If lyrics are provided, infer the title from the lyrics. If there are no lyrics, infer it from the music prompt. "
+        "Use the same language as the lyrics when possible."
+    )
+    output = run_mmx([
+        "text", "chat",
+        "--system", system,
+        "--message", json.dumps(context, ensure_ascii=False, indent=2),
+        "--max-tokens", "80",
+        "--temperature", "0.65",
+        "--non-interactive",
+        "--quiet",
+        "--output", "text",
+    ], timeout=120)
+    title = clean_song_title(output)
+    if not title:
+        raise RuntimeError("MiniMax text model returned an empty song title.")
+    return title
 
 
 def mark_job(job_id: str, **updates: Any) -> None:
@@ -721,11 +857,18 @@ def generate_music(job_id: str) -> None:
         prompt = str(job["prompt"])
         lyrics = str(job.get("lyrics", "")).strip()
         lyrics_idea = str(job.get("lyrics_idea", "")).strip()
+        song_title = clean_song_title(str(job.get("song_title", "")).strip())
         if not job.get("is_instrumental") and not lyrics and (lyrics_idea or job.get("lyrics_optimizer")):
             lyrics = generate_lyrics_from_text_model(job)
             mark_job(job_id, lyrics=lyrics, generated_lyrics=True)
+        if not song_title:
+            song_title = generate_title_from_text_model(job, lyrics)
+            mark_job(job_id, song_title=song_title, generated_title=True)
+        else:
+            mark_job(job_id, song_title=song_title, generated_title=False)
+        file_name = download_file_name(song_title)
         stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-        out_path = OUTPUT_DIR / f"terry_music_{stamp}_{safe_name(prompt)}_{job_id[:8]}.mp3"
+        out_path = OUTPUT_DIR / f"terry_music_{stamp}_{safe_name(song_title)}_{job_id[:8]}.mp3"
         args = ["music", "generate", "--prompt", prompt, "--out", str(out_path), "--non-interactive"]
         if job.get("is_instrumental"):
             args.append("--instrumental")
@@ -743,7 +886,7 @@ def generate_music(job_id: str) -> None:
             if value:
                 args.extend([flag, value])
         run_mmx(args)
-        mark_job(job_id, status="completed", file_name=out_path.name, file_path=str(out_path))
+        mark_job(job_id, status="completed", file_name=file_name, file_path=str(out_path))
         if job.get("email") and out_path.exists():
             ok = send_email(str(job["email"]), out_path, prompt)
             mark_job(job_id, email_sent=ok)
@@ -843,24 +986,55 @@ class MusicHandler(BaseHTTPRequestHandler):
             return
         self.send_text("Not found", HTTPStatus.NOT_FOUND)
 
+    def read_json_body(self) -> dict[str, Any]:
+        try:
+            length = int(self.headers.get("Content-Length") or "0")
+        except ValueError:
+            raise ValueError("Invalid request length.")
+        if length <= 0 or length > MAX_BODY_BYTES:
+            raise ValueError("Request body is empty or too large.")
+        try:
+            form = json.loads(self.rfile.read(length).decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise ValueError("Invalid JSON request body.") from exc
+        if not isinstance(form, dict):
+            raise ValueError("Expected a JSON object.")
+        return form
+
+    def handle_lyrics_request(self) -> None:
+        try:
+            form = self.read_json_body()
+            prompt = str(form.get("prompt", "")).strip()
+            lyrics_idea = str(form.get("lyrics_idea", "")).strip()
+            if not prompt and not lyrics_idea:
+                raise ValueError("Lyrics brief or music style prompt is required.")
+            if len(prompt) > 2000:
+                raise ValueError("Prompt must be 2000 characters or fewer.")
+            if len(lyrics_idea) > 2500:
+                raise ValueError("Lyrics brief must be 2500 characters or fewer.")
+            extra = {key: str(form.get(key, "")).strip() for key in ("genre", "mood", "instruments", "tempo", "bpm", "key", "vocals", "structure", "references", "avoid", "use_case", "extra")}
+            lyrics = generate_lyrics_from_text_model({"prompt": prompt, "lyrics_idea": lyrics_idea, "extra": extra})
+        except ValueError as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            return
+        except Exception as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
+            return
+        self.send_json({"lyrics": lyrics})
+
     def do_POST(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
+        if parsed.path == "/api/lyrics":
+            self.handle_lyrics_request()
+            return
         if parsed.path != "/api/jobs":
             self.send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
             return
         try:
-            length = int(self.headers.get("Content-Length") or "0")
-        except ValueError:
-            self.send_json({"error": "Invalid request length."}, HTTPStatus.BAD_REQUEST)
-            return
-        if length <= 0 or length > MAX_BODY_BYTES:
-            self.send_json({"error": "Request body is empty or too large."}, HTTPStatus.BAD_REQUEST)
-            return
-        try:
-            form = json.loads(self.rfile.read(length).decode("utf-8"))
-            if not isinstance(form, dict):
-                raise ValueError("Expected a JSON object.")
+            form = self.read_json_body()
             prompt = str(form.get("prompt", "")).strip()
+            raw_song_title = str(form.get("song_title", "")).strip()
+            song_title = clean_song_title(raw_song_title)
             email_addr = str(form.get("email", "")).strip()
             lyrics = str(form.get("lyrics", "")).strip()
             lyrics_idea = str(form.get("lyrics_idea", "")).strip()
@@ -870,6 +1044,8 @@ class MusicHandler(BaseHTTPRequestHandler):
                 raise ValueError("Prompt is required.")
             if len(prompt) > 2000:
                 raise ValueError("Prompt must be 2000 characters or fewer.")
+            if len(raw_song_title) > 120:
+                raise ValueError("Song title must be 120 characters or fewer.")
             if len(lyrics) > 3500:
                 raise ValueError("Lyrics must be 3500 characters or fewer.")
             if len(lyrics_idea) > 2500:
@@ -877,7 +1053,7 @@ class MusicHandler(BaseHTTPRequestHandler):
             if not is_instrumental and not lyrics and not lyrics_optimizer:
                 raise ValueError("Lyrics, a lyrics brief, or auto lyrics are required for vocal tracks.")
             extra = {key: str(form.get(key, "")).strip() for key in ("genre", "mood", "instruments", "tempo", "bpm", "key", "vocals", "structure", "references", "avoid", "use_case", "extra")}
-        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
+        except ValueError as exc:
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
             return
         job_id = secrets.token_urlsafe(12)
@@ -888,6 +1064,8 @@ class MusicHandler(BaseHTTPRequestHandler):
             "created_at": now_iso(),
             "updated_at": now_iso(),
             "prompt": prompt,
+            "song_title": song_title,
+            "generated_title": False,
             "email": email_addr,
             "lyrics": lyrics,
             "lyrics_idea": lyrics_idea,
@@ -946,13 +1124,14 @@ class MusicHandler(BaseHTTPRequestHandler):
         if output_root not in file_path.parents and file_path != output_root:
             self.send_text("Invalid file path", HTTPStatus.BAD_REQUEST)
             return
-        file_name = file_path.name
+        file_name = download_file_name(str(job.get("file_name") or file_path.name))
+        ascii_file_name = ascii_header_file_name(file_name)
         content_type = mimetypes.guess_type(str(file_path))[0] or "application/octet-stream"
         quoted = urllib.parse.quote(file_name)
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(file_path.stat().st_size))
-        self.send_header("Content-Disposition", f"attachment; filename=\"{file_name}\"; filename*=UTF-8''{quoted}")
+        self.send_header("Content-Disposition", f"attachment; filename=\"{ascii_file_name}\"; filename*=UTF-8''{quoted}")
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         with file_path.open("rb") as file_obj:
