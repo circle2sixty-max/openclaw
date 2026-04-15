@@ -62,7 +62,13 @@ def _legacy_local_config(name: str) -> str:
     return match.group(2) if match else ""
 
 
-MINIMAX_API_TOKEN = os.environ.get("MINIMAX_API_TOKEN") or _legacy_local_config("MINIMAX_API_TOKEN")
+MINIMAX_API_KEY = (
+    os.environ.get("MINIMAX_API_KEY")
+    or os.environ.get("MINIMAX_API_TOKEN")
+    or _legacy_local_config("MINIMAX_API_KEY")
+    or _legacy_local_config("MINIMAX_API_TOKEN")
+)
+MINIMAX_API_TOKEN = MINIMAX_API_KEY
 
 # SMTP email config. Render should provide these as environment variables.
 SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
@@ -970,7 +976,8 @@ def run_mmx(args: list[str]) -> bytes:
         if path_hint not in path_parts:
             path_parts.insert(0, path_hint)
     env["PATH"] = os.pathsep.join(path_parts)
-    env["MINIMAX_API_TOKEN"] = MINIMAX_API_TOKEN
+    env["MINIMAX_API_KEY"] = MINIMAX_API_KEY
+    env["MINIMAX_API_TOKEN"] = MINIMAX_API_KEY
     result = subprocess.run(
         [MMX_BIN] + args,
         capture_output=True,
@@ -1060,10 +1067,10 @@ class MusicHandler(BaseHTTPRequestHandler):
         path = parsed.path
 
         if path == "/":
-            token_ok = True
+            token_ok = bool(MINIMAX_API_KEY)
             html = INDEX_HTML.replace(
                 "__TOKEN_STATUS__",
-                "MINIMAX_API_TOKEN detected" if token_ok else "MINIMAX_API_TOKEN missing",
+                "MINIMAX_API_KEY detected" if token_ok else "MINIMAX_API_KEY missing",
             ).replace("__TOKEN_CLASS__", "ok" if token_ok else "missing")
             data = html.encode("utf-8")
             self.send_response(HTTPStatus.OK)
@@ -1088,7 +1095,7 @@ class MusicHandler(BaseHTTPRequestHandler):
         if path == "/api/health":
             self.send_json({
                 "ok": True,
-                "minimax_configured": bool(MINIMAX_API_TOKEN),
+                "minimax_configured": bool(MINIMAX_API_KEY),
                 "smtp_configured": bool(SMTP_USER and SMTP_PASSWORD),
                 "smtp_host": SMTP_HOST,
                 "smtp_port": SMTP_PORT,

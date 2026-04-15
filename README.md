@@ -32,6 +32,8 @@ Recommended Render region: Singapore. It is the closest Render region to China w
 
 Email delivery is optional. Render Free web services can block outbound SMTP ports, so the deploy flow is download-first by default.
 
+For compatibility with older local setup, the app also accepts `MINIMAX_API_TOKEN` and passes it through to `mmx-cli` as `MINIMAX_API_KEY`.
+
 ## Notes
 
 Each browser gets a local client id, so the Jobs panel only shows that browser's own jobs. This is not a login system; it is a lightweight privacy boundary for a private friends-only tool.

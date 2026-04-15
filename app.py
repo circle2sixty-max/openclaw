@@ -53,7 +53,13 @@ def legacy_local_config(name: str) -> str:
     return match.group(2) if match else ""
 
 
-MINIMAX_API_TOKEN = os.getenv("MINIMAX_API_TOKEN") or legacy_local_config("MINIMAX_API_TOKEN")
+MINIMAX_API_KEY = (
+    os.getenv("MINIMAX_API_KEY")
+    or os.getenv("MINIMAX_API_TOKEN")
+    or legacy_local_config("MINIMAX_API_KEY")
+    or legacy_local_config("MINIMAX_API_TOKEN")
+)
+MINIMAX_API_TOKEN = MINIMAX_API_KEY
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
 SMTP_USER = os.getenv("SMTP_USER") or legacy_local_config("SMTP_USER")
@@ -467,15 +473,16 @@ def mark_job(job_id: str, **updates: Any) -> None:
 
 
 def run_mmx(args: list[str]) -> None:
-    if not MINIMAX_API_TOKEN:
-        raise RuntimeError("MINIMAX_API_TOKEN is not configured.")
+    if not MINIMAX_API_KEY:
+        raise RuntimeError("MINIMAX_API_KEY is not configured.")
     env = os.environ.copy()
     path_parts = [part for part in env.get("PATH", "").split(os.pathsep) if part]
     for path_hint in reversed(MMX_PATH_HINTS):
         if path_hint not in path_parts:
             path_parts.insert(0, path_hint)
     env["PATH"] = os.pathsep.join(path_parts)
-    env["MINIMAX_API_TOKEN"] = MINIMAX_API_TOKEN
+    env["MINIMAX_API_KEY"] = MINIMAX_API_KEY
+    env["MINIMAX_API_TOKEN"] = MINIMAX_API_KEY
     result = subprocess.run([MMX_BIN] + args, capture_output=True, text=True, env=env, timeout=900)
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "Unknown mmx error").strip()
@@ -580,7 +587,7 @@ class MusicHandler(BaseHTTPRequestHandler):
         if path == "/api/health":
             self.send_json({
                 "ok": True,
-                "minimax_configured": bool(MINIMAX_API_TOKEN),
+                "minimax_configured": bool(MINIMAX_API_KEY),
                 "smtp_configured": bool(SMTP_USER and SMTP_PASSWORD),
                 "smtp_host": SMTP_HOST,
                 "smtp_port": SMTP_PORT,
