@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.env
+.env.*
+minimax_music_outputs/
+jobs.json
+*.mp3
