@@ -227,22 +227,22 @@ INDEX_HTML = r"""<!doctype html>
           <form id="jobForm">
             <div class="field">
               <label for="email" data-i18n="emailLabel">Email Address (optional)</label>
-              <input id="email" type="email" placeholder="your@email.com">
+              <input id="email" type="email" data-i18n-placeholder="emailPlaceholder" placeholder="your@email.com">
               <div class="hint" data-i18n="emailHint">Optional. The download button is the main way to get your MP3.</div>
             </div>
             <div class="field">
               <label for="songTitle" data-i18n="titleLabel">Song Title (optional)</label>
-              <input id="songTitle" type="text" maxlength="120" placeholder="Leave empty and AI will name the song">
+              <input id="songTitle" type="text" maxlength="120" data-i18n-placeholder="titlePlaceholder" placeholder="Leave empty and AI will name the song">
               <div class="hint" data-i18n="titleHint">If empty, Terry Music will create a title from the lyrics before saving the MP3.</div>
             </div>
             <div class="field">
               <label for="prompt" data-i18n="promptLabel">Music Style Prompt</label>
-              <input id="prompt" type="text" maxlength="2000" required value="Cinematic electronic pop, confident and bright, polished production, strong hook">
+              <input id="prompt" type="text" maxlength="2000" required data-i18n-placeholder="promptPlaceholder" placeholder="Cinematic electronic pop, confident and bright, polished production, strong hook">
               <div class="hint" data-i18n="promptHint">Include style, mood, instruments, tempo, and any references.</div>
             </div>
             <div class="field">
               <label for="lyricsIdea" data-i18n="lyricsIdeaLabel">Lyrics Brief for AI (optional)</label>
-              <textarea id="lyricsIdea" maxlength="2500" placeholder="Tell the story, feelings, images, language, chorus idea, or fragments you want in the lyrics."></textarea>
+              <textarea id="lyricsIdea" maxlength="2500" data-i18n-placeholder="lyricsIdeaPlaceholder" placeholder="Tell the story, feelings, images, language, chorus idea, or fragments you want in the lyrics."></textarea>
               <div class="hint" data-i18n="lyricsIdeaHint">If finished lyrics are empty, Terry Music will ask AI to write lyrics from this brief.</div>
               <div class="assist-row">
                 <button id="generateLyricsBtn" class="secondary-btn" type="button" data-i18n="generateLyrics">Generate Lyrics</button>
@@ -251,7 +251,7 @@ INDEX_HTML = r"""<!doctype html>
             </div>
             <div class="field">
               <label for="lyrics" data-i18n="lyricsLabel">Finished Lyrics (optional)</label>
-              <textarea id="lyrics" maxlength="3500" placeholder="[Verse]\nYour lyrics here...\n[Hook]\nYour chorus..."></textarea>
+              <textarea id="lyrics" maxlength="3500" data-i18n-placeholder="lyricsPlaceholder" placeholder="[Verse]\nYour lyrics here...\n[Hook]\nYour chorus..."></textarea>
               <div class="hint" data-i18n="lyricsHint">Paste exact lyrics here if you already have them. Exact lyrics take priority over the lyrics brief.</div>
             </div>
             <div class="checks">
@@ -267,18 +267,18 @@ INDEX_HTML = r"""<!doctype html>
             <details>
               <summary data-i18n="advanced">More Parameters</summary>
               <div class="grid">
-                <div class="field"><label for="genre" data-i18n="genre">Genre</label><input id="genre" placeholder="pop, reggae, jazz"></div>
-                <div class="field"><label for="mood" data-i18n="mood">Mood</label><input id="mood" placeholder="warm, bright, intense"></div>
-                <div class="field"><label for="instruments" data-i18n="instruments">Instruments</label><input id="instruments" placeholder="piano, guitar, drums"></div>
-                <div class="field"><label for="tempo" data-i18n="tempo">Tempo Feel</label><input id="tempo" placeholder="fast, slow, moderate"></div>
-                <div class="field"><label for="bpm" data-i18n="bpm">BPM</label><input id="bpm" type="number" min="40" max="240" placeholder="85"></div>
-                <div class="field"><label for="key" data-i18n="key">Musical Key</label><input id="key" placeholder="C major, A minor"></div>
-                <div class="field wide"><label for="vocals" data-i18n="vocals">Vocal Style</label><input id="vocals" placeholder="warm male vocal, bright female vocal, duet"></div>
-                <div class="field wide"><label for="structure" data-i18n="structure">Song Structure</label><input id="structure" placeholder="verse-chorus-verse-bridge-chorus"></div>
-                <div class="field wide"><label for="references" data-i18n="references">References</label><input id="references" placeholder="similar to..."></div>
-                <div class="field wide"><label for="avoid" data-i18n="avoid">Avoid</label><input id="avoid" placeholder="explicit content, auto-tune"></div>
-                <div class="field wide"><label for="useCase" data-i18n="useCase">Use Case</label><input id="useCase" placeholder="video background, theme song"></div>
-                <div class="field wide"><label for="extra" data-i18n="extra">Extra Details</label><input id="extra" placeholder="Any additional notes"></div>
+                <div class="field"><label for="genre" data-i18n="genre">Genre</label><input id="genre" data-i18n-placeholder="genrePlaceholder" placeholder="pop, reggae, jazz"></div>
+                <div class="field"><label for="mood" data-i18n="mood">Mood</label><input id="mood" data-i18n-placeholder="moodPlaceholder" placeholder="warm, bright, intense"></div>
+                <div class="field"><label for="instruments" data-i18n="instruments">Instruments</label><input id="instruments" data-i18n-placeholder="instrumentsPlaceholder" placeholder="piano, guitar, drums"></div>
+                <div class="field"><label for="tempo" data-i18n="tempo">Tempo Feel</label><input id="tempo" data-i18n-placeholder="tempoPlaceholder" placeholder="fast, slow, moderate"></div>
+                <div class="field"><label for="bpm" data-i18n="bpm">BPM</label><input id="bpm" type="number" min="40" max="240" data-i18n-placeholder="bpmPlaceholder" placeholder="85"></div>
+                <div class="field"><label for="key" data-i18n="key">Musical Key</label><input id="key" data-i18n-placeholder="keyPlaceholder" placeholder="C major, A minor"></div>
+                <div class="field wide"><label for="vocals" data-i18n="vocals">Vocal Style</label><input id="vocals" data-i18n-placeholder="vocalsPlaceholder" placeholder="warm male vocal, bright female vocal, duet"></div>
+                <div class="field wide"><label for="structure" data-i18n="structure">Song Structure</label><input id="structure" data-i18n-placeholder="structurePlaceholder" placeholder="verse-chorus-verse-bridge-chorus"></div>
+                <div class="field wide"><label for="references" data-i18n="references">References</label><input id="references" data-i18n-placeholder="referencesPlaceholder" placeholder="similar to..."></div>
+                <div class="field wide"><label for="avoid" data-i18n="avoid">Avoid</label><input id="avoid" data-i18n-placeholder="avoidPlaceholder" placeholder="explicit content, auto-tune"></div>
+                <div class="field wide"><label for="useCase" data-i18n="useCase">Use Case</label><input id="useCase" data-i18n-placeholder="useCasePlaceholder" placeholder="video background, theme song"></div>
+                <div class="field wide"><label for="extra" data-i18n="extra">Extra Details</label><input id="extra" data-i18n-placeholder="extraPlaceholder" placeholder="Any additional notes"></div>
               </div>
             </details>
             <div class="actions">
@@ -303,16 +303,26 @@ INDEX_HTML = r"""<!doctype html>
         subtitle: "Describe a music style, generate an MP3, and download it when it is ready.",
         createTitle: "Create Music", createDesc: "Fill in the form. Terry Music will generate the track and keep it available for download.",
         emailLabel: "Email Address (optional)", emailHint: "Optional. The download button is the main way to get your MP3.",
+        emailPlaceholder: "your@email.com",
         titleLabel: "Song Title (optional)", titleHint: "If empty, Terry Music will create a title from the lyrics before saving the MP3.",
+        titlePlaceholder: "Leave empty and AI will name the song",
         promptLabel: "Music Style Prompt", promptHint: "Include style, mood, instruments, tempo, and any references.",
+        promptPlaceholder: "Cinematic electronic pop, confident and bright, polished production, strong hook",
         lyricsIdeaLabel: "Lyrics Brief for AI (optional)", lyricsIdeaHint: "If finished lyrics are empty, Terry Music will ask AI to write lyrics from this brief.",
+        lyricsIdeaPlaceholder: "Tell the story, feelings, images, language, chorus idea, or fragments you want in the lyrics.",
         generateLyrics: "Generate Lyrics", generatingLyrics: "Generating lyrics...", lyricsGenerated: "Lyrics added below. You can edit them before generating music.",
         lyricsAssistNeedBrief: "Add a lyrics brief or music style prompt first.", lyricsAssistFailed: "Lyrics generation failed.",
         lyricsLabel: "Finished Lyrics (optional)", lyricsHint: "Paste exact lyrics here if you already have them. Exact lyrics take priority over the lyrics brief.",
+        lyricsPlaceholder: "[Verse]\nYour lyrics here...\n[Hook]\nYour chorus...",
         instrumental: "Instrumental", instrumentalHint: "No vocals. Lyrics will be ignored.",
         autoLyrics: "Auto-generate Lyrics", autoLyricsHint: "AI writes lyrics from your prompt.",
         advanced: "More Parameters", genre: "Genre", mood: "Mood", instruments: "Instruments", tempo: "Tempo Feel", bpm: "BPM", key: "Musical Key",
         vocals: "Vocal Style", structure: "Song Structure", references: "References", avoid: "Avoid", useCase: "Use Case", extra: "Extra Details",
+        genrePlaceholder: "pop, reggae, jazz", moodPlaceholder: "warm, bright, intense", instrumentsPlaceholder: "piano, guitar, drums",
+        tempoPlaceholder: "fast, slow, moderate", bpmPlaceholder: "85", keyPlaceholder: "C major, A minor",
+        vocalsPlaceholder: "warm male vocal, bright female vocal, duet", structurePlaceholder: "verse-chorus-verse-bridge-chorus",
+        referencesPlaceholder: "similar to...", avoidPlaceholder: "explicit content, auto-tune", useCasePlaceholder: "video background, theme song",
+        extraPlaceholder: "Any additional notes",
         submit: "Generate Music", jobsTitle: "Jobs", jobsDesc: "Real-time status. Download appears when the MP3 is ready.",
         empty: "No jobs yet. Fill in the form to start creating.", queued: "Queued", running: "Generating", completed: "Done", error: "Error", unknown: "Unknown",
         download: "Download MP3", delete: "Delete", sent: "Sent to", instrumentalMode: "Instrumental", vocalMode: "Vocal", deleteConfirm: "Delete this job?", deleteFailed: "Delete failed"
@@ -321,16 +331,26 @@ INDEX_HTML = r"""<!doctype html>
         subtitle: "描述音乐风格，生成 MP3，完成后可直接下载。",
         createTitle: "创建音乐", createDesc: "填写表单，Terry Music 会生成音乐，并保留下载按钮。",
         emailLabel: "邮箱地址（可选）", emailHint: "可不填写。下载按钮是获取 MP3 的主要方式。",
+        emailPlaceholder: "你的邮箱（可选）",
         titleLabel: "歌名（可选）", titleHint: "不填写时，Terry Music 会根据歌词分析生成歌名，并用作 MP3 文件名。",
+        titlePlaceholder: "留空时，AI 会自动起歌名",
         promptLabel: "音乐风格描述", promptHint: "写清风格、情绪、乐器、速度和参考对象。",
+        promptPlaceholder: "例如：明亮自信的电子流行，制作精致，副歌有记忆点",
         lyricsIdeaLabel: "歌词需求描述（可选）", lyricsIdeaHint: "如果没有填写完整歌词，Terry Music 会让 AI 根据这里的故事、感受、片段或概念生成歌词。",
+        lyricsIdeaPlaceholder: "写下你想要的故事、情绪、画面、语言、某句副歌，或零散歌词片段。",
         generateLyrics: "生成歌词", generatingLyrics: "正在生成歌词...", lyricsGenerated: "歌词已填入下方，你可以编辑后再生成音乐。",
         lyricsAssistNeedBrief: "请先填写歌词需求描述或音乐风格。", lyricsAssistFailed: "歌词生成失败。",
         lyricsLabel: "完整歌词（可选）", lyricsHint: "如果你已经有确定歌词，粘贴在这里。完整歌词会优先于歌词需求描述。",
+        lyricsPlaceholder: "[主歌]\n在这里写歌词...\n[副歌]\n在这里写副歌...",
         instrumental: "纯音乐", instrumentalHint: "无人声，歌词会被忽略。",
         autoLyrics: "自动生成歌词", autoLyricsHint: "AI 根据描述写歌词。",
         advanced: "更多参数", genre: "流派", mood: "情绪", instruments: "乐器", tempo: "节奏感", bpm: "BPM", key: "调性",
         vocals: "人声风格", structure: "歌曲结构", references: "参考对象", avoid: "避免元素", useCase: "使用场景", extra: "其他细节",
+        genrePlaceholder: "流行、雷鬼、爵士", moodPlaceholder: "温暖、明亮、强烈", instrumentsPlaceholder: "钢琴、吉他、鼓",
+        tempoPlaceholder: "快、中速、慢", bpmPlaceholder: "85", keyPlaceholder: "C 大调、A 小调",
+        vocalsPlaceholder: "温暖男声、明亮女声、男女对唱", structurePlaceholder: "主歌-副歌-主歌-桥段-副歌",
+        referencesPlaceholder: "参考某首歌、某位歌手或某种感觉", avoidPlaceholder: "避免露骨内容、避免过重电音修音",
+        useCasePlaceholder: "视频背景、主题曲、朋友生日歌", extraPlaceholder: "其他补充要求",
         submit: "生成音乐", jobsTitle: "生成任务", jobsDesc: "实时状态。MP3 准备好后会出现下载按钮。",
         empty: "暂无任务，填写表单开始创作。", queued: "排队中", running: "生成中", completed: "完成", error: "错误", unknown: "未知",
         download: "下载 MP3", delete: "删除", sent: "已发送到", instrumentalMode: "纯音乐", vocalMode: "有人声", deleteConfirm: "删除此任务？", deleteFailed: "删除失败"
@@ -369,6 +389,7 @@ INDEX_HTML = r"""<!doctype html>
       document.getElementById("subtitle").textContent = t("subtitle");
       document.getElementById("langBtn").textContent = lang === "en" ? "中文" : "EN";
       document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
+      document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
       renderJobs(lastJobs);
     }
     function statusLabel(status) {
@@ -479,7 +500,7 @@ INDEX_HTML = r"""<!doctype html>
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
         form.reset();
         setLyricsAssistMessage("");
-        document.getElementById("prompt").value = "Cinematic electronic pop, confident and bright, polished production, strong hook";
+        applyLang();
         syncInstrumentalFields();
         await loadJobs();
       } catch (error) {
