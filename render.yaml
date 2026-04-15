@@ -2,6 +2,7 @@ services:
   - type: web
     name: terry-music
     runtime: docker
+    plan: free
     region: singapore
     healthCheckPath: /api/health
     envVars:
