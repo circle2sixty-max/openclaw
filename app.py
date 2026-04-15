@@ -678,7 +678,7 @@ def save_jobs_locked() -> None:
 
 
 def public_job(job: dict[str, Any]) -> dict[str, Any]:
-    result = {key: job.get(key) for key in ("id", "status", "created_at", "updated_at", "prompt", "song_title", "generated_title", "email", "is_instrumental", "lyrics_optimizer", "file_name", "error", "email_sent")}
+    result = {key: job.get(key) for key in ("id", "status", "created_at", "updated_at", "prompt", "song_title", "generated_title", "title_error", "email", "is_instrumental", "lyrics_optimizer", "file_name", "error", "email_sent")}
     if job.get("status") == "completed" and job.get("file_path"):
         result["download_url"] = f"/download/{urllib.parse.quote(str(job['id']))}"
     return result
@@ -730,6 +730,42 @@ def clean_song_title(text: str) -> str:
     if title.lower().endswith(".mp3"):
         title = title[:-4].strip(" .-_")
     return title[:120].strip()
+
+
+def compact_title_candidate(text: str, max_words: int = 8, max_chars: int = 36) -> str:
+    title = clean_song_title(text)
+    if not title:
+        return ""
+    title = re.sub(r"^\[[^\]]+\]\s*", "", title).strip()
+    title = re.sub(r"[,，。.!！?？;；:：]+$", "", title).strip()
+    if not title:
+        return ""
+    words = title.split()
+    if len(words) > max_words:
+        return " ".join(words[:max_words]).strip()
+    if len(title) > max_chars and len(words) <= 1:
+        return title[:max_chars].strip()
+    return title[:120].strip()
+
+
+def fallback_song_title(job: dict[str, Any], lyrics: str) -> str:
+    for line in lyrics.splitlines():
+        line = line.strip()
+        if not line or re.fullmatch(r"\[[^\]]+\]", line):
+            continue
+        title = compact_title_candidate(line)
+        if title:
+            return title
+    for key in ("lyrics_idea", "prompt"):
+        title = compact_title_candidate(str(job.get(key, "")))
+        if title:
+            return title
+    extra = job.get("extra", {}) if isinstance(job.get("extra"), dict) else {}
+    for key in ("use_case", "mood", "genre"):
+        title = compact_title_candidate(str(extra.get(key, "")))
+        if title:
+            return title
+    return "Terry Music"
 
 
 def generate_lyrics_from_text_model(job: dict[str, Any]) -> str:
@@ -883,10 +919,14 @@ def generate_music(job_id: str) -> None:
             lyrics = generate_lyrics_from_text_model(job)
             mark_job(job_id, lyrics=lyrics, generated_lyrics=True)
         if not song_title:
-            song_title = generate_title_from_text_model(job, lyrics)
-            mark_job(job_id, song_title=song_title, generated_title=True)
+            try:
+                song_title = generate_title_from_text_model(job, lyrics)
+                mark_job(job_id, song_title=song_title, generated_title=True, title_error=None)
+            except Exception as exc:
+                song_title = fallback_song_title(job, lyrics)
+                mark_job(job_id, song_title=song_title, generated_title=False, title_error=str(exc))
         else:
-            mark_job(job_id, song_title=song_title, generated_title=False)
+            mark_job(job_id, song_title=song_title, generated_title=False, title_error=None)
         file_name = download_file_name(song_title)
         stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
         out_path = OUTPUT_DIR / f"terry_music_{stamp}_{safe_name(song_title)}_{job_id[:8]}.mp3"
@@ -971,6 +1011,7 @@ class MusicHandler(BaseHTTPRequestHandler):
                 "ok": True,
                 "minimax_configured": bool(MINIMAX_API_KEY),
                 "admin_configured": bool(ADMIN_KEY),
+                "title_fallback": True,
                 "smtp_configured": bool(SMTP_USER and SMTP_PASSWORD),
                 "smtp_host": SMTP_HOST,
                 "smtp_port": SMTP_PORT,
@@ -1087,6 +1128,7 @@ class MusicHandler(BaseHTTPRequestHandler):
             "prompt": prompt,
             "song_title": song_title,
             "generated_title": False,
+            "title_error": None,
             "email": email_addr,
             "lyrics": lyrics,
             "lyrics_idea": lyrics_idea,
