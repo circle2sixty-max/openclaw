@@ -1266,7 +1266,8 @@ def clone_voice(audio_path: Path, custom_voice_id: str) -> dict[str, Any]:
 
     upload_resp = _call_minimax_api(
         "POST", "/v1/files/upload",
-        files={"file": (audio_path.name, audio_path.read_bytes(), content_type), "purpose": (None, "voice_clone")},
+        files={"file": (audio_path.name, audio_path.read_bytes(), content_type)},
+        payload={"purpose": "voice_clone"},
     )
     file_id = upload_resp.get("data", {}).get("file_id")
     if not file_id:
