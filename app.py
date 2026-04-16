@@ -702,8 +702,9 @@ INDEX_HTML = r"""<!doctype html>
       formError.textContent = "";
       submitBtn.disabled = true;
       const payload = collectPayload();
+      const endpoint = clonedVoiceId ? "/api/jobs/voice" : "/api/jobs";
       try {
-        const res = await fetch("/api/jobs", {method: "POST", headers: headers({"Content-Type": "application/json"}), body: JSON.stringify(payload)});
+        const res = await fetch(endpoint, {method: "POST", headers: headers({"Content-Type": "application/json"}), body: JSON.stringify(payload)});
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
         saveDraftLocal(payload);
@@ -1630,6 +1631,65 @@ def generate_music(job_id: str) -> None:
         mark_job(job_id, status="error", error=str(exc))
 
 
+def generate_music_with_voice(job_id: str) -> None:
+    """Generate music using a cloned voice as reference for TTS + music cover."""
+    with JOBS_LOCK:
+        job = dict(JOBS[job_id])
+    mark_job(job_id, status="running", error=None)
+    voice_id = str(job.get("voice_id", "")).strip()
+    if not voice_id:
+        mark_job(job_id, status="error", error="No voice_id for voice music job.")
+        return
+    try:
+        prompt = str(job["prompt"])
+        lyrics = str(job.get("lyrics", "")).strip()
+        lyrics_idea = str(job.get("lyrics_idea", "")).strip()
+        song_title = clean_song_title(str(job.get("song_title", "")).strip())
+        if not job.get("is_instrumental") and not lyrics and (lyrics_idea or job.get("lyrics_optimizer")):
+            lyrics = generate_lyrics_from_text_model(job)
+            mark_job(job_id, lyrics=lyrics, generated_lyrics=True)
+        if not song_title:
+            try:
+                song_title = generate_title_from_text_model(job, lyrics)
+                mark_job(job_id, song_title=song_title, generated_title=True, title_error=None)
+            except Exception as exc:
+                song_title = fallback_song_title(job, lyrics)
+                mark_job(job_id, song_title=song_title, generated_title=False, title_error=str(exc))
+        else:
+            mark_job(job_id, song_title=song_title, generated_title=False, title_error=None)
+        file_name = download_file_name(song_title)
+        stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+        tts_path = OUTPUT_DIR / f"tts_voice_{secrets.token_hex(8)}.mp3"
+        out_path = OUTPUT_DIR / f"terry_music_{stamp}_{safe_name(song_title)}_{job_id[:8]}.mp3"
+        # Step 1: synthesize lyrics with cloned voice
+        if lyrics:
+            synthesize_speech(lyrics, voice_id, tts_path)
+        else:
+            synthesize_speech(job.get("lyrics_idea") or prompt, voice_id, tts_path)
+        # Step 2: use TTS output as reference for music cover
+        args = ["music", "cover", "--prompt", prompt, "--audio-file", str(tts_path), "--out", str(out_path), "--non-interactive"]
+        if lyrics:
+            args.extend(["--lyrics", lyrics])
+        option_map = {
+            "genre": "--genre", "mood": "--mood", "instruments": "--instruments", "tempo": "--tempo",
+            "bpm": "--bpm", "key": "--key", "vocals": "--vocals", "structure": "--structure",
+            "references": "--references", "avoid": "--avoid", "use_case": "--use-case", "extra": "--extra",
+        }
+        for key, flag in option_map.items():
+            value = str(job.get("extra", {}).get(key, "")).strip()
+            if value:
+                args.extend([flag, value])
+        run_mmx(args)
+        tts_path.unlink(missing_ok=True)
+        mark_job(job_id, status="completed", file_name=file_name, file_path=str(out_path))
+        if job.get("email") and out_path.exists():
+            ok = send_email(str(job["email"]), out_path, prompt)
+            mark_job(job_id, email_sent=ok)
+    except Exception as exc:
+        tts_path.unlink(missing_ok=True)
+        mark_job(job_id, status="error", error=str(exc))
+
+
 class MusicHandler(BaseHTTPRequestHandler):
     server_version = "MusicSpeaks/1.0"
 
@@ -1765,6 +1825,67 @@ class MusicHandler(BaseHTTPRequestHandler):
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
             return
         self.send_json({"lyrics": lyrics})
+
+    def handle_jobs_voice(self) -> None:
+        """Handle POST /api/jobs/voice — create a music job that uses a cloned voice."""
+        try:
+            form = self.read_json_body()
+            prompt = str(form.get("prompt", "")).strip()
+            raw_song_title = str(form.get("song_title", "")).strip()
+            song_title = clean_song_title(raw_song_title)
+            email_addr = str(form.get("email", "")).strip()
+            lyrics = str(form.get("lyrics", "")).strip()
+            lyrics_idea = str(form.get("lyrics_idea", "")).strip()
+            voice_id = str(form.get("voice_id", "")).strip()
+            is_instrumental = bool(form.get("is_instrumental"))
+            lyrics_optimizer = bool(form.get("lyrics_optimizer") or lyrics_idea) and not is_instrumental
+            if not voice_id:
+                raise ValueError("voice_id is required for voice music job.")
+            if not prompt:
+                raise ValueError("Prompt is required.")
+            if len(prompt) > 2000:
+                raise ValueError("Prompt must be 2000 characters or fewer.")
+            if len(raw_song_title) > 120:
+                raise ValueError("Song title must be 120 characters or fewer.")
+            if len(lyrics) > 3500:
+                raise ValueError("Lyrics must be 3500 characters or fewer.")
+            if len(lyrics_idea) > 2500:
+                raise ValueError("Lyrics brief must be 2500 characters or fewer.")
+            if not is_instrumental and not lyrics and not lyrics_optimizer:
+                raise ValueError("Lyrics, a lyrics brief, or auto lyrics are required for vocal tracks.")
+            extra = {key: str(form.get(key, "")).strip() for key in ("genre", "mood", "instruments", "tempo", "bpm", "key", "vocals", "structure", "references", "avoid", "use_case", "extra")}
+        except ValueError as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            return
+        job_id = secrets.token_urlsafe(12)
+        job = {
+            "id": job_id,
+            "owner_id": normalize_client_id(self.headers.get("X-Client-Id")),
+            "status": "queued",
+            "created_at": now_iso(),
+            "updated_at": now_iso(),
+            "prompt": prompt,
+            "song_title": song_title,
+            "generated_title": False,
+            "title_error": None,
+            "email": email_addr,
+            "lyrics": lyrics,
+            "lyrics_idea": lyrics_idea,
+            "is_instrumental": is_instrumental,
+            "lyrics_optimizer": lyrics_optimizer,
+            "generated_lyrics": False,
+            "file_name": None,
+            "file_path": None,
+            "error": None,
+            "email_sent": False,
+            "voice_id": voice_id,
+            "extra": extra,
+        }
+        with JOBS_LOCK:
+            JOBS[job_id] = job
+            save_jobs_locked()
+        threading.Thread(target=generate_music_with_voice, args=(job_id,), daemon=True).start()
+        self.send_json({"job": public_job(job)}, HTTPStatus.ACCEPTED)
 
     def handle_get_voices(self) -> None:
         """Return a list of available system voices for the TTS voice picker."""
@@ -1925,6 +2046,9 @@ class MusicHandler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/voice/sing":
             self.handle_voice_sing()
+            return
+        if parsed.path == "/api/jobs/voice":
+            self.handle_jobs_voice()
             return
         if parsed.path != "/api/jobs":
             self.send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
