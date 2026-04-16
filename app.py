@@ -792,6 +792,7 @@ INDEX_HTML = r"""<!doctype html>
       container.innerHTML = `<div class="rec-progress"><div class="rec-step">${lang === "en" ? "Preparing..." : "准备中..."}</div></div><div class="rec-script-box"></div><div class="rec-controls-row"><button id="recModalClose" class="secondary-btn" type="button">${lang === "en" ? "Cancel" : "取消"}</button></div>`;
       document.getElementById("recModal").style.display = "flex";
       document.getElementById("recModalClose").addEventListener("click", closeVoiceRecorder);
+      setTimeout(() => showSegment(0), 300);
     }
 
     function closeVoiceRecorder() {
