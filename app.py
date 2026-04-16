@@ -1353,7 +1353,11 @@ def clone_voice(audio_path: Path, custom_voice_id: str) -> dict[str, Any]:
         files={"file": (audio_path.name, audio_path.read_bytes(), content_type)},
         payload={"purpose": "voice_clone"},
     )
-    file_id = upload_resp.get("file_id") or upload_resp.get("data", {}).get("file_id")
+    file_id = (
+        upload_resp.get("file", {}).get("file_id")
+        or upload_resp.get("data", {}).get("file_id")
+        or upload_resp.get("file_id")
+    )
     if not file_id:
         raise RuntimeError(f"Failed to upload audio: {upload_resp}")
 
