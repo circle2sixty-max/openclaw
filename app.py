@@ -213,7 +213,7 @@ INDEX_HTML = r"""<!doctype html>
     <div class="top">
       <div>
         <h1>Music Speaks</h1>
-        <p id="subtitle" class="subtitle">Let music speak what is inside. Create a song that carries your mood, taste, longing, and dreams.</p>
+        <p id="subtitle" class="subtitle">When words fall short, let music speak. Give your inner world a sound of its own.</p>
       </div>
       <div class="top-actions">
         <div class="pill">music-2.6</div>
@@ -305,7 +305,7 @@ INDEX_HTML = r"""<!doctype html>
   <script>
     const I18N = {
       en: {
-        subtitle: "Let music speak what is inside. People have always chosen songs to express mood, state of mind, taste, longing, and dreams. Now you can create one that speaks closer to your own heart.",
+        subtitle: "When words fall short, let music speak. Give your inner world a sound of its own.",
         createTitle: "Create Music", createDesc: "Write a feeling, story, lyric, or style. Music Speaks turns it into a downloadable song.",
         emailLabel: "Email Address (optional)", emailHint: "Optional. The download button is the main way to get your MP3.",
         emailPlaceholder: "your@email.com",
@@ -335,7 +335,7 @@ INDEX_HTML = r"""<!doctype html>
         download: "Download MP3", delete: "Delete", sent: "Sent to", instrumentalMode: "Instrumental", vocalMode: "Vocal", deleteConfirm: "Delete this job?", deleteFailed: "Delete failed"
       },
       zh: {
-        subtitle: "让音乐表达你的心声。过去，人们通过选择听什么音乐来表达情绪、状态、品味、向往和梦想；现在，你可以直接创作一首更贴近内心的歌。",
+        subtitle: "当语言无法抵达时，让音乐替你表达。给你的内心世界一种属于自己的声音。",
         createTitle: "创建音乐", createDesc: "写下感受、故事、歌词或风格，Music Speaks 会把它变成一首可以下载的歌。",
         emailLabel: "邮箱地址（可选）", emailHint: "可不填写。下载按钮是获取 MP3 的主要方式。",
         emailPlaceholder: "你的邮箱（可选）",
