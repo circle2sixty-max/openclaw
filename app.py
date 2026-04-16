@@ -1233,7 +1233,10 @@ def _call_minimax_api(method: str, endpoint: str, payload: Any | None = None, fi
             parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"{key}\"\r\n\r\n{value}\r\n".encode())
         parts.append(f"--{boundary}--\r\n".encode())
         data = b"".join(parts)
-        headers = {"Authorization": f"Bearer {MINIMAX_API_KEY}"}
+        headers = {
+            "Authorization": f"Bearer {MINIMAX_API_KEY}",
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+        }
     else:
         if payload is not None:
             data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
