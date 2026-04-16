@@ -180,6 +180,9 @@ INDEX_HTML = r"""<!doctype html>
     .secondary-btn:hover { background: rgba(80,216,144,.2); }
     .assist-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
     .assist-msg { min-height: 18px; }
+    .voice-clone-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+    .voice-status { min-height: 18px; margin-top: 0; }
+    .voice-preview-row { align-items: center; }
     .error-text { color: var(--danger); min-height: 20px; font-size: 14px; }
     .jobs { display: grid; gap: 10px; padding: 14px 16px 16px; }
     .empty { border: 1px dashed var(--line); border-radius: 8px; padding: 18px; color: var(--muted); text-align: center; }
@@ -267,6 +270,19 @@ INDEX_HTML = r"""<!doctype html>
                 <span><span data-i18n="autoLyrics">Auto-generate Lyrics</span><small data-i18n="autoLyricsHint">AI writes lyrics from your prompt.</small></span>
               </label>
             </div>
+            <div id="voiceCloneSection" class="field" style="margin-top:4px;">
+              <label data-i18n="voiceCloneLabel">Voice Clone (optional)</label>
+              <div class="voice-clone-row">
+                <input id="voiceFile" type="file" accept=".mp3,.m4a,.wav" style="display:none;">
+                <button id="voiceUploadBtn" class="secondary-btn" type="button" data-i18n="voiceUploadBtn">Upload My Voice</button>
+                <div id="voiceStatus" class="hint voice-status"></div>
+              </div>
+              <div class="hint" data-i18n="voiceCloneHint">Upload 10s–5min audio to clone your voice. Cloned voice expires in 7 days.</div>
+              <div id="voicePreviewRow" class="voice-preview-row" style="display:none; margin-top:10px;">
+                <button id="voicePreviewBtn" class="secondary-btn" type="button" data-i18n="voicePreviewBtn">Preview Voice</button>
+                <audio id="voicePreviewAudio" controls style="height:36px; margin-left:8px;"></audio>
+              </div>
+            </div>
             <details>
               <summary data-i18n="advanced">More Parameters</summary>
               <div class="grid">
@@ -321,6 +337,9 @@ INDEX_HTML = r"""<!doctype html>
         lyricsPlaceholder: "[Verse]\nYour lyrics here...\n[Hook]\nYour chorus...",
         instrumental: "Instrumental", instrumentalHint: "No vocals. Lyrics will be ignored.",
         autoLyrics: "Auto-generate Lyrics", autoLyricsHint: "AI writes lyrics from your prompt.",
+        voiceCloneLabel: "Voice Clone (optional)", voiceUploadBtn: "Upload My Voice", voiceCloneHint: "Upload 10s–5min clear audio of one person speaking. The same voice will be used to sing. Cloned voice expires in 7 days.",
+        voicePreviewBtn: "Preview Voice", voiceUploading: "Cloning your voice...", voiceReady: "Voice cloned! Use Preview to listen.",
+        voiceError: "Voice clone failed.", voicePreviewGenerating: "Generating preview...", voicePreviewReady: "Preview ready.", voicePreviewError: "Preview failed.",
         advanced: "More Parameters", genre: "Genre", mood: "Mood", instruments: "Instruments", tempo: "Tempo Feel", bpm: "BPM", key: "Musical Key",
         vocals: "Vocal Style", structure: "Song Structure", references: "References", avoid: "Avoid", useCase: "Use Case", extra: "Extra Details",
         genrePlaceholder: "pop, reggae, jazz", moodPlaceholder: "warm, bright, intense", instrumentsPlaceholder: "piano, guitar, drums",
@@ -351,6 +370,9 @@ INDEX_HTML = r"""<!doctype html>
         lyricsPlaceholder: "[主歌]\n在这里写歌词...\n[副歌]\n在这里写副歌...",
         instrumental: "纯音乐", instrumentalHint: "无人声，歌词会被忽略。",
         autoLyrics: "自动生成歌词", autoLyricsHint: "AI 根据描述写歌词。",
+        voiceCloneLabel: "声纹复刻（可选）", voiceUploadBtn: "上传我的声音", voiceCloneHint: "上传10秒至5分钟的清晰单人音频。复刻后的声音会用于演唱。有效期7天。",
+        voicePreviewBtn: "预览声音", voiceUploading: "正在复刻你的声音...", voiceReady: "声音复刻完成！点击预览试听。",
+        voiceError: "声音复刻失败。", voicePreviewGenerating: "正在生成预览...", voicePreviewReady: "预览已生成。", voicePreviewError: "预览生成失败。",
         advanced: "更多参数", genre: "流派", mood: "情绪", instruments: "乐器", tempo: "节奏感", bpm: "BPM", key: "调性",
         vocals: "人声风格", structure: "歌曲结构", references: "参考对象", avoid: "避免元素", useCase: "使用场景", extra: "其他细节",
         genrePlaceholder: "流行、雷鬼、爵士", moodPlaceholder: "温暖、明亮、强烈", instrumentsPlaceholder: "钢琴、吉他、鼓",
@@ -380,6 +402,14 @@ INDEX_HTML = r"""<!doctype html>
     const lyricsIdea = document.getElementById("lyricsIdea");
     const generateLyricsBtn = document.getElementById("generateLyricsBtn");
     const lyricsAssistMessage = document.getElementById("lyricsAssistMessage");
+    const voiceFile = document.getElementById("voiceFile");
+    const voiceUploadBtn = document.getElementById("voiceUploadBtn");
+    const voiceStatus = document.getElementById("voiceStatus");
+    const voicePreviewRow = document.getElementById("voicePreviewRow");
+    const voicePreviewBtn = document.getElementById("voicePreviewBtn");
+    const voicePreviewAudio = document.getElementById("voicePreviewAudio");
+    let clonedVoiceId = localStorage.getItem("terry_music_voice_id") || "";
+    let voiceCloneExpires = localStorage.getItem("terry_music_voice_expires") || "";
     const clientId = (() => {
       const key = "terry_music_client_id";
       let id = localStorage.getItem(key);
@@ -476,7 +506,8 @@ INDEX_HTML = r"""<!doctype html>
         email: get("email"), song_title: get("songTitle"), prompt: get("prompt"), lyrics: get("lyrics"), lyrics_idea: get("lyricsIdea"),
         is_instrumental: instrumental.checked, lyrics_optimizer: lyricsOptimizer.checked,
         genre: get("genre"), mood: get("mood"), instruments: get("instruments"), tempo: get("tempo"), bpm: get("bpm"), key: get("key"),
-        vocals: get("vocals"), structure: get("structure"), references: get("references"), avoid: get("avoid"), use_case: get("useCase"), extra: get("extra")
+        vocals: get("vocals"), structure: get("structure"), references: get("references"), avoid: get("avoid"), use_case: get("useCase"), extra: get("extra"),
+        voice_id: clonedVoiceId,
       };
     }
     function restorePayload(payload = {}) {
@@ -590,6 +621,71 @@ INDEX_HTML = r"""<!doctype html>
         generateLyricsBtn.disabled = instrumental.checked;
       }
     });
+    voiceUploadBtn.addEventListener("click", () => voiceFile.click());
+    voiceFile.addEventListener("change", async () => {
+      const file = voiceFile.files[0];
+      if (!file) return;
+      voiceStatus.textContent = t("voiceUploading");
+      voiceStatus.style.color = "var(--muted)";
+      const fd = new FormData();
+      fd.append("audio", file);
+      try {
+        const res = await fetch("/api/voice/clone", {method: "POST", headers: headers(), body: fd});
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || t("voiceError"));
+        clonedVoiceId = data.voice_id || "";
+        const expiresHours = data.expires_in_hours || 168;
+        const expiresAt = Date.now() + expiresHours * 3600 * 1000;
+        localStorage.setItem("terry_music_voice_id", clonedVoiceId);
+        localStorage.setItem("terry_music_voice_expires", String(expiresAt));
+        voiceStatus.textContent = t("voiceReady");
+        voiceStatus.style.color = "var(--accent)";
+        voicePreviewRow.style.display = "flex";
+      } catch (err) {
+        voiceStatus.textContent = err.message || t("voiceError");
+        voiceStatus.style.color = "var(--danger)";
+      }
+    });
+    voicePreviewBtn.addEventListener("click", async () => {
+      const currentLyrics = lyrics.value.trim();
+      if (!currentLyrics) {
+        voiceStatus.textContent = t("lyricsAssistNeedBrief");
+        voiceStatus.style.color = "var(--danger)";
+        return;
+      }
+      if (!clonedVoiceId) {
+        voiceStatus.textContent = t("voiceError");
+        voiceStatus.style.color = "var(--danger)";
+        return;
+      }
+      voicePreviewBtn.disabled = true;
+      voicePreviewBtn.textContent = t("voicePreviewGenerating");
+      try {
+        const res = await fetch("/api/voice/sing", {
+          method: "POST",
+          headers: headers({"Content-Type": "application/json"}),
+          body: JSON.stringify({lyrics: currentLyrics, voice_id: clonedVoiceId}),
+        });
+        if (!res.ok) throw new Error(t("voicePreviewError"));
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        voicePreviewAudio.src = url;
+        voicePreviewAudio.style.display = "inline-block";
+        voiceStatus.textContent = t("voicePreviewReady");
+        voiceStatus.style.color = "var(--accent)";
+      } catch (err) {
+        voiceStatus.textContent = err.message || t("voicePreviewError");
+        voiceStatus.style.color = "var(--danger)";
+      } finally {
+        voicePreviewBtn.textContent = t("voicePreviewBtn");
+        voicePreviewBtn.disabled = false;
+      }
+    });
+    if (clonedVoiceId && voiceCloneExpires && parseInt(voiceCloneExpires) > Date.now()) {
+      voicePreviewRow.style.display = "flex";
+      voiceStatus.textContent = t("voiceReady");
+      voiceStatus.style.color = "var(--accent)";
+    }
     document.getElementById("langBtn").addEventListener("click", () => {
       lang = lang === "en" ? "zh" : "en";
       applyLang();
@@ -888,6 +984,104 @@ def clean_generated_lyrics(text: str) -> str:
     return cleaned[:3500].strip()
 
 
+def _minimax_headers() -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {MINIMAX_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+
+def _call_minimax_api(method: str, endpoint: str, payload: Any | None = None, files: dict | None = None) -> Any:
+    """Make a direct call to MiniMax API, returning parsed JSON."""
+    import urllib.request
+    import urllib.error
+
+    base = "https://api.minimaxi.com"
+    url = f"{base}{endpoint}"
+    data = None
+    headers: dict[str, str] = {}
+    if files:
+        boundary = "----FormBoundary" + secrets.token_hex(16)
+        parts = []
+        for field_name, (filename, file_content, content_type) in files.items():
+            parts.append(
+                f"--{boundary}\r\nContent-Disposition: form-data; name=\"{field_name}\"; filename=\"{filename}\"\r\nContent-Type: {content_type}\r\n\r\n".encode()
+                + file_content
+                + b"\r\n"
+            )
+        for key, value in (payload or {}).items():
+            parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"{key}\"\r\n\r\n{value}\r\n".encode())
+        parts.append(f"--{boundary}--\r\n".encode())
+        data = b"".join(parts)
+        headers = {"Authorization": f"Bearer {MINIMAX_API_KEY}"}
+    else:
+        if payload is not None:
+            data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        headers = _minimax_headers()
+
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"MiniMax API error {exc.code}: {body}")
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"MiniMax network error: {exc.reason}")
+
+
+def clone_voice(audio_path: Path, custom_voice_id: str) -> dict[str, Any]:
+    """Upload audio sample and clone the voice."""
+    if not MINIMAX_API_KEY:
+        raise RuntimeError("MINIMAX_API_KEY is not configured.")
+    audio_path = Path(audio_path)
+    if not audio_path.exists():
+        raise RuntimeError(f"Audio file not found: {audio_path}")
+    file_size = audio_path.stat().st_size
+    if file_size > 20 * 1024 * 1024:
+        raise RuntimeError("Audio file must be under 20MB.")
+    suffix = audio_path.suffix.lower()
+    content_type_map = {".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".wav": "audio/wav"}
+    content_type = content_type_map.get(suffix, "audio/mpeg")
+
+    upload_resp = _call_minimax_api(
+        "POST", "/v1/files/upload",
+        files={"file": (audio_path.name, audio_path.read_bytes(), content_type), "purpose": (None, "voice_clone")},
+    )
+    file_id = upload_resp.get("data", {}).get("file_id")
+    if not file_id:
+        raise RuntimeError(f"Failed to upload audio: {upload_resp}")
+
+    clone_resp = _call_minimax_api(
+        "POST", "/v1/voice_clone",
+        {"file_id": file_id, "voice_id": custom_voice_id, "model": "speech-2.8-hd"},
+    )
+    return clone_resp
+
+
+def synthesize_speech(text: str, voice_id: str, output_path: Path, model: str = "speech-02-hd") -> Path:
+    """Synthesize speech using a cloned or system voice_id, save to output_path."""
+    if not MINIMAX_API_KEY:
+        raise RuntimeError("MINIMAX_API_KEY is not configured.")
+    resp = _call_minimax_api(
+        "POST", "/v1/t2a_v2",
+        {
+            "model": model,
+            "text": text[:5000],
+            "stream": False,
+            "voice_setting": {"voice_id": voice_id},
+            "output_format": {"format": "mp3"},
+        },
+    )
+    audio_data = resp.get("data", {}).get("audio_file")
+    if not audio_data:
+        raise RuntimeError(f"No audio in TTS response: {resp}")
+    import base64
+    audio_bytes = base64.b64decode(audio_data)
+    output_path.write_bytes(audio_bytes)
+    return output_path
+
+
 def clean_song_title(text: str) -> str:
     cleaned = re.sub(r"\x1b\[[0-9;]*m", "", text).strip()
     if cleaned.startswith("```"):
@@ -978,6 +1172,7 @@ def generate_lyrics_from_text_model(job: dict[str, Any]) -> str:
     )
     output = run_mmx([
         "text", "chat",
+        "--model", "lyrics_generation",
         "--system", system,
         "--message", message,
         "--max-tokens", "1600",
@@ -988,7 +1183,7 @@ def generate_lyrics_from_text_model(job: dict[str, Any]) -> str:
     ], timeout=180)
     lyrics = clean_generated_lyrics(output)
     if not lyrics:
-        raise RuntimeError("MiniMax text model returned empty lyrics.")
+        raise RuntimeError("MiniMax lyrics_generation model returned empty lyrics.")
     return lyrics
 
 
@@ -1219,6 +1414,9 @@ class MusicHandler(BaseHTTPRequestHandler):
         if path.startswith("/api/drafts/"):
             self.handle_get_draft(path.removeprefix("/api/drafts/"))
             return
+        if path == "/api/voice":
+            self.handle_get_voices()
+            return
         if path.startswith("/download/"):
             self.handle_download(path.removeprefix("/download/"), parsed.query)
             return
@@ -1263,6 +1461,104 @@ class MusicHandler(BaseHTTPRequestHandler):
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
             return
         self.send_json({"lyrics": lyrics})
+
+    def handle_get_voices(self) -> None:
+        """Return a list of available system voices for the TTS voice picker."""
+        try:
+            output = run_mmx(["speech", "voices", "--output", "json", "--non-interactive", "--quiet"], timeout=30)
+            voices = json.loads(output)
+        except Exception as exc:
+            voices = []
+        self.send_json({"voices": voices})
+
+    def handle_voice_clone(self) -> None:
+        """Handle POST /api/voice/clone — accepts multipart form with audio file."""
+        try:
+            content_type = self.headers.get("Content-Type", "")
+            if "multipart/form-data" not in content_type:
+                raise ValueError("Content-Type must be multipart/form-data.")
+            length = int(self.headers.get("Content-Length") or "0")
+            if length <= 0 or length > 25 * 1024 * 1024:
+                raise ValueError("File too large or missing (max 20MB).")
+            body = self.rfile.read(length)
+            client_id = normalize_client_id(self.headers.get("X-Client-Id"))
+            boundary_match = re.search(r"boundary=(.+)", content_type)
+            if not boundary_match:
+                raise ValueError("Missing multipart boundary.")
+            boundary = boundary_match.group(1).strip('"')
+            parts = {}
+            import email.policy
+            from email import parser as email_parser
+            from email.parser import BytesParser
+            from email.policy import HTTP
+            msg = BytesParser(policy=HTTP.policy()).parsestr(
+                body.decode("latin-1"), headers=("Content-Disposition", "Content-Type")
+            )
+            for part in msg.iter_parts():
+                cd = part.get("Content-Disposition", "")
+                field_match = re.search(r'name="([^"]+)"', cd)
+                if not field_match:
+                    continue
+                name = field_match.group(1)
+                if part.get_content_type() == "application/octet-stream":
+                    filename = re.search(r'filename="([^"]+)"', cd)
+                    filename = filename.group(1) if filename else "audio.mp3"
+                    parts[name] = (filename, part.get_payload(decode=True))
+                else:
+                    parts[name] = part.get_payload()
+            audio_bytes = parts.get("audio")
+            if not audio_bytes:
+                raise ValueError("No audio field in form data.")
+            suffix = ".mp3"
+            if "audio/mp4" in parts.get("audio_type", ""):
+                suffix = ".m4a"
+            voice_id = f"user_{client_id[:16]}"
+            tmp_path = OUTPUT_DIR / f"voice_sample_{secrets.token_hex(8)}{suffix}"
+            tmp_path.write_bytes(audio_bytes)
+            try:
+                result = clone_voice(tmp_path, voice_id)
+            finally:
+                tmp_path.unlink(missing_ok=True)
+            voice_id_out = result.get("data", {}).get("voice_id", voice_id)
+            self.send_json({"ok": True, "voice_id": voice_id_out, "expires_in_hours": 168})
+        except ValueError as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            return
+        except Exception as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
+            return
+
+    def handle_voice_sing(self) -> None:
+        """Handle POST /api/voice/sing — synthesize singing audio from lyrics using a voice_id."""
+        try:
+            form = self.read_json_body()
+            lyrics = str(form.get("lyrics", "")).strip()
+            voice_id = str(form.get("voice_id", "")).strip()
+            if not lyrics:
+                raise ValueError("Lyrics are required.")
+            if not voice_id:
+                raise ValueError("voice_id is required.")
+            tmp_sing = OUTPUT_DIR / f"sing_preview_{secrets.token_hex(8)}.mp3"
+            try:
+                synthesize_speech(lyrics, voice_id, tmp_sing)
+            except Exception as exc:
+                raise RuntimeError(f"TTS synthesis failed: {exc}")
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "audio/mpeg")
+            self.send_header("Content-Length", str(tmp_sing.stat().st_size))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            with tmp_sing.open("rb") as f:
+                while chunk := f.read(1024 * 256):
+                    self.wfile.write(chunk)
+            tmp_sing.unlink(missing_ok=True)
+            return
+        except ValueError as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            return
+        except Exception as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
+            return
 
     def handle_get_draft(self, encoded_draft_id: str) -> None:
         draft_id = normalize_draft_id(urllib.parse.unquote(encoded_draft_id))
@@ -1314,6 +1610,12 @@ class MusicHandler(BaseHTTPRequestHandler):
             return
         if parsed.path.startswith("/api/drafts/"):
             self.handle_save_draft(parsed.path.removeprefix("/api/drafts/"))
+            return
+        if parsed.path == "/api/voice/clone":
+            self.handle_voice_clone()
+            return
+        if parsed.path == "/api/voice/sing":
+            self.handle_voice_sing()
             return
         if parsed.path != "/api/jobs":
             self.send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
