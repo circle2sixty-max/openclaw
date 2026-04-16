@@ -262,10 +262,13 @@ INDEX_HTML = r"""<!doctype html>
     .player-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; cursor: pointer; position: relative; }
     .player-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; transition: width 0.1s; }
     .player-bar:hover .player-bar-fill { background: var(--accent-hover); }
-    .player-volume { display: flex; align-items: center; gap: 8px; width: 180px; flex-shrink: 0; }
+    .player-volume { display: flex; align-items: center; gap: 8px; width: 140px; flex-shrink: 0; }
     .volume-icon { color: var(--text-muted); font-size: 18px; cursor: pointer; }
     .volume-slider { flex: 1; height: 4px; background: var(--border); border-radius: 2px; cursor: pointer; }
     .volume-fill { height: 100%; background: var(--text-muted); border-radius: 2px; width: 70%; }
+    .player-lyrics { flex: 1; max-width: 500px; overflow: hidden; text-align: center; padding: 0 20px; }
+    .lyrics-text { font-size: 14px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.3s; }
+    .lyrics-text.playing { color: var(--accent); }
     /* Recording Modal */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; }
     .modal-content { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-lg); width: min(520px, 95vw); max-height: 90vh; overflow-y: auto; }
@@ -517,6 +520,9 @@ INDEX_HTML = r"""<!doctype html>
           <span class="player-time" id="playerDuration">0:00</span>
         </div>
       </div>
+      <div class="player-lyrics" id="playerLyrics">
+        <div class="lyrics-text" id="lyricsText">♪ Lyrics ♪</div>
+      </div>
       <div class="player-volume">
         <span class="volume-icon" id="volumeIcon">🔊</span>
         <div class="volume-slider" id="volumeSlider"><div class="volume-fill" id="volumeFill"></div></div>
@@ -736,7 +742,8 @@ INDEX_HTML = r"""<!doctype html>
       const job = lastJobs.find(j => j.id === id);
       if (!job || !job.download_url) return;
       const url = job.download_url + (job.download_url.includes('?') ? '&' : '?') + 'client_id=' + encodeURIComponent(clientId);
-      currentTrack = { id: job.id, title: job.song_title || job.prompt || 'Untitled', url: url };
+      const lyrics = job.lyrics || "";
+      currentTrack = { id: job.id, title: job.song_title || job.prompt || 'Untitled', url: url, lyrics: lyrics };
       audioPlayer.src = url;
       audioPlayer.play();
       updatePlayerUI();
@@ -968,12 +975,15 @@ INDEX_HTML = r"""<!doctype html>
     const playerCurrentTime = document.getElementById("playerCurrentTime");
     const playerDuration = document.getElementById("playerDuration");
     const volumeFill = document.getElementById("volumeFill");
+    const lyricsText = document.getElementById("lyricsText");
     function updatePlayerUI() {
       if (!currentTrack) { player.style.display = "none"; return; }
       player.style.display = "flex";
       playerTitle.textContent = currentTrack.title;
       playerArtist.textContent = "Music Speaks";
       playerPlay.textContent = audioPlayer.paused ? "▶" : "⏸";
+      lyricsText.textContent = currentTrack.lyrics ? "♪ " + currentTrack.lyrics.split("\n")[0] + " ♪" : "♪ Lyrics ♪";
+      lyricsText.className = audioPlayer.paused ? "lyrics-text" : "lyrics-text playing";
     }
     audioPlayer.addEventListener("timeupdate", () => {
       if (!audioPlayer.duration) return;
@@ -981,11 +991,20 @@ INDEX_HTML = r"""<!doctype html>
       playerBarFill.style.width = pct + "%";
       playerCurrentTime.textContent = formatTime(audioPlayer.currentTime);
       playerDuration.textContent = formatTime(audioPlayer.duration);
+      // Update lyrics based on progress
+      if (currentTrack && currentTrack.lyrics) {
+        const lines = currentTrack.lyrics.split("\n");
+        const lineIndex = Math.floor((audioPlayer.currentTime / audioPlayer.duration) * lines.length);
+        const safeIndex = Math.max(0, Math.min(lineIndex, lines.length - 1));
+        const line = lines[safeIndex].replace(/\[.*?\]/g, "").trim() || "♪ " + lines[safeIndex] + " ♪";
+        lyricsText.textContent = line;
+      }
     });
-    audioPlayer.addEventListener("ended", () => { playerPlay.textContent = "▶"; });
+    audioPlayer.addEventListener("ended", () => { playerPlay.textContent = "▶"; lyricsText.className = "lyrics-text"; });
     playerPlay.addEventListener("click", () => {
       if (audioPlayer.paused) audioPlayer.play(); else audioPlayer.pause();
       playerPlay.textContent = audioPlayer.paused ? "▶" : "⏸";
+      lyricsText.className = audioPlayer.paused ? "lyrics-text" : "lyrics-text playing";
     });
     playerBar.addEventListener("click", (e) => {
       if (!audioPlayer.duration) return;
