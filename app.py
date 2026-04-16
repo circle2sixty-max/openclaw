@@ -1379,11 +1379,17 @@ def synthesize_speech(text: str, voice_id: str, output_path: Path, model: str = 
             "text": text[:5000],
             "stream": False,
             "voice_setting": {"voice_id": voice_id},
-            "output_format": {"format": "mp3"},
+            "output_format": "mp3",
         },
     )
-    audio_data = resp.get("data", {}).get("audio_file")
+    audio_data = (
+        resp.get("data", {}).get("audio_file")
+        or resp.get("data", {}).get("audio")
+        or resp.get("audio_file")
+        or resp.get("audio")
+    )
     if not audio_data:
+        print(f"[TTS] unexpected resp: {resp}")
         raise RuntimeError(f"No audio in TTS response: {resp}")
     import base64
     audio_bytes = base64.b64decode(audio_data)
