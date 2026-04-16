@@ -948,6 +948,7 @@ INDEX_HTML = r"""<!doctype html>
         const expiresAt = Date.now() + expiresHours * 3600 * 1000;
         localStorage.setItem("terry_music_voice_id", clonedVoiceId);
         localStorage.setItem("terry_music_voice_expires", String(expiresAt));
+        if (data.voice_wav_path) localStorage.setItem("terry_music_voice_wav", data.voice_wav_path);
         voicePreviewRow.style.display = "flex";
         closeVoiceRecorder();
         voiceStatus.textContent = lang === "en" ? "Voice cloned! Use Preview to listen." : "声音复刻完成！点击预览试听。";
@@ -1669,15 +1670,12 @@ def generate_music_with_voice(job_id: str) -> None:
             mark_job(job_id, song_title=song_title, generated_title=False, title_error=None)
         file_name = download_file_name(song_title)
         stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-        tts_path = OUTPUT_DIR / f"tts_voice_{secrets.token_hex(8)}.mp3"
         out_path = OUTPUT_DIR / f"terry_music_{stamp}_{safe_name(song_title)}_{job_id[:8]}.mp3"
-        # Step 1: synthesize lyrics with cloned voice
-        if lyrics:
-            synthesize_speech(lyrics, voice_id, tts_path)
-        else:
-            synthesize_speech(job.get("lyrics_idea") or prompt, voice_id, tts_path)
-        # Step 2: use TTS output as reference for music cover
-        args = ["music", "cover", "--prompt", prompt, "--audio-file", str(tts_path), "--out", str(out_path), "--non-interactive"]
+        # Use the saved voice WAV directly as reference audio for music cover
+        voice_wav = job.get("voice_wav_path")
+        if not voice_wav or not Path(voice_wav).exists():
+            raise RuntimeError("Voice recording not found. Please re-record your voice.")
+        args = ["music", "cover", "--prompt", prompt, "--audio-file", str(voice_wav), "--out", str(out_path), "--non-interactive"]
         if lyrics:
             args.extend(["--lyrics", lyrics])
         option_map = {
@@ -1864,13 +1862,22 @@ class MusicHandler(BaseHTTPRequestHandler):
             if not is_instrumental and not lyrics and not lyrics_optimizer:
                 raise ValueError("Lyrics, a lyrics brief, or auto lyrics are required for vocal tracks.")
             extra = {key: str(form.get(key, "")).strip() for key in ("genre", "mood", "instruments", "tempo", "bpm", "key", "vocals", "structure", "references", "avoid", "use_case", "extra")}
+            client_id = normalize_client_id(self.headers.get("X-Client-Id"))
+            # Find the voice WAV file saved during clone (named voice_wav_{client_id}.wav)
+            voice_wav = OUTPUT_DIR / f"voice_wav_{client_id[:16]}.wav"
+            if not voice_wav.exists():
+                raise RuntimeError("Voice recording not found. Please re-record your voice before generating.")
+            voice_wav_path = str(voice_wav)
         except ValueError as exc:
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            return
+        except Exception as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
             return
         job_id = secrets.token_urlsafe(12)
         job = {
             "id": job_id,
-            "owner_id": normalize_client_id(self.headers.get("X-Client-Id")),
+            "owner_id": client_id,
             "status": "queued",
             "created_at": now_iso(),
             "updated_at": now_iso(),
@@ -1889,6 +1896,7 @@ class MusicHandler(BaseHTTPRequestHandler):
             "error": None,
             "email_sent": False,
             "voice_id": voice_id,
+            "voice_wav_path": voice_wav_path,
             "extra": extra,
         }
         with JOBS_LOCK:
@@ -1952,8 +1960,11 @@ class MusicHandler(BaseHTTPRequestHandler):
             elif filename_audio.lower().endswith(".wav"):
                 suffix = ".wav"
             voice_id = f"user_{client_id[:16]}"
-            tmp_path = OUTPUT_DIR / f"voice_sample_{secrets.token_hex(8)}{suffix}"
             audio_data = audio_bytes[1] if isinstance(audio_bytes, tuple) else audio_bytes
+            # Save WAV with client_id prefix so we can find it later by client_id
+            voice_wav_path = OUTPUT_DIR / f"voice_wav_{client_id[:16]}.wav"
+            voice_wav_path.write_bytes(audio_data)
+            tmp_path = OUTPUT_DIR / f"voice_sample_{secrets.token_hex(8)}{suffix}"
             tmp_path.write_bytes(audio_data)
             try:
                 result = clone_voice(tmp_path, voice_id)
