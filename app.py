@@ -84,216 +84,297 @@ INDEX_HTML = r"""<!doctype html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Music Speaks</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       color-scheme: dark;
-      --bg: #0b0d0c;
-      --panel: #141716;
-      --soft: #1b201d;
-      --input: #101312;
-      --line: #2d3430;
-      --text: #f4f7f1;
-      --muted: #a7b0aa;
-      --accent: #50d890;
-      --accent-strong: #2fbd76;
-      --warn: #efc86a;
-      --danger: #ff756d;
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #12121a;
+      --bg-tertiary: #1a1a25;
+      --bg-elevated: #222230;
+      --accent: #1db954;
+      --accent-hover: #1ed760;
+      --accent-dim: rgba(29, 185, 84, 0.15);
+      --text-primary: #ffffff;
+      --text-secondary: #b3b3b3;
+      --text-muted: #727272;
+      --border: #282830;
+      --border-light: #3a3a45;
+      --danger: #ff5252;
+      --warning: #ffab00;
+      --gradient-green: linear-gradient(135deg, #1db954, #1ed760);
+      --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
     [data-theme="light"] {
       color-scheme: light;
-      --bg: #f8f9fa;
-      --panel: #ffffff;
-      --soft: #e9ecef;
-      --input: #ffffff;
-      --line: #dee2e6;
-      --text: #212529;
-      --muted: #6c757d;
-      --accent: #25c468;
-      --accent-strong: #1db954;
-      --warn: #d4a012;
-      --danger: #dc3545;
+      --bg-primary: #f5f5f7;
+      --bg-secondary: #ffffff;
+      --bg-tertiary: #e8e8ed;
+      --bg-elevated: #ffffff;
+      --accent: #1db954;
+      --accent-hover: #1ed760;
+      --accent-dim: rgba(29, 185, 84, 0.12);
+      --text-primary: #1d1d1f;
+      --text-secondary: #6e6e73;
+      --text-muted: #aeaeb2;
+      --border: #d2d2d7;
+      --border-light: #e5e5ea;
+      --danger: #ff3b30;
+      --warning: #ff9500;
+      --shadow-sm: 0 2px 8px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,0.16);
     }
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
     body {
-      margin: 0;
-      min-height: 100vh;
-      background: linear-gradient(180deg, rgba(80,216,144,.08), transparent 320px), var(--bg);
-      color: var(--text);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
-      font-size: 16px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      overflow: hidden;
     }
-    .page { width: min(1120px, calc(100% - 28px)); margin: 0 auto; padding: 24px 0 56px; }
-    .top { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 24px; }
-    h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.08; }
-    .subtitle { margin: 0; color: var(--muted); line-height: 1.55; }
-    .top-actions { display: flex; gap: 10px; align-items: center; }
-    .pill, .ghost {
-      border: 1px solid rgba(80,216,144,.32);
-      border-radius: 8px;
-      padding: 7px 11px;
-      color: var(--accent);
-      background: rgba(80,216,144,.12);
-      font-size: 13px;
-      font-weight: 700;
-      white-space: nowrap;
-    }
-    .ghost { cursor: pointer; color: var(--muted); background: rgba(255,255,255,.05); border-color: var(--line); }
-    .layout { display: grid; grid-template-columns: 1fr 360px; gap: 18px; align-items: start; }
-    .panel { border: 1px solid var(--line); border-radius: 10px; background: rgba(20,23,22,.96); overflow: hidden; }
-    .panel-head { padding: 18px 20px 14px; border-bottom: 1px solid var(--line); }
-    .panel-head h2 { margin: 0; font-size: 18px; }
-    .panel-head p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
-    .panel-body { padding: 18px 20px 20px; }
-    .field { margin-bottom: 16px; }
-    label { display: block; margin-bottom: 7px; font-size: 13px; font-weight: 700; }
-    input, textarea {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--input);
-      color: var(--text);
-      font: inherit;
-      padding: 11px 12px;
-      outline: none;
-    }
-    input:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(80,216,144,.12); }
-    textarea { min-height: 150px; resize: vertical; line-height: 1.5; }
-    .hint { margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.4; }
-    .checks { display: grid; gap: 8px; margin: 12px 0 16px; }
-    .check { display: flex; gap: 10px; align-items: flex-start; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); cursor: pointer; }
-    .check input { width: 16px; margin-top: 3px; accent-color: var(--accent); }
-    .check small { display: block; color: var(--muted); margin-top: 3px; }
-    details { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 4px; }
-    summary { cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 700; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
-    .wide { grid-column: 1 / -1; }
-    .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 18px; }
-    button, .download-link {
-      border: 0;
-      border-radius: 8px;
-      background: var(--accent);
-      color: #06100b;
-      cursor: pointer;
-      font-weight: 800;
-      min-height: 44px;
-      padding: 11px 18px;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-    }
-    button:hover, .download-link:hover { background: var(--accent-strong); }
-    button:disabled { opacity: .65; cursor: wait; }
-    .secondary-btn {
-      min-height: 36px;
-      padding: 8px 12px;
-      border: 1px solid rgba(80,216,144,.32);
-      background: rgba(80,216,144,.12);
-      color: var(--accent);
-      font-size: 13px;
-    }
-    .secondary-btn:hover { background: rgba(80,216,144,.2); }
-    .assist-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
-    .assist-msg { min-height: 18px; }
-    .voice-clone-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
-    .voice-status { min-height: 18px; margin-top: 0; }
-    .voice-preview-row { align-items: center; }
-    .rec-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 999; display: flex; align-items: center; justify-content: center; }
-    .rec-modal-content { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; width: min(520px, 95vw); max-height: 90vh; overflow-y: auto; }
-    .rec-modal-header { padding: 18px 20px 14px; border-bottom: 1px solid var(--line); }
-    .rec-modal-header h3 { margin: 0; font-size: 18px; }
-    .rec-modal-body { padding: 20px; }
-    .rec-progress { margin-bottom: 16px; }
-    .rec-step { font-size: 14px; font-weight: 700; color: var(--accent); margin-bottom: 8px; }
-    .rec-bar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+    /* App Layout */
+    .app { display: flex; flex-direction: column; height: 100vh; }
+    .app-header { display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 64px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .logo { display: flex; align-items: center; gap: 10px; font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: var(--text-primary); text-decoration: none; }
+    .logo-icon { width: 36px; height: 36px; background: var(--gradient-green); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+    .header-btn { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: none; border-radius: 50%; background: var(--bg-tertiary); color: var(--text-secondary); cursor: pointer; font-size: 18px; transition: var(--transition); }
+    .header-btn:hover { background: var(--bg-elevated); color: var(--text-primary); }
+    .lang-toggle { width: auto; padding: 0 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+    /* Main Layout */
+    .app-body { display: flex; flex: 1; overflow: hidden; }
+    /* Sidebar */
+    .sidebar { width: 280px; background: var(--bg-secondary); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+    .sidebar-nav { padding: 16px 12px; }
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: var(--radius-md); color: var(--text-secondary); text-decoration: none; font-weight: 500; cursor: pointer; transition: var(--transition); }
+    .nav-item:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+    .nav-item.active { background: var(--accent-dim); color: var(--accent); }
+    .nav-icon { font-size: 20px; width: 24px; text-align: center; }
+    .sidebar-section { padding: 8px 12px; }
+    .sidebar-section-title { padding: 8px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+    .playlist-item { display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-radius: var(--radius-sm); color: var(--text-secondary); cursor: pointer; transition: var(--transition); }
+    .playlist-item:hover { color: var(--text-primary); }
+    /* Main Content */
+    .main-content { flex: 1; overflow-y: auto; padding: 32px 40px 120px; background: var(--bg-primary); }
+    .page-header { margin-bottom: 32px; }
+    .page-title { font-size: 32px; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; }
+    .page-desc { color: var(--text-secondary); font-size: 14px; }
+    /* Create Form */
+    .create-form { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px; max-width: 900px; }
+    .form-section { margin-bottom: 24px; }
+    .form-section:last-child { margin-bottom: 0; }
+    .form-label { display: block; font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
+    .form-hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+    .form-input { width: 100%; padding: 12px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-primary); font-size: 14px; transition: var(--transition); }
+    .form-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+    .form-input::placeholder { color: var(--text-muted); }
+    textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.6; }
+    /* Template Grid */
+    .template-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
+    .template-btn { padding: 14px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-secondary); font-size: 13px; font-weight: 500; cursor: pointer; transition: var(--transition); text-align: center; }
+    .template-btn:hover { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); transform: translateY(-1px); }
+    .template-btn.active { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+    /* Checkboxes */
+    .checkbox-grid { display: flex; gap: 12px; flex-wrap: wrap; }
+    .checkbox-item { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); }
+    .checkbox-item:hover { border-color: var(--border-light); }
+    .checkbox-item input { width: 18px; height: 18px; accent-color: var(--accent); }
+    .checkbox-item span { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+    .checkbox-item small { display: block; font-size: 11px; color: var(--text-muted); }
+    /* Voice Clone */
+    .voice-section { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; }
+    .voice-top-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .voice-status { font-size: 13px; color: var(--text-secondary); }
+    .voice-status.success { color: var(--accent); }
+    .voice-status.error { color: var(--danger); }
+    /* Advanced Parameters */
+    .advanced-toggle { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; margin-top: 16px; }
+    .advanced-toggle:hover { border-color: var(--border-light); }
+    .advanced-toggle span { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .advanced-toggle-icon { color: var(--text-muted); transition: transform 0.2s; }
+    .advanced-panel { margin-top: 12px; padding: 20px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); display: none; }
+    .advanced-panel.open { display: block; }
+    .param-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .param-field { display: flex; flex-direction: column; gap: 6px; }
+    .param-field label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+    .param-field input { padding: 10px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 13px; }
+    .param-field input:focus { outline: none; border-color: var(--accent); }
+    /* Actions */
+    .form-actions { display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap; }
+    .btn-primary { flex: 1; padding: 14px 24px; background: var(--accent); border: none; border-radius: var(--radius-md); color: #000; font-size: 14px; font-weight: 700; cursor: pointer; transition: var(--transition); display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .btn-secondary { padding: 14px 20px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-primary); font-size: 13px; font-weight: 600; cursor: pointer; transition: var(--transition); }
+    .btn-secondary:hover { background: var(--bg-elevated); border-color: var(--border-light); }
+    .btn-voice { padding: 12px 16px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-primary); font-size: 13px; font-weight: 600; cursor: pointer; transition: var(--transition); display: flex; align-items: center; gap: 8px; }
+    .btn-voice:hover { border-color: var(--accent); color: var(--accent); }
+    .error-text { color: var(--danger); font-size: 13px; min-height: 20px; margin-top: 12px; }
+    /* Jobs Panel */
+    .jobs-panel { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-top: 24px; max-width: 900px; }
+    .jobs-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .jobs-title { font-size: 16px; font-weight: 700; color: var(--text-primary); }
+    .jobs-list { display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto; }
+    .job-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); transition: var(--transition); }
+    .job-card:hover { border-color: var(--border-light); }
+    .job-art { width: 56px; height: 56px; background: var(--gradient-green); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+    .job-info { flex: 1; min-width: 0; }
+    .job-title { font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+    .job-meta { display: flex; gap: 8px; font-size: 12px; color: var(--text-muted); }
+    .job-badge { padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .job-badge.queued { background: rgba(255, 171, 0, 0.15); color: var(--warning); }
+    .job-badge.running { background: rgba(255, 171, 0, 0.15); color: var(--warning); }
+    .job-badge.completed { background: var(--accent-dim); color: var(--accent); }
+    .job-badge.error { background: rgba(255, 82, 82, 0.15); color: var(--danger); }
+    .job-actions { display: flex; gap: 8px; }
+    .job-action-btn { padding: 8px 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer; transition: var(--transition); }
+    .job-action-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .job-action-btn.download { background: var(--accent); color: #000; border: none; }
+    .job-action-btn.download:hover { background: var(--accent-hover); }
+    .job-empty { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+    .job-progress { display: flex; align-items: center; gap: 10px; }
+    .progress-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--accent); transition: width 0.3s; }
+    /* Bottom Player */
+    .player { position: fixed; bottom: 0; left: 0; right: 0; height: 90px; background: var(--bg-secondary); border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 20px; z-index: 100; }
+    .player-track { display: flex; align-items: center; gap: 14px; width: 280px; flex-shrink: 0; }
+    .player-art { width: 56px; height: 56px; background: var(--gradient-green); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 24px; }
+    .player-info { min-width: 0; }
+    .player-title { font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .player-artist { font-size: 12px; color: var(--text-muted); }
+    .player-controls { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .player-buttons { display: flex; align-items: center; gap: 16px; }
+    .player-btn { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 20px; padding: 8px; transition: var(--transition); }
+    .player-btn:hover { color: var(--text-primary); }
+    .player-btn.play { width: 40px; height: 40px; background: var(--text-primary); color: var(--bg-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .player-btn.play:hover { transform: scale(1.05); }
+    .player-progress { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 600px; }
+    .player-time { font-size: 11px; color: var(--text-muted); min-width: 40px; text-align: center; }
+    .player-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; cursor: pointer; position: relative; }
+    .player-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; transition: width 0.1s; }
+    .player-bar:hover .player-bar-fill { background: var(--accent-hover); }
+    .player-volume { display: flex; align-items: center; gap: 8px; width: 180px; flex-shrink: 0; }
+    .volume-icon { color: var(--text-muted); font-size: 18px; cursor: pointer; }
+    .volume-slider { flex: 1; height: 4px; background: var(--border); border-radius: 2px; cursor: pointer; }
+    .volume-fill { height: 100%; background: var(--text-muted); border-radius: 2px; width: 70%; }
+    /* Recording Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+    .modal-content { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-lg); width: min(520px, 95vw); max-height: 90vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border); }
+    .modal-title { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+    .modal-close { width: 32px; height: 32px; background: var(--bg-tertiary); border: none; border-radius: 50%; color: var(--text-muted); cursor: pointer; font-size: 16px; }
+    .modal-close:hover { background: var(--bg-elevated); color: var(--text-primary); }
+    .modal-body { padding: 24px; }
+    .rec-progress { margin-bottom: 20px; }
+    .rec-step { font-size: 14px; font-weight: 700; color: var(--accent); margin-bottom: 10px; }
+    .rec-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
     .rec-bar-fill { height: 100%; background: var(--accent); transition: width 0.4s ease; }
-    .rec-script-box { background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 14px; }
-    .rec-instruction { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
-    .rec-script { font-size: 15px; line-height: 1.5; color: var(--text); }
-    .rec-countdown { font-size: 28px; font-weight: 800; color: var(--accent); text-align: center; margin: 12px 0; }
-    .rec-review-audio { margin: 10px 0; }
-    .rec-controls-row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
-    .rec-done { text-align: center; padding: 24px 0; font-size: 16px; color: var(--accent); }
-    .rec-error { color: var(--danger); }
-    .error-text { color: var(--danger); min-height: 20px; font-size: 14px; }
-    .jobs { display: grid; gap: 10px; padding: 14px 16px 16px; }
-    .empty { border: 1px dashed var(--line); border-radius: 8px; padding: 18px; color: var(--muted); text-align: center; }
-    .job { border: 1px solid var(--line); border-radius: 8px; background: var(--soft); padding: 13px; display: grid; gap: 9px; }
-    .job-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
-    .job-title { margin: 0; font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
-    .badge { border: 1px solid var(--line); border-radius: 999px; padding: 4px 9px; color: var(--muted); background: var(--input); font-size: 11px; font-weight: 800; text-transform: uppercase; white-space: nowrap; }
-    .badge.completed { color: var(--accent); border-color: rgba(80,216,144,.45); }
-    .badge.running, .badge.queued { color: var(--warn); border-color: rgba(239,200,106,.45); }
-    .badge.error { color: var(--danger); border-color: rgba(255,117,109,.45); }
-    .meta { display: flex; flex-wrap: wrap; gap: 6px; color: var(--muted); font-size: 12px; }
-    .meta span { border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; background: var(--input); }
-    .job-file { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; color: var(--muted); font-size: 13px; }
-    .job-error { color: var(--danger); font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
-    .delete-btn { min-height: 32px; padding: 6px 10px; background: rgba(255,117,109,.16); color: var(--danger); border: 1px solid rgba(255,117,109,.32); font-size: 12px; }
-    .download-link { min-height: 36px; padding: 8px 12px; font-size: 13px; }
-    .template-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
-    .template-btn {
-      padding: 10px 8px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--soft);
-      color: var(--text);
-      font-size: 12px;
-      cursor: pointer;
-      transition: all 0.2s;
-      white-space: nowrap;
+    .rec-script { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; margin: 16px 0; text-align: center; }
+    .rec-script-text { font-size: 18px; line-height: 1.6; color: var(--text-primary); }
+    .rec-countdown { font-size: 48px; font-weight: 800; color: var(--accent); text-align: center; margin: 20px 0; }
+    .rec-instruction { font-size: 13px; color: var(--text-muted); text-align: center; margin-bottom: 16px; }
+    .rec-controls { display: flex; gap: 12px; justify-content: center; }
+    .rec-btn { padding: 12px 24px; border: none; border-radius: var(--radius-md); font-size: 14px; font-weight: 600; cursor: pointer; transition: var(--transition); }
+    .rec-btn-record { background: var(--danger); color: #fff; }
+    .rec-btn-record:hover { opacity: 0.9; }
+    .rec-btn-stop { background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border); }
+    .rec-btn-next { background: var(--accent); color: #000; }
+    .rec-done { text-align: center; padding: 30px; color: var(--accent); font-size: 16px; }
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .sidebar { width: 220px; }
+      .template-grid { grid-template-columns: repeat(2, 1fr); }
+      .param-grid { grid-template-columns: repeat(2, 1fr); }
     }
-    .template-btn:hover { border-color: var(--accent); background: rgba(80,216,144,.12); color: var(--accent); }
-    .template-btn.active { border-color: var(--accent); background: rgba(80,216,144,.2); color: var(--accent); }
-    @media (max-width: 860px) {
-      .layout { grid-template-columns: 1fr; }
-      .top { flex-direction: column; }
-      h1 { font-size: 28px; }
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main-content { padding: 20px 16px 100px; }
+      .player { padding: 0 16px; gap: 12px; }
+      .player-track { width: auto; }
+      .player-volume { display: none; }
     }
-    @media (max-width: 560px) {
-      .grid { grid-template-columns: 1fr; }
-      .page { width: min(100% - 20px, 1120px); padding-top: 16px; }
-      .top-actions { width: 100%; justify-content: space-between; }
-    }
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
   </style>
 </head>
 <body>
-  <main class="page">
-    <div class="top">
-      <div>
-        <h1>Music Speaks</h1>
-        <p id="subtitle" class="subtitle">When words fall short, let music speak. Give your inner world a sound of its own.</p>
+  <div class="app">
+    <header class="app-header">
+      <a href="/" class="logo">
+        <div class="logo-icon">🎵</div>
+        <span>Music Speaks</span>
+      </a>
+      <div class="header-actions">
+        <button id="themeBtn" class="header-btn" title="Toggle theme">🌙</button>
+        <button id="langBtn" class="header-btn lang-toggle">中文</button>
       </div>
-      <div class="top-actions">
-        <div class="pill">music-2.6</div>
-        <button id="themeBtn" class="ghost" type="button" title="Toggle theme">🌙</button>
-        <button id="langBtn" class="ghost" type="button">中文</button>
-      </div>
-    </div>
-    <div class="layout">
-      <section class="panel">
-        <div class="panel-head">
-          <h2 data-i18n="createTitle">Create Music</h2>
-          <p data-i18n="createDesc">Write a feeling, story, lyric, or style. Music Speaks turns it into a downloadable song.</p>
+    </header>
+    <div class="app-body">
+      <aside class="sidebar">
+        <nav class="sidebar-nav">
+          <a class="nav-item active" data-view="create">
+            <span class="nav-icon">✨</span>
+            <span data-i18n="navCreate">Create</span>
+          </a>
+          <a class="nav-item" data-view="library">
+            <span class="nav-icon">📚</span>
+            <span data-i18n="navLibrary">Library</span>
+          </a>
+          <a class="nav-item" data-view="favorites">
+            <span class="nav-icon">❤️</span>
+            <span data-i18n="navFavorites">Favorites</span>
+          </a>
+          <a class="nav-item" data-view="history">
+            <span class="nav-icon">🕐</span>
+            <span data-i18n="navHistory">History</span>
+          </a>
+        </nav>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title" data-i18n="navPlaylists">Playlists</div>
+          <div class="playlist-item"><span>🎧</span><span data-i18n="playlistAll">All Songs</span></div>
+          <div class="playlist-item"><span>🔥</span><span data-i18n="playlistRecent">Recently Played</span></div>
         </div>
-        <div class="panel-body">
-          <form id="jobForm">
-            <div class="field">
-              <label for="email" data-i18n="emailLabel">Email Address (optional)</label>
-              <input id="email" type="email" data-i18n-placeholder="emailPlaceholder" placeholder="your@email.com">
-              <div class="hint" data-i18n="emailHint">Optional. The download button is the main way to get your MP3.</div>
+      </aside>
+      <main class="main-content">
+        <!-- Create View -->
+        <div id="view-create">
+          <div class="page-header">
+            <h1 class="page-title" data-i18n="createTitle">Create Music</h1>
+            <p class="page-desc" data-i18n="createDesc">Write a feeling, story, lyric, or style. Music Speaks turns it into a downloadable song.</p>
+          </div>
+          <form id="jobForm" class="create-form">
+            <!-- Email -->
+            <div class="form-section">
+              <label class="form-label" data-i18n="emailLabel">Email Address (optional)</label>
+              <input id="email" type="email" class="form-input" data-i18n-placeholder="emailPlaceholder" placeholder="your@email.com">
+              <div class="form-hint" data-i18n="emailHint">Optional. Download button is the main way to get your MP3.</div>
             </div>
-            <div class="field">
-              <label for="songTitle" data-i18n="titleLabel">Song Title (optional)</label>
-              <input id="songTitle" type="text" maxlength="120" data-i18n-placeholder="titlePlaceholder" placeholder="Leave empty and AI will name the song">
-              <div class="hint" data-i18n="titleHint">If empty, Music Speaks will create a title from the lyrics before saving the MP3.</div>
+            <!-- Song Title -->
+            <div class="form-section">
+              <label class="form-label" data-i18n="titleLabel">Song Title (optional)</label>
+              <input id="songTitle" type="text" maxlength="120" class="form-input" data-i18n-placeholder="titlePlaceholder" placeholder="Leave empty and AI will name the song">
             </div>
-            <div class="field">
-              <label for="prompt" data-i18n="promptLabel">Music Style Prompt</label>
-              <input id="prompt" type="text" maxlength="2000" required data-i18n-placeholder="promptPlaceholder" placeholder="Cinematic electronic pop, confident and bright, polished production, strong hook">
-              <div class="hint" data-i18n="promptHint">Include style, mood, instruments, tempo, and any references.</div>
+            <!-- Prompt -->
+            <div class="form-section">
+              <label class="form-label" data-i18n="promptLabel">Music Style Prompt</label>
+              <input id="prompt" type="text" maxlength="2000" required class="form-input" data-i18n-placeholder="promptPlaceholder" placeholder="Cinematic electronic pop, confident and bright, polished production, strong hook">
+              <div class="form-hint" data-i18n="promptHint">Include style, mood, instruments, tempo, and any references.</div>
             </div>
-            <div class="field" style="margin-top:8px;">
-              <label data-i18n="templates">Prompt Templates</label>
+            <!-- Templates -->
+            <div class="form-section">
+              <label class="form-label" data-i18n="templates">Prompt Templates</label>
               <div class="template-grid">
                 <button class="template-btn" type="button" data-template="upbeat_pop">🎵 Upbeat Pop</button>
                 <button class="template-btn" type="button" data-template="chill_ambient">🌙 Chill Ambient</button>
@@ -305,77 +386,168 @@ INDEX_HTML = r"""<!doctype html>
                 <button class="template-btn" type="button" data-template="lofi_chill">☕ Lo-Fi Chill</button>
               </div>
             </div>
-            <div class="field">
-              <label for="lyricsIdea" data-i18n="lyricsIdeaLabel">Lyrics Brief for AI (optional)</label>
-              <textarea id="lyricsIdea" maxlength="2500" data-i18n-placeholder="lyricsIdeaPlaceholder" placeholder="Tell the story, feelings, images, language, chorus idea, or fragments you want in the lyrics."></textarea>
-              <div class="hint" data-i18n="lyricsIdeaHint">If finished lyrics are empty, Music Speaks will ask AI to write lyrics from this brief.</div>
-              <div class="assist-row">
-                <button id="generateLyricsBtn" class="secondary-btn" type="button" data-i18n="generateLyrics">Generate Lyrics</button>
-                <div id="lyricsAssistMessage" class="hint assist-msg"></div>
+            <!-- Lyrics Idea -->
+            <div class="form-section">
+              <label class="form-label" data-i18n="lyricsIdeaLabel">Lyrics Brief for AI (optional)</label>
+              <textarea id="lyricsIdea" maxlength="2500" class="form-input" data-i18n-placeholder="lyricsIdeaPlaceholder" placeholder="Tell the story, feelings, images, language, chorus idea, or fragments you want in the lyrics."></textarea>
+              <div class="form-hint" data-i18n="lyricsIdeaHint">If finished lyrics are empty, Music Speaks will ask AI to write lyrics from this brief.</div>
+              <div style="margin-top:12px;display:flex;align-items:center;gap:12px;">
+                <button id="generateLyricsBtn" class="btn-secondary" type="button" data-i18n="generateLyrics">Generate Lyrics</button>
+                <span id="lyricsAssistMessage" style="font-size:13px;color:var(--text-muted);"></span>
               </div>
             </div>
-            <div class="field">
-              <label for="lyrics" data-i18n="lyricsLabel">Finished Lyrics (optional)</label>
-              <textarea id="lyrics" maxlength="3500" data-i18n-placeholder="lyricsPlaceholder" placeholder="[Verse]\nYour lyrics here...\n[Hook]\nYour chorus..."></textarea>
-              <div class="hint" data-i18n="lyricsHint">Paste exact lyrics here if you already have them. Exact lyrics take priority over the lyrics brief.</div>
+            <!-- Finished Lyrics -->
+            <div class="form-section">
+              <label class="form-label" data-i18n="lyricsLabel">Finished Lyrics (optional)</label>
+              <textarea id="lyrics" maxlength="3500" class="form-input" data-i18n-placeholder="lyricsPlaceholder" placeholder="[Verse]&#10;Your lyrics here...&#10;[Hook]&#10;Your chorus..."></textarea>
+              <div class="form-hint" data-i18n="lyricsHint">Paste exact lyrics here if you already have them. Exact lyrics take priority.</div>
             </div>
-            <div class="checks">
-              <label class="check">
-                <input id="instrumental" type="checkbox">
-                <span><span data-i18n="instrumental">Instrumental</span><small data-i18n="instrumentalHint">No vocals. Lyrics will be ignored.</small></span>
-              </label>
-              <label class="check">
-                <input id="lyricsOptimizer" type="checkbox">
-                <span><span data-i18n="autoLyrics">Auto-generate Lyrics</span><small data-i18n="autoLyricsHint">AI writes lyrics from your prompt.</small></span>
-              </label>
-            </div>
-            <div id="voiceCloneSection" class="field" style="margin-top:4px;">
-              <label data-i18n="voiceCloneLabel">Voice Clone (optional)</label>
-              <div id="voiceTopRow" class="voice-clone-row">
-                <button id="voiceRecordBtn" class="secondary-btn" type="button" data-i18n="voiceRecordBtn">Record My Voice</button>
-                <div id="voiceStatus" class="hint voice-status"></div>
-              </div>
-              <div class="hint" data-i18n="voiceCloneHint">Record 5 short passages covering different tones and styles. Takes about 30 seconds. Cloned voice expires in 7 days.</div>
-              <div id="voicePreviewRow" class="voice-preview-row" style="display:none; margin-top:10px;">
-                <button id="voicePreviewBtn" class="secondary-btn" type="button" data-i18n="voicePreviewBtn">Preview Voice</button>
-                <audio id="voicePreviewAudio" controls style="height:36px; margin-left:8px;"></audio>
+            <!-- Options -->
+            <div class="form-section">
+              <div class="checkbox-grid">
+                <label class="checkbox-item">
+                  <input id="instrumental" type="checkbox">
+                  <span><span data-i18n="instrumental">Instrumental</span><small data-i18n="instrumentalHint">No vocals. Lyrics ignored.</small></span>
+                </label>
+                <label class="checkbox-item">
+                  <input id="lyricsOptimizer" type="checkbox">
+                  <span><span data-i18n="autoLyrics">Auto-generate Lyrics</span><small data-i18n="autoLyricsHint">AI writes lyrics from prompt.</small></span>
+                </label>
               </div>
             </div>
-            <details>
-              <summary data-i18n="advanced">More Parameters</summary>
-              <div class="grid">
-                <div class="field"><label for="genre" data-i18n="genre">Genre</label><input id="genre" data-i18n-placeholder="genrePlaceholder" placeholder="pop, reggae, jazz"></div>
-                <div class="field"><label for="mood" data-i18n="mood">Mood</label><input id="mood" data-i18n-placeholder="moodPlaceholder" placeholder="warm, bright, intense"></div>
-                <div class="field"><label for="instruments" data-i18n="instruments">Instruments</label><input id="instruments" data-i18n-placeholder="instrumentsPlaceholder" placeholder="piano, guitar, drums"></div>
-                <div class="field"><label for="tempo" data-i18n="tempo">Tempo Feel</label><input id="tempo" data-i18n-placeholder="tempoPlaceholder" placeholder="fast, slow, moderate"></div>
-                <div class="field"><label for="bpm" data-i18n="bpm">BPM</label><input id="bpm" type="number" min="40" max="240" data-i18n-placeholder="bpmPlaceholder" placeholder="85"></div>
-                <div class="field"><label for="key" data-i18n="key">Musical Key</label><input id="key" data-i18n-placeholder="keyPlaceholder" placeholder="C major, A minor"></div>
-                <div class="field wide"><label for="vocals" data-i18n="vocals">Vocal Style</label><input id="vocals" data-i18n-placeholder="vocalsPlaceholder" placeholder="warm male vocal, bright female vocal, duet"></div>
-                <div class="field wide"><label for="structure" data-i18n="structure">Song Structure</label><input id="structure" data-i18n-placeholder="structurePlaceholder" placeholder="verse-chorus-verse-bridge-chorus"></div>
-                <div class="field wide"><label for="references" data-i18n="references">References</label><input id="references" data-i18n-placeholder="referencesPlaceholder" placeholder="similar to..."></div>
-                <div class="field wide"><label for="avoid" data-i18n="avoid">Avoid</label><input id="avoid" data-i18n-placeholder="avoidPlaceholder" placeholder="explicit content, auto-tune"></div>
-                <div class="field wide"><label for="useCase" data-i18n="useCase">Use Case</label><input id="useCase" data-i18n-placeholder="useCasePlaceholder" placeholder="video background, theme song"></div>
-                <div class="field wide"><label for="extra" data-i18n="extra">Extra Details</label><input id="extra" data-i18n-placeholder="extraPlaceholder" placeholder="Any additional notes"></div>
+            <!-- Voice Clone -->
+            <div class="form-section">
+              <label class="form-label" data-i18n="voiceCloneLabel">Voice Clone (optional)</label>
+              <div class="voice-section">
+                <div class="voice-top-row">
+                  <button id="voiceRecordBtn" class="btn-voice" type="button">
+                    <span>🎤</span>
+                    <span data-i18n="voiceRecordBtn">Record My Voice</span>
+                  </button>
+                  <span id="voiceStatus" class="voice-status"></span>
+                </div>
+                <div id="voicePreviewRow" style="display:none;margin-top:12px;align-items:center;gap:12px;">
+                  <button id="voicePreviewBtn" class="btn-secondary" type="button" data-i18n="voicePreviewBtn">Preview Voice</button>
+                  <audio id="voicePreviewAudio" controls style="height:36px;"></audio>
+                </div>
+                <div class="form-hint" data-i18n="voiceCloneHint">Record 5 passages. Takes ~30s. Voice expires in 7 days.</div>
               </div>
-            </details>
-            <div class="actions">
-              <button id="submitBtn" type="submit" data-i18n="submit">Generate Music</button>
-              <button id="clearDraftBtn" class="secondary-btn" type="button" data-i18n="clearDraft">Clear Draft</button>
-              <div id="formError" class="error-text"></div>
             </div>
-            <div id="draftStatus" class="hint"></div>
+            <!-- Advanced Parameters -->
+            <div class="form-section">
+              <div class="advanced-toggle" id="advancedToggle">
+                <span data-i18n="advanced">More Parameters</span>
+                <span class="advanced-toggle-icon">▼</span>
+              </div>
+              <div class="advanced-panel" id="advancedPanel">
+                <div class="param-grid">
+                  <div class="param-field"><label data-i18n="genre">Genre</label><input id="genre" data-i18n-placeholder="genrePlaceholder" placeholder="pop, reggae, jazz"></div>
+                  <div class="param-field"><label data-i18n="mood">Mood</label><input id="mood" data-i18n-placeholder="moodPlaceholder" placeholder="warm, bright, intense"></div>
+                  <div class="param-field"><label data-i18n="instruments">Instruments</label><input id="instruments" data-i18n-placeholder="instrumentsPlaceholder" placeholder="piano, guitar, drums"></div>
+                  <div class="param-field"><label data-i18n="tempo">Tempo</label><input id="tempo" data-i18n-placeholder="tempoPlaceholder" placeholder="fast, slow, moderate"></div>
+                  <div class="param-field"><label data-i18n="bpm">BPM</label><input id="bpm" type="number" min="40" max="240" data-i18n-placeholder="bpmPlaceholder" placeholder="85"></div>
+                  <div class="param-field"><label data-i18n="key">Key</label><input id="key" data-i18n-placeholder="keyPlaceholder" placeholder="C major, A minor"></div>
+                  <div class="param-field" style="grid-column:1/-1;"><label data-i18n="vocals">Vocal Style</label><input id="vocals" data-i18n-placeholder="vocalsPlaceholder" placeholder="warm male vocal, bright female vocal, duet"></div>
+                  <div class="param-field" style="grid-column:1/-1;"><label data-i18n="structure">Song Structure</label><input id="structure" data-i18n-placeholder="structurePlaceholder" placeholder="verse-chorus-verse-bridge-chorus"></div>
+                  <div class="param-field" style="grid-column:1/-1;"><label data-i18n="references">References</label><input id="references" data-i18n-placeholder="referencesPlaceholder" placeholder="similar to..."></div>
+                  <div class="param-field" style="grid-column:1/-1;"><label data-i18n="avoid">Avoid</label><input id="avoid" data-i18n-placeholder="avoidPlaceholder" placeholder="explicit content, auto-tune"></div>
+                </div>
+              </div>
+            </div>
+            <!-- Actions -->
+            <div class="form-actions">
+              <button id="submitBtn" class="btn-primary" type="submit" data-i18n="submit">Generate Music</button>
+              <button id="clearDraftBtn" class="btn-secondary" type="button" data-i18n="clearDraft">Clear Draft</button>
+            </div>
+            <div id="formError" class="error-text"></div>
+            <div id="draftStatus" style="margin-top:12px;font-size:12px;color:var(--text-muted);"></div>
           </form>
+          <!-- Jobs Panel -->
+          <div class="jobs-panel">
+            <div class="jobs-header">
+              <h3 class="jobs-title" data-i18n="jobsTitle">Generation Jobs</h3>
+            </div>
+            <div id="jobs" class="jobs-list"></div>
+          </div>
         </div>
-      </section>
-      <section class="panel">
-        <div class="panel-head">
-          <h2 data-i18n="jobsTitle">Jobs</h2>
-          <p data-i18n="jobsDesc">Real-time status. Download appears when the MP3 is ready.</p>
+        <!-- Library View -->
+        <div id="view-library" style="display:none;">
+          <div class="page-header">
+            <h1 class="page-title" data-i18n="navLibrary">Library</h1>
+            <p class="page-desc" data-i18n="libraryDesc">All your generated songs in one place.</p>
+          </div>
+          <div id="library-list" class="jobs-list"></div>
         </div>
-        <div id="jobs" class="jobs"></div>
-      </section>
+        <!-- Favorites View -->
+        <div id="view-favorites" style="display:none;">
+          <div class="page-header">
+            <h1 class="page-title" data-i18n="navFavorites">Favorites</h1>
+            <p class="page-desc" data-i18n="favoritesDesc">Your liked and saved songs.</p>
+          </div>
+          <div id="favorites-list" class="jobs-list"></div>
+        </div>
+        <!-- History View -->
+        <div id="view-history" style="display:none;">
+          <div class="page-header">
+            <h1 class="page-title" data-i18n="navHistory">History</h1>
+            <p class="page-desc" data-i18n="historyDesc">Recently generated songs.</p>
+          </div>
+          <div id="history-list" class="jobs-list"></div>
+        </div>
+      </main>
     </div>
-  </main>
+    <!-- Bottom Player -->
+    <div class="player" id="player" style="display:none;">
+      <div class="player-track">
+        <div class="player-art">🎵</div>
+        <div class="player-info">
+          <div class="player-title" id="playerTitle">Song Title</div>
+          <div class="player-artist" id="playerArtist">Music Speaks</div>
+        </div>
+      </div>
+      <div class="player-controls">
+        <div class="player-buttons">
+          <button class="player-btn" id="playerPrev">⏮</button>
+          <button class="player-btn play" id="playerPlay">▶</button>
+          <button class="player-btn" id="playerNext">⏭</button>
+        </div>
+        <div class="player-progress">
+          <span class="player-time" id="playerCurrentTime">0:00</span>
+          <div class="player-bar" id="playerBar"><div class="player-bar-fill" id="playerBarFill"></div></div>
+          <span class="player-time" id="playerDuration">0:00</span>
+        </div>
+      </div>
+      <div class="player-volume">
+        <span class="volume-icon" id="volumeIcon">🔊</span>
+        <div class="volume-slider" id="volumeSlider"><div class="volume-fill" id="volumeFill"></div></div>
+      </div>
+    </div>
+  </div>
+  <!-- Recording Modal -->
+  <div id="recModal" class="modal-overlay" style="display:none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" data-i18n="recModalTitle">Record Your Voice</h3>
+        <button class="modal-close" id="recModalClose">✕</button>
+      </div>
+      <div class="modal-body" id="recModalBody">
+        <div class="rec-progress">
+          <div class="rec-step" id="recStep">Step 1 of 5</div>
+          <div class="rec-bar"><div class="rec-bar-fill" id="recBarFill" style="width:20%"></div></div>
+        </div>
+        <div class="rec-script">
+          <div class="rec-script-text" id="recScriptText">The rain falls softly on the windowpane...</div>
+        </div>
+        <div class="rec-countdown" id="recCountdown" style="display:none;"></div>
+        <div class="rec-instruction" id="recInstruction">Click Record to start recording this passage</div>
+        <div class="rec-controls">
+          <button class="rec-btn rec-btn-record" id="recRecordBtn">⏺ Record</button>
+          <button class="rec-btn rec-btn-stop" id="recStopBtn" style="display:none;">⏹ Stop</button>
+          <button class="rec-btn rec-btn-next" id="recNextBtn" style="display:none;">Next →</button>
+        </div>
+      </div>
+    </div>
+  </div>
   <script>
     const I18N = {
       en: {
@@ -411,7 +583,9 @@ INDEX_HTML = r"""<!doctype html>
         clearDraft: "Clear Draft", clearDraftConfirm: "Clear the current draft? This will not delete generated music.",
         draftSaved: "Draft saved", draftRestored: "Draft restored", draftCleared: "Draft cleared", draftRestoreFailed: "Could not restore server draft.",
         empty: "No jobs yet. Fill in the form to start creating.", queued: "Queued", running: "Generating", completed: "Done", error: "Error", unknown: "Unknown",
-        download: "Download MP3", delete: "Delete", sent: "Sent to", instrumentalMode: "Instrumental", vocalMode: "Vocal", deleteConfirm: "Delete this job?", deleteFailed: "Delete failed"
+        download: "Download MP3", delete: "Delete", sent: "Sent to", instrumentalMode: "Instrumental", vocalMode: "Vocal", deleteConfirm: "Delete this job?", deleteFailed: "Delete failed",
+        navCreate: "Create", navLibrary: "Library", navFavorites: "Favorites", navHistory: "History", navPlaylists: "Playlists", playlistAll: "All Songs", playlistRecent: "Recently Played",
+        libraryDesc: "All your generated songs in one place.", favoritesDesc: "Your liked and saved songs.", historyDesc: "Recently generated songs."
       },
       zh: {
         subtitle: "当语言无法抵达时，让音乐替你表达。给你的内心世界一种属于自己的声音。",
@@ -446,7 +620,9 @@ INDEX_HTML = r"""<!doctype html>
         clearDraft: "清空草稿", clearDraftConfirm: "清空当前草稿？这不会删除已经生成的音乐。",
         draftSaved: "草稿已保存", draftRestored: "已恢复上次草稿", draftCleared: "草稿已清空", draftRestoreFailed: "无法恢复服务器草稿。",
         empty: "暂无任务，填写表单开始创作。", queued: "排队中", running: "生成中", completed: "完成", error: "错误", unknown: "未知",
-        download: "下载 MP3", delete: "删除", sent: "已发送到", instrumentalMode: "纯音乐", vocalMode: "有人声", deleteConfirm: "删除此任务？", deleteFailed: "删除失败"
+        download: "下载 MP3", delete: "删除", sent: "已发送到", instrumentalMode: "纯音乐", vocalMode: "有人声", deleteConfirm: "删除此任务？", deleteFailed: "删除失败",
+        navCreate: "创建", navLibrary: "曲库", navFavorites: "收藏", navHistory: "历史", navPlaylists: "播放列表", playlistAll: "全部歌曲", playlistRecent: "最近播放",
+        libraryDesc: "你生成的所有歌曲。", favoritesDesc: "你喜欢的歌曲。", historyDesc: "最近生成的歌曲。"
       }
     };
 
@@ -517,7 +693,6 @@ INDEX_HTML = r"""<!doctype html>
     }
     function applyLang() {
       document.documentElement.lang = lang;
-      document.getElementById("subtitle").textContent = t("subtitle");
       document.getElementById("langBtn").textContent = lang === "en" ? "中文" : "EN";
       document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
       document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
@@ -534,7 +709,7 @@ INDEX_HTML = r"""<!doctype html>
     function renderJobs(jobs) {
       lastJobs = jobs || [];
       if (!lastJobs.length) {
-        jobsBox.innerHTML = `<div class="empty">${t("empty")}</div>`;
+        jobsBox.innerHTML = `<div class="job-empty">${t("empty")}</div>`;
         return;
       }
       jobsBox.innerHTML = lastJobs.map(job => {
@@ -543,19 +718,28 @@ INDEX_HTML = r"""<!doctype html>
         const title = escapeHtml(job.song_title || job.prompt || "Untitled");
         const mode = job.is_instrumental ? t("instrumentalMode") : t("vocalMode");
         const downloadUrl = job.download_url ? `${escapeHtml(job.download_url)}?client_id=${encodeURIComponent(clientId)}` : "";
-        const download = job.status === "completed" && job.download_url
-          ? `<div class="job-file"><span>${fileName}</span><a class="download-link" href="${downloadUrl}" download="${fileName}">${t("download")}</a></div>`
-          : "";
-        const sent = job.email_sent && job.email ? `<span>${t("sent")} ${escapeHtml(job.email)}</span>` : "";
-        const err = job.error ? `<div class="job-error">${escapeHtml(job.error)}</div>` : "";
-        const canDelete = job.status !== "running" && job.status !== "queued";
-        return `<div class="job">
-          <div class="job-top"><p class="job-title">${title}</p><span class="badge ${status}">${statusLabel(status)}</span></div>
-          <div class="meta"><span>${mode}</span><span>${formatDate(job.created_at)}</span>${sent}</div>
-          ${err}${download}
-          ${canDelete ? `<button class="delete-btn" type="button" onclick="deleteJob('${escapeHtml(job.id)}')">${t("delete")}</button>` : ""}
+        const isRunning = job.status === "running" || job.status === "queued";
+        const actions = job.status === "completed" && job.download_url
+          ? `<button class="job-action-btn download" onclick="playJob('${escapeHtml(job.id)}')">▶ Play</button><a class="job-action-btn download" href="${downloadUrl}" download="${fileName}">${t("download")}</a>`
+          : isRunning ? `<span style="font-size:12px;color:var(--text-muted);">${statusLabel(status)}...</span>` : "";
+        return `<div class="job-card" data-job-id="${escapeHtml(job.id)}">
+          <div class="job-art">🎵</div>
+          <div class="job-info">
+            <div class="job-title">${title}</div>
+            <div class="job-meta"><span class="job-badge ${status}">${statusLabel(status)}</span><span>${mode}</span><span>${formatDate(job.created_at)}</span></div>
+          </div>
+          <div class="job-actions">${actions}</div>
         </div>`;
       }).join("");
+    }
+    function playJob(id) {
+      const job = lastJobs.find(j => j.id === id);
+      if (!job || !job.download_url) return;
+      const url = job.download_url + (job.download_url.includes('?') ? '&' : '?') + 'client_id=' + encodeURIComponent(clientId);
+      currentTrack = { id: job.id, title: job.song_title || job.prompt || 'Untitled', url: url };
+      audioPlayer.src = url;
+      audioPlayer.play();
+      updatePlayerUI();
     }
     async function loadJobs() {
       try {
@@ -749,6 +933,74 @@ INDEX_HTML = r"""<!doctype html>
       const current = document.documentElement.getAttribute("data-theme");
       setTheme(current === "light" ? "" : "light");
     });
+    // Advanced panel toggle
+    const advancedToggle = document.getElementById("advancedToggle");
+    const advancedPanel = document.getElementById("advancedPanel");
+    advancedToggle.addEventListener("click", () => {
+      advancedPanel.classList.toggle("open");
+      const icon = advancedToggle.querySelector(".advanced-toggle-icon");
+      icon.textContent = advancedPanel.classList.contains("open") ? "▲" : "▼";
+    });
+    // Navigation
+    document.querySelectorAll(".nav-item").forEach(item => {
+      item.addEventListener("click", (e) => {
+        e.preventDefault();
+        const view = item.dataset.view;
+        document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+        item.classList.add("active");
+        document.querySelectorAll("[id^='view-']").forEach(v => v.style.display = "none");
+        const viewEl = document.getElementById("view-" + view);
+        if (viewEl) viewEl.style.display = "block";
+        if (view === "library" || view === "favorites" || view === "history") {
+          loadJobs();
+        }
+      });
+    });
+    // Player
+    const audioPlayer = new Audio();
+    let currentTrack = null;
+    const player = document.getElementById("player");
+    const playerTitle = document.getElementById("playerTitle");
+    const playerArtist = document.getElementById("playerArtist");
+    const playerPlay = document.getElementById("playerPlay");
+    const playerBar = document.getElementById("playerBar");
+    const playerBarFill = document.getElementById("playerBarFill");
+    const playerCurrentTime = document.getElementById("playerCurrentTime");
+    const playerDuration = document.getElementById("playerDuration");
+    const volumeFill = document.getElementById("volumeFill");
+    function updatePlayerUI() {
+      if (!currentTrack) { player.style.display = "none"; return; }
+      player.style.display = "flex";
+      playerTitle.textContent = currentTrack.title;
+      playerArtist.textContent = "Music Speaks";
+      playerPlay.textContent = audioPlayer.paused ? "▶" : "⏸";
+    }
+    audioPlayer.addEventListener("timeupdate", () => {
+      if (!audioPlayer.duration) return;
+      const pct = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+      playerBarFill.style.width = pct + "%";
+      playerCurrentTime.textContent = formatTime(audioPlayer.currentTime);
+      playerDuration.textContent = formatTime(audioPlayer.duration);
+    });
+    audioPlayer.addEventListener("ended", () => { playerPlay.textContent = "▶"; });
+    playerPlay.addEventListener("click", () => {
+      if (audioPlayer.paused) audioPlayer.play(); else audioPlayer.pause();
+      playerPlay.textContent = audioPlayer.paused ? "▶" : "⏸";
+    });
+    playerBar.addEventListener("click", (e) => {
+      if (!audioPlayer.duration) return;
+      const rect = playerBar.getBoundingClientRect();
+      const pct = (e.clientX - rect.left) / rect.width;
+      audioPlayer.currentTime = pct * audioPlayer.duration;
+    });
+    volumeFill.style.width = "70%";
+    audioPlayer.volume = 0.7;
+    function formatTime(secs) {
+      if (!secs || isNaN(secs)) return "0:00";
+      const m = Math.floor(secs / 60);
+      const s = Math.floor(secs % 60);
+      return m + ":" + s.toString().padStart(2, "0");
+    }
     document.querySelectorAll(".template-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         const key = btn.dataset.template;
@@ -1108,14 +1360,6 @@ INDEX_HTML = r"""<!doctype html>
       }
     });
   </script>
-  <div id="recModal" class="rec-modal" style="display:none;">
-    <div class="rec-modal-content">
-      <div class="rec-modal-header">
-        <h3 data-i18n="recModalTitle">Record Your Voice</h3>
-      </div>
-      <div id="recModalBody" class="rec-modal-body"></div>
-    </div>
-  </div>
 </body>
 </html>
 """
