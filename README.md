@@ -52,6 +52,10 @@ Users can either paste finished lyrics or describe the lyrics they want in their
 
 Users can provide a song title. If they leave it empty, Terry Music asks the MiniMax text model to create a concise title from the lyrics. The downloaded MP3 uses the title as its file name.
 
+## Drafts
+
+The form is draft-first: generating music does not clear the user's inputs. The browser saves the current draft locally, and the app also creates a draft URL with a `draft` id so the same draft can be restored in another window or browser when that URL is opened.
+
 ## Notes
 
 Each browser gets a local client id, so the Jobs panel only shows that browser's own jobs. This is not a login system; it is a lightweight privacy boundary for a private friends-only tool.

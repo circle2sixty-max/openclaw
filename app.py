@@ -40,6 +40,7 @@ MMX_PATH_HINTS = [
 ]
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", str(Path.home() / "terry_music_outputs")))
 JOBS_DB = OUTPUT_DIR / "jobs.json"
+DRAFTS_DB = OUTPUT_DIR / "drafts.json"
 MAX_BODY_BYTES = 1024 * 1024
 
 
@@ -74,6 +75,8 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD") or legacy_local_config("SMTP_PASSWORD
 
 JOBS: dict[str, dict[str, Any]] = {}
 JOBS_LOCK = threading.RLock()
+DRAFTS: dict[str, dict[str, Any]] = {}
+DRAFTS_LOCK = threading.RLock()
 
 INDEX_HTML = r"""<!doctype html>
 <html lang="en">
@@ -283,8 +286,10 @@ INDEX_HTML = r"""<!doctype html>
             </details>
             <div class="actions">
               <button id="submitBtn" type="submit" data-i18n="submit">Generate Music</button>
+              <button id="clearDraftBtn" class="secondary-btn" type="button" data-i18n="clearDraft">Clear Draft</button>
               <div id="formError" class="error-text"></div>
             </div>
+            <div id="draftStatus" class="hint"></div>
           </form>
         </div>
       </section>
@@ -324,6 +329,8 @@ INDEX_HTML = r"""<!doctype html>
         referencesPlaceholder: "similar to...", avoidPlaceholder: "explicit content, auto-tune", useCasePlaceholder: "video background, theme song",
         extraPlaceholder: "Any additional notes",
         submit: "Generate Music", jobsTitle: "Jobs", jobsDesc: "Real-time status. Download appears when the MP3 is ready.",
+        clearDraft: "Clear Draft", clearDraftConfirm: "Clear the current draft? This will not delete generated music.",
+        draftSaved: "Draft saved", draftRestored: "Draft restored", draftCleared: "Draft cleared", draftRestoreFailed: "Could not restore server draft.",
         empty: "No jobs yet. Fill in the form to start creating.", queued: "Queued", running: "Generating", completed: "Done", error: "Error", unknown: "Unknown",
         download: "Download MP3", delete: "Delete", sent: "Sent to", instrumentalMode: "Instrumental", vocalMode: "Vocal", deleteConfirm: "Delete this job?", deleteFailed: "Delete failed"
       },
@@ -352,6 +359,8 @@ INDEX_HTML = r"""<!doctype html>
         referencesPlaceholder: "参考某首歌、某位歌手或某种感觉", avoidPlaceholder: "避免露骨内容、避免过重电音修音",
         useCasePlaceholder: "视频背景、主题曲、朋友生日歌", extraPlaceholder: "其他补充要求",
         submit: "生成音乐", jobsTitle: "生成任务", jobsDesc: "实时状态。MP3 准备好后会出现下载按钮。",
+        clearDraft: "清空草稿", clearDraftConfirm: "清空当前草稿？这不会删除已经生成的音乐。",
+        draftSaved: "草稿已保存", draftRestored: "已恢复上次草稿", draftCleared: "草稿已清空", draftRestoreFailed: "无法恢复服务器草稿。",
         empty: "暂无任务，填写表单开始创作。", queued: "排队中", running: "生成中", completed: "完成", error: "错误", unknown: "未知",
         download: "下载 MP3", delete: "删除", sent: "已发送到", instrumentalMode: "纯音乐", vocalMode: "有人声", deleteConfirm: "删除此任务？", deleteFailed: "删除失败"
       }
@@ -362,7 +371,9 @@ INDEX_HTML = r"""<!doctype html>
     const jobsBox = document.getElementById("jobs");
     const form = document.getElementById("jobForm");
     const submitBtn = document.getElementById("submitBtn");
+    const clearDraftBtn = document.getElementById("clearDraftBtn");
     const formError = document.getElementById("formError");
+    const draftStatus = document.getElementById("draftStatus");
     const instrumental = document.getElementById("instrumental");
     const lyricsOptimizer = document.getElementById("lyricsOptimizer");
     const lyrics = document.getElementById("lyrics");
@@ -378,6 +389,24 @@ INDEX_HTML = r"""<!doctype html>
       }
       return id;
     })();
+    const draftId = (() => {
+      const key = "terry_music_draft_id";
+      const params = new URLSearchParams(location.search);
+      let id = params.get("draft") || localStorage.getItem(key);
+      if (!/^[A-Za-z0-9._:-]{8,160}$/.test(id || "")) {
+        id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      }
+      localStorage.setItem(key, id);
+      if (params.get("draft") !== id) {
+        const url = new URL(location.href);
+        url.searchParams.set("draft", id);
+        history.replaceState(null, "", url);
+      }
+      return id;
+    })();
+    const draftStorageKey = `terry_music_form_draft_${draftId}`;
+    let draftTimer = null;
+    let restoringDraft = false;
 
     function t(key) { return I18N[lang][key] || key; }
     function headers(extra = {}) { return {"X-Client-Id": clientId, ...extra}; }
@@ -450,6 +479,81 @@ INDEX_HTML = r"""<!doctype html>
         vocals: get("vocals"), structure: get("structure"), references: get("references"), avoid: get("avoid"), use_case: get("useCase"), extra: get("extra")
       };
     }
+    function restorePayload(payload = {}) {
+      const set = (id, value) => { document.getElementById(id).value = value || ""; };
+      set("email", payload.email);
+      set("songTitle", payload.song_title);
+      set("prompt", payload.prompt);
+      set("lyricsIdea", payload.lyrics_idea);
+      set("lyrics", payload.lyrics);
+      set("genre", payload.genre);
+      set("mood", payload.mood);
+      set("instruments", payload.instruments);
+      set("tempo", payload.tempo);
+      set("bpm", payload.bpm);
+      set("key", payload.key);
+      set("vocals", payload.vocals);
+      set("structure", payload.structure);
+      set("references", payload.references);
+      set("avoid", payload.avoid);
+      set("useCase", payload.use_case);
+      set("extra", payload.extra);
+      instrumental.checked = Boolean(payload.is_instrumental);
+      lyricsOptimizer.checked = Boolean(payload.lyrics_optimizer);
+      syncInstrumentalFields();
+    }
+    function setDraftStatus(message) {
+      draftStatus.textContent = message;
+    }
+    function saveDraftLocal(payload = collectPayload()) {
+      localStorage.setItem(draftStorageKey, JSON.stringify({updated_at: new Date().toISOString(), draft: payload}));
+    }
+    async function saveDraftRemote(payload = collectPayload()) {
+      await fetch(`/api/drafts/${encodeURIComponent(draftId)}`, {
+        method: "POST",
+        headers: headers({"Content-Type": "application/json"}),
+        body: JSON.stringify(payload)
+      });
+    }
+    function saveDraftSoon() {
+      if (restoringDraft) return;
+      const payload = collectPayload();
+      saveDraftLocal(payload);
+      clearTimeout(draftTimer);
+      draftTimer = setTimeout(async () => {
+        try {
+          await saveDraftRemote(payload);
+          setDraftStatus(t("draftSaved"));
+        } catch {
+          setDraftStatus(t("draftSaved"));
+        }
+      }, 700);
+    }
+    async function loadDraft() {
+      restoringDraft = true;
+      try {
+        const local = JSON.parse(localStorage.getItem(draftStorageKey) || "null");
+        if (local && local.draft) {
+          restorePayload(local.draft);
+          setDraftStatus(t("draftRestored"));
+        }
+      } catch {
+        localStorage.removeItem(draftStorageKey);
+      }
+      try {
+        const res = await fetch(`/api/drafts/${encodeURIComponent(draftId)}`, {headers: headers(), cache: "no-store"});
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.draft) {
+          restorePayload(data.draft);
+          saveDraftLocal(data.draft);
+          setDraftStatus(t("draftRestored"));
+        }
+      } catch {
+        if (!draftStatus.textContent) setDraftStatus(t("draftRestoreFailed"));
+      } finally {
+        restoringDraft = false;
+      }
+    }
     function setLyricsAssistMessage(message, isError = false) {
       lyricsAssistMessage.textContent = message;
       lyricsAssistMessage.style.color = isError ? "var(--danger)" : "var(--muted)";
@@ -477,6 +581,7 @@ INDEX_HTML = r"""<!doctype html>
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || t("lyricsAssistFailed"));
         lyrics.value = data.lyrics || "";
+        saveDraftSoon();
         setLyricsAssistMessage(t("lyricsGenerated"));
       } catch (error) {
         setLyricsAssistMessage(error.message || t("lyricsAssistFailed"), true);
@@ -489,6 +594,22 @@ INDEX_HTML = r"""<!doctype html>
       lang = lang === "en" ? "zh" : "en";
       applyLang();
     });
+    form.addEventListener("input", saveDraftSoon);
+    form.addEventListener("change", saveDraftSoon);
+    clearDraftBtn.addEventListener("click", async () => {
+      if (!confirm(t("clearDraftConfirm"))) return;
+      clearTimeout(draftTimer);
+      form.reset();
+      formError.textContent = "";
+      setLyricsAssistMessage("");
+      localStorage.removeItem(draftStorageKey);
+      try {
+        await fetch(`/api/drafts/${encodeURIComponent(draftId)}`, {method: "DELETE", headers: headers()});
+      } catch {}
+      applyLang();
+      syncInstrumentalFields();
+      setDraftStatus(t("draftCleared"));
+    });
     form.addEventListener("submit", async event => {
       event.preventDefault();
       formError.textContent = "";
@@ -498,8 +619,9 @@ INDEX_HTML = r"""<!doctype html>
         const res = await fetch("/api/jobs", {method: "POST", headers: headers({"Content-Type": "application/json"}), body: JSON.stringify(payload)});
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-        form.reset();
-        setLyricsAssistMessage("");
+        saveDraftLocal(payload);
+        await saveDraftRemote(payload).catch(() => {});
+        setDraftStatus(t("draftSaved"));
         applyLang();
         syncInstrumentalFields();
         await loadJobs();
@@ -510,6 +632,7 @@ INDEX_HTML = r"""<!doctype html>
       }
     });
     applyLang();
+    loadDraft();
     loadJobs();
     setInterval(loadJobs, 3000);
   </script>
@@ -633,6 +756,13 @@ def normalize_client_id(value: str | None) -> str:
     return "anonymous"
 
 
+def normalize_draft_id(value: str | None) -> str:
+    text = (value or "").strip()
+    if re.fullmatch(r"[A-Za-z0-9._:-]{8,160}", text):
+        return text
+    return ""
+
+
 def safe_name(value: str, fallback: str = "terry-music") -> str:
     text = re.sub(r"[^A-Za-z0-9._-]+", "-", value.strip().lower()).strip("-._")
     return (text or fallback)[:80]
@@ -675,6 +805,52 @@ def save_jobs_locked() -> None:
     tmp = JOBS_DB.with_suffix(".tmp")
     tmp.write_text(json.dumps(JOBS, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.replace(JOBS_DB)
+
+
+def load_drafts() -> None:
+    global DRAFTS
+    if not DRAFTS_DB.exists():
+        DRAFTS = {}
+        return
+    try:
+        data = json.loads(DRAFTS_DB.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        DRAFTS = {}
+        return
+    DRAFTS = data if isinstance(data, dict) else {}
+
+
+def save_drafts_locked() -> None:
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = DRAFTS_DB.with_suffix(".tmp")
+    tmp.write_text(json.dumps(DRAFTS, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(DRAFTS_DB)
+
+
+def clean_draft_payload(form: dict[str, Any]) -> dict[str, Any]:
+    limits = {
+        "email": 320,
+        "song_title": 120,
+        "prompt": 2000,
+        "lyrics": 3500,
+        "lyrics_idea": 2500,
+        "genre": 200,
+        "mood": 200,
+        "instruments": 300,
+        "tempo": 120,
+        "bpm": 8,
+        "key": 80,
+        "vocals": 300,
+        "structure": 300,
+        "references": 500,
+        "avoid": 500,
+        "use_case": 300,
+        "extra": 800,
+    }
+    draft = {key: str(form.get(key, "")).strip()[:limit] for key, limit in limits.items()}
+    draft["is_instrumental"] = bool(form.get("is_instrumental"))
+    draft["lyrics_optimizer"] = bool(form.get("lyrics_optimizer"))
+    return draft
 
 
 def public_job(job: dict[str, Any]) -> dict[str, Any]:
@@ -1012,6 +1188,7 @@ class MusicHandler(BaseHTTPRequestHandler):
                 "minimax_configured": bool(MINIMAX_API_KEY),
                 "admin_configured": bool(ADMIN_KEY),
                 "title_fallback": True,
+                "drafts": True,
                 "smtp_configured": bool(SMTP_USER and SMTP_PASSWORD),
                 "smtp_host": SMTP_HOST,
                 "smtp_port": SMTP_PORT,
@@ -1038,6 +1215,9 @@ class MusicHandler(BaseHTTPRequestHandler):
                     reverse=True,
                 )
             self.send_json({"jobs": jobs})
+            return
+        if path.startswith("/api/drafts/"):
+            self.handle_get_draft(path.removeprefix("/api/drafts/"))
             return
         if path.startswith("/download/"):
             self.handle_download(path.removeprefix("/download/"), parsed.query)
@@ -1084,10 +1264,56 @@ class MusicHandler(BaseHTTPRequestHandler):
             return
         self.send_json({"lyrics": lyrics})
 
+    def handle_get_draft(self, encoded_draft_id: str) -> None:
+        draft_id = normalize_draft_id(urllib.parse.unquote(encoded_draft_id))
+        if not draft_id:
+            self.send_json({"error": "Draft not found"}, HTTPStatus.NOT_FOUND)
+            return
+        with DRAFTS_LOCK:
+            draft = DRAFTS.get(draft_id)
+        if not draft:
+            self.send_json({"draft": None})
+            return
+        self.send_json({"draft": draft.get("draft", {}), "updated_at": draft.get("updated_at")})
+
+    def handle_save_draft(self, encoded_draft_id: str) -> None:
+        draft_id = normalize_draft_id(urllib.parse.unquote(encoded_draft_id))
+        if not draft_id:
+            self.send_json({"error": "Invalid draft id"}, HTTPStatus.BAD_REQUEST)
+            return
+        try:
+            form = self.read_json_body()
+            draft = clean_draft_payload(form)
+        except ValueError as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            return
+        with DRAFTS_LOCK:
+            DRAFTS[draft_id] = {
+                "id": draft_id,
+                "owner_id": normalize_client_id(self.headers.get("X-Client-Id")),
+                "updated_at": now_iso(),
+                "draft": draft,
+            }
+            save_drafts_locked()
+        self.send_json({"ok": True})
+
+    def handle_delete_draft(self, encoded_draft_id: str) -> None:
+        draft_id = normalize_draft_id(urllib.parse.unquote(encoded_draft_id))
+        if not draft_id:
+            self.send_json({"error": "Invalid draft id"}, HTTPStatus.BAD_REQUEST)
+            return
+        with DRAFTS_LOCK:
+            DRAFTS.pop(draft_id, None)
+            save_drafts_locked()
+        self.send_json({"ok": True})
+
     def do_POST(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/api/lyrics":
             self.handle_lyrics_request()
+            return
+        if parsed.path.startswith("/api/drafts/"):
+            self.handle_save_draft(parsed.path.removeprefix("/api/drafts/"))
             return
         if parsed.path != "/api/jobs":
             self.send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
@@ -1149,6 +1375,9 @@ class MusicHandler(BaseHTTPRequestHandler):
 
     def do_DELETE(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
+        if parsed.path.startswith("/api/drafts/"):
+            self.handle_delete_draft(parsed.path.removeprefix("/api/drafts/"))
+            return
         if not parsed.path.startswith("/api/jobs/"):
             self.send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
             return
@@ -1205,6 +1434,7 @@ class MusicHandler(BaseHTTPRequestHandler):
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     load_jobs()
+    load_drafts()
     server = ThreadingHTTPServer((HOST, PORT), MusicHandler)
     print(f"Terry Music running at http://{HOST}:{PORT}")
     print(f"Output directory: {OUTPUT_DIR}")
