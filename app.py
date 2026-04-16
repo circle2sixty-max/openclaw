@@ -99,6 +99,23 @@ INDEX_HTML = r"""<!doctype html>
       --warn: #efc86a;
       --danger: #ff756d;
     }
+    [data-theme="light"] {
+      color-scheme: light;
+      --bg: #f5f7f5;
+      --panel: #ffffff;
+      --soft: #e8ebe8;
+      --input: #ffffff;
+      --line: #d1d9d1;
+      --text: #1a1d1a;
+      --muted: #6b756b;
+      --accent: #2fbd76;
+      --accent-strong: #50d890;
+      --warn: #d4a012;
+      --danger: #e03e36;
+    }
+    [data-theme="light"] body {
+      background: linear-gradient(180deg, rgba(47,189,118,.06), transparent 320px), var(--bg);
+    }
     * { box-sizing: border-box; }
     body {
       margin: 0;
@@ -178,6 +195,30 @@ INDEX_HTML = r"""<!doctype html>
       font-size: 13px;
     }
     .secondary-btn:hover { background: rgba(80,216,144,.2); }
+    .templates-field { margin-bottom: 16px; }
+    .template-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+    .template-btn {
+      padding: 10px 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--soft);
+      color: var(--text);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .template-btn:hover { border-color: var(--accent); background: rgba(80,216,144,.12); color: var(--accent); }
+    .template-btn.active { border-color: var(--accent); background: rgba(80,216,144,.2); color: var(--accent); }
+    @media (max-width: 600px) { .template-grid { grid-template-columns: repeat(2, 1fr); } }
+    .waveform-container { height: 60px; background: var(--input); border-radius: 6px; margin: 8px 0; overflow: hidden; position: relative; }
+    .waveform-canvas { width: 100%; height: 100%; }
+    .job-progress { margin-top: 8px; }
+    .progress-bar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--accent); transition: width 0.3s ease; border-radius: 2px; }
+    .progress-text { font-size: 11px; color: var(--muted); margin-top: 4px; text-align: center; }
+    .job-audio { margin-top: 8px; }
+    .job-audio audio { width: 100%; height: 40px; border-radius: 6px; }
     .assist-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
     .assist-msg { min-height: 18px; }
     .voice-clone-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
@@ -237,6 +278,7 @@ INDEX_HTML = r"""<!doctype html>
       </div>
       <div class="top-actions">
         <div class="pill">music-2.6</div>
+        <button id="themeBtn" class="ghost" type="button" title="Toggle theme">🌙</button>
         <button id="langBtn" class="ghost" type="button">中文</button>
       </div>
     </div>
@@ -299,6 +341,19 @@ INDEX_HTML = r"""<!doctype html>
                 <audio id="voicePreviewAudio" controls style="height:36px; margin-left:8px;"></audio>
               </div>
             </div>
+            <div class="field templates-field">
+              <label data-i18n="templates">Prompt Templates</label>
+              <div class="template-grid">
+                <button class="template-btn" type="button" data-template="upbeat_pop">🎵 Upbeat Pop</button>
+                <button class="template-btn" type="button" data-template="chill_ambient">🌙 Chill Ambient</button>
+                <button class="template-btn" type="button" data-template="rock_anthem">🎸 Rock Anthem</button>
+                <button class="template-btn" type="button" data-template="acoustic_story">🎸 Acoustic Story</button>
+                <button class="template-btn" type="button" data-template="electronic_dream">💫 Electronic Dream</button>
+                <button class="template-btn" type="button" data-template="hiphop_beats">🎤 Hip-Hop Beats</button>
+                <button class="template-btn" type="button" data-template="cinematic_epic">🎬 Cinematic Epic</button>
+                <button class="template-btn" type="button" data-template="lofi_chill">☕ Lo-Fi Chill</button>
+              </div>
+            </div>
             <details>
               <summary data-i18n="advanced">More Parameters</summary>
               <div class="grid">
@@ -357,6 +412,7 @@ INDEX_HTML = r"""<!doctype html>
         voicePreviewBtn: "Preview Voice", voiceUploading: "Cloning your voice...", voiceReady: "Voice cloned! Use Preview to listen.",
         voiceError: "Voice clone failed.", voicePreviewGenerating: "Generating preview...", voicePreviewReady: "Preview ready.", voicePreviewError: "Preview failed.",
         recModalTitle: "Record Your Voice",
+        templates: "Prompt Templates",
         advanced: "More Parameters", genre: "Genre", mood: "Mood", instruments: "Instruments", tempo: "Tempo Feel", bpm: "BPM", key: "Musical Key",
         vocals: "Vocal Style", structure: "Song Structure", references: "References", avoid: "Avoid", useCase: "Use Case", extra: "Extra Details",
         genrePlaceholder: "pop, reggae, jazz", moodPlaceholder: "warm, bright, intense", instrumentsPlaceholder: "piano, guitar, drums",
@@ -390,6 +446,7 @@ INDEX_HTML = r"""<!doctype html>
         voiceCloneLabel: "声纹复刻（可选）", voiceRecordBtn: "录制我的声音", voiceCloneHint: "录制5段不同音调和风格的短句，约30秒。复刻声音有效期7天。",
         voicePreviewBtn: "预览声音", voiceUploading: "正在复刻你的声音...", voiceReady: "声音复刻完成！点击预览试听。",
         voiceError: "声音复刻失败。", voicePreviewGenerating: "正在生成预览...", voicePreviewReady: "预览已生成。", voicePreviewError: "预览生成失败。",
+        templates: "提示词模板",
         advanced: "更多参数", genre: "流派", mood: "情绪", instruments: "乐器", tempo: "节奏感", bpm: "BPM", key: "调性",
         vocals: "人声风格", structure: "歌曲结构", references: "参考对象", avoid: "避免元素", useCase: "使用场景", extra: "其他细节",
         genrePlaceholder: "流行、雷鬼、爵士", moodPlaceholder: "温暖、明亮、强烈", instrumentsPlaceholder: "钢琴、吉他、鼓",
@@ -475,6 +532,31 @@ INDEX_HTML = r"""<!doctype html>
       if (Number.isNaN(date.getTime())) return "";
       return date.toLocaleString(lang === "en" ? "en-GB" : "zh-CN", {month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit"});
     }
+    function drawWaveform(canvas, audioUrl) {
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      canvas.width = canvas.offsetWidth * 2;
+      canvas.height = canvas.offsetHeight * 2;
+      ctx.scale(2, 2);
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      fetch(audioUrl).then(r => r.arrayBuffer()).then(buf => audioContext.decodeAudioData(buf)).then(decoded => {
+        const data = decoded.getChannelData(0);
+        const step = Math.ceil(data.length / canvas.offsetWidth);
+        const amp = canvas.offsetHeight / 2;
+        ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#50d890";
+        for (let i = 0; i < canvas.offsetWidth; i++) {
+          let min = 1.0, max = -1.0;
+          for (let j = 0; j < step; j++) {
+            const datum = data[(i * step) + j];
+            if (datum < min) min = datum;
+            if (datum > max) max = datum;
+          }
+          const h = Math.max(2, (max - min) * amp);
+          ctx.fillRect(i, amp - h / 2, 1, h);
+        }
+      }).catch(() => {});
+    }
     function renderJobs(jobs) {
       lastJobs = jobs || [];
       if (!lastJobs.length) {
@@ -490,16 +572,28 @@ INDEX_HTML = r"""<!doctype html>
         const download = job.status === "completed" && job.download_url
           ? `<div class="job-file"><span>${fileName}</span><a class="download-link" href="${downloadUrl}" download="${fileName}">${t("download")}</a></div>`
           : "";
+        const audioPlayer = job.status === "completed" && job.download_url
+          ? `<div class="job-audio"><audio controls crossorigin="anonymous" src="${downloadUrl}"><source src="${downloadUrl}" type="audio/mpeg"></audio><div class="waveform-container"><canvas class="waveform-canvas" data-url="${downloadUrl}"></canvas></div></div>`
+          : "";
+        const progress = job.status === "running" || job.status === "queued"
+          ? `<div class="job-progress"><div class="progress-bar"><div class="progress-fill" style="width:${job.status === "queued" ? "10" : "60"}%"></div></div><div class="progress-text">${job.status === "queued" ? t("queued") : t("running")}...</div></div>`
+          : "";
         const sent = job.email_sent && job.email ? `<span>${t("sent")} ${escapeHtml(job.email)}</span>` : "";
         const err = job.error ? `<div class="job-error">${escapeHtml(job.error)}</div>` : "";
         const canDelete = job.status !== "running" && job.status !== "queued";
         return `<div class="job">
           <div class="job-top"><p class="job-title">${title}</p><span class="badge ${status}">${statusLabel(status)}</span></div>
           <div class="meta"><span>${mode}</span><span>${formatDate(job.created_at)}</span>${sent}</div>
-          ${err}${download}
+          ${progress}${err}${download}${audioPlayer}
           ${canDelete ? `<button class="delete-btn" type="button" onclick="deleteJob('${escapeHtml(job.id)}')">${t("delete")}</button>` : ""}
         </div>`;
       }).join("");
+      // Draw waveforms for completed jobs
+      setTimeout(() => {
+        document.querySelectorAll(".waveform-canvas[data-url]").forEach(canvas => {
+          drawWaveform(canvas, canvas.dataset.url);
+        });
+      }, 100);
     }
     async function loadJobs() {
       try {
@@ -723,6 +817,46 @@ INDEX_HTML = r"""<!doctype html>
     loadDraft();
     loadJobs();
     setInterval(loadJobs, 3000);
+
+    // Theme toggle
+    const themeBtn = document.getElementById("themeBtn");
+    function setTheme(theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      localStorage.setItem("terry_music_theme", theme);
+      themeBtn.textContent = theme === "light" ? "🌙" : "☀️";
+    }
+    const savedTheme = localStorage.getItem("terry_music_theme");
+    if (savedTheme) setTheme(savedTheme);
+    themeBtn.addEventListener("click", () => {
+      const current = document.documentElement.getAttribute("data-theme");
+      setTheme(current === "light" ? "" : "light");
+    });
+
+    // Prompt templates
+    const TEMPLATES = {
+      upbeat_pop: { prompt: "Upbeat pop song with catchy melody, bright synthesizer, driving drum beat, feel-good energy, modern production, radio-ready", genre: "pop", mood: "happy, energetic", instruments: "synth, drums, bass, guitar" },
+      chill_ambient: { prompt: "Chill ambient electronic music, soft pad drones, gentle arpeggios, relaxed atmosphere, meditative, soundscape", genre: "ambient, electronic", mood: "calm, peaceful", instruments: "synth pads, soft percussion" },
+      rock_anthem: { prompt: "Epic rock anthem with powerful guitar riffs, thunderous drums, soaring vocals, stadium-filling energy, anthemic chorus", genre: "rock", mood: "powerful, intense", instruments: "electric guitar, drums, bass, keyboards" },
+      acoustic_story: { prompt: "Acoustic folk song with intimate storytelling, fingerpicked guitar, warm vocals, emotional, heartfelt lyrics", genre: "folk, acoustic", mood: "warm, nostalgic", instruments: "acoustic guitar, gentle percussion, harmonica" },
+      electronic_dream: { prompt: "Dreamy electronic music with lush synth layers, ethereal atmosphere, floating pads, hypnotic rhythm, otherworldly", genre: "electronic, synthwave", mood: "dreamy, ethereal", instruments: "synths, electronic drums, pad layers" },
+      hiphop_beats: { prompt: "Modern hip-hop beat with punchy 808 drums, atmospheric pads, bass-heavy groove, stylish and contemporary", genre: "hip-hop", mood: "cool, confident", instruments: "808 drums, synth, hi-hats, bass" },
+      cinematic_epic: { prompt: "Epic cinematic orchestral music with sweeping strings, powerful brass, dramatic percussion, emotional tension and release", genre: "cinematic, orchestral", mood: "epic, dramatic", instruments: "orchestra, strings, brass, percussion" },
+      lofi_chill: { prompt: "Lo-fi chillhop beat with vinyl crackle, jazz-inspired piano chords, relaxed drums, cozy and nostalgic atmosphere", genre: "lo-fi, chillhop", mood: "relaxed, nostalgic", instruments: "piano, drums, vinyl texture, bass" },
+    };
+    document.querySelectorAll(".template-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const key = btn.dataset.template;
+        const tmpl = TEMPLATES[key];
+        if (!tmpl) return;
+        document.getElementById("prompt").value = tmpl.prompt;
+        if (tmpl.genre) document.getElementById("genre").value = tmpl.genre;
+        if (tmpl.mood) document.getElementById("mood").value = tmpl.mood;
+        if (tmpl.instruments) document.getElementById("instruments").value = tmpl.instruments;
+        document.querySelectorAll(".template-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        saveDraftSoon();
+      });
+    });
 
     const VOICE_SEGMENTS_EN = [
       { label: "Low Voice", desc: "Speak in a calm, deep, low voice." },
@@ -1831,6 +1965,65 @@ class MusicHandler(BaseHTTPRequestHandler):
             return
         self.send_json({"lyrics": lyrics})
 
+    def handle_jobs_batch(self) -> None:
+        """Handle POST /api/jobs/batch — create multiple music jobs from an array of prompts."""
+        try:
+            form = self.read_json_body()
+            prompts = form.get("prompts", [])
+            if not isinstance(prompts, list):
+                raise ValueError("prompts must be an array.")
+            if len(prompts) > 5:
+                raise ValueError("Maximum 5 prompts per batch.")
+            if len(prompts) == 0:
+                raise ValueError("At least one prompt is required.")
+            is_instrumental = bool(form.get("is_instrumental"))
+            lyrics_idea = str(form.get("lyrics_idea", "")).strip()
+            lyrics_optimizer = bool(form.get("lyrics_optimizer") or lyrics_idea) and not is_instrumental
+            extra = {key: str(form.get(key, "")).strip() for key in ("genre", "mood", "instruments", "tempo", "bpm", "key", "vocals", "structure", "references", "avoid", "use_case", "extra")}
+            client_id = normalize_client_id(self.headers.get("X-Client-Id"))
+            jobs = []
+            for i, raw_prompt in enumerate(prompts):
+                prompt = str(raw_prompt).strip()
+                if not prompt:
+                    continue
+                if len(prompt) > 2000:
+                    prompt = prompt[:2000]
+                job_id = secrets.token_urlsafe(12)
+                job = {
+                    "id": job_id,
+                    "owner_id": client_id,
+                    "status": "queued",
+                    "created_at": now_iso(),
+                    "updated_at": now_iso(),
+                    "prompt": prompt,
+                    "song_title": "",
+                    "generated_title": False,
+                    "title_error": None,
+                    "email": "",
+                    "lyrics": "",
+                    "lyrics_idea": lyrics_idea,
+                    "is_instrumental": is_instrumental,
+                    "lyrics_optimizer": lyrics_optimizer,
+                    "generated_lyrics": False,
+                    "file_name": None,
+                    "file_path": None,
+                    "error": None,
+                    "email_sent": False,
+                    "extra": extra,
+                }
+                with JOBS_LOCK:
+                    JOBS[job_id] = job
+                    save_jobs_locked()
+                threading.Thread(target=generate_music, args=(job_id,), daemon=True).start()
+                jobs.append(public_job(job))
+            self.send_json({"jobs": jobs, "count": len(jobs)}, HTTPStatus.ACCEPTED)
+        except ValueError as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            return
+        except Exception as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+            return
+
     def handle_jobs_voice(self) -> None:
         """Handle POST /api/jobs/voice — create a music job that uses a cloned voice."""
         try:
@@ -2064,6 +2257,9 @@ class MusicHandler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/jobs/voice":
             self.handle_jobs_voice()
+            return
+        if parsed.path == "/api/jobs/batch":
+            self.handle_jobs_batch()
             return
         if parsed.path != "/api/jobs":
             self.send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
