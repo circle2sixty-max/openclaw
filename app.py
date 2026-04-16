@@ -293,7 +293,7 @@ INDEX_HTML = r"""<!doctype html>
                 <button id="voiceRecordBtn" class="secondary-btn" type="button" data-i18n="voiceRecordBtn">Record My Voice</button>
                 <div id="voiceStatus" class="hint voice-status"></div>
               </div>
-              <div class="hint" data-i18n="voiceCloneHint">Record 9 short passages covering different tones and styles. Takes about 2 minutes. Cloned voice expires in 7 days.</div>
+              <div class="hint" data-i18n="voiceCloneHint">Record 5 short passages covering different tones and styles. Takes about 30 seconds. Cloned voice expires in 7 days.</div>
               <div id="voicePreviewRow" class="voice-preview-row" style="display:none; margin-top:10px;">
                 <button id="voicePreviewBtn" class="secondary-btn" type="button" data-i18n="voicePreviewBtn">Preview Voice</button>
                 <audio id="voicePreviewAudio" controls style="height:36px; margin-left:8px;"></audio>
@@ -353,7 +353,7 @@ INDEX_HTML = r"""<!doctype html>
         lyricsPlaceholder: "[Verse]\nYour lyrics here...\n[Hook]\nYour chorus...",
         instrumental: "Instrumental", instrumentalHint: "No vocals. Lyrics will be ignored.",
         autoLyrics: "Auto-generate Lyrics", autoLyricsHint: "AI writes lyrics from your prompt.",
-        voiceCloneLabel: "Voice Clone (optional)", voiceRecordBtn: "Record My Voice", voiceCloneHint: "Record 9 short passages covering different tones and styles. Takes about 2 minutes. Cloned voice expires in 7 days.",
+        voiceCloneLabel: "Voice Clone (optional)", voiceRecordBtn: "Record My Voice", voiceCloneHint: "Record 5 short passages covering different tones and styles. Takes about 30 seconds. Cloned voice expires in 7 days.",
         voicePreviewBtn: "Preview Voice", voiceUploading: "Cloning your voice...", voiceReady: "Voice cloned! Use Preview to listen.",
         voiceError: "Voice clone failed.", voicePreviewGenerating: "Generating preview...", voicePreviewReady: "Preview ready.", voicePreviewError: "Preview failed.",
         recModalTitle: "Record Your Voice",
@@ -387,7 +387,7 @@ INDEX_HTML = r"""<!doctype html>
         lyricsPlaceholder: "[主歌]\n在这里写歌词...\n[副歌]\n在这里写副歌...",
         instrumental: "纯音乐", instrumentalHint: "无人声，歌词会被忽略。",
         autoLyrics: "自动生成歌词", autoLyricsHint: "AI 根据描述写歌词。",
-        voiceCloneLabel: "声纹复刻（可选）", voiceRecordBtn: "录制我的声音", voiceCloneHint: "录制9段不同音调和风格的短句，约2分钟。复刻声音有效期7天。",
+        voiceCloneLabel: "声纹复刻（可选）", voiceRecordBtn: "录制我的声音", voiceCloneHint: "录制5段不同音调和风格的短句，约30秒。复刻声音有效期7天。",
         voicePreviewBtn: "预览声音", voiceUploading: "正在复刻你的声音...", voiceReady: "声音复刻完成！点击预览试听。",
         voiceError: "声音复刻失败。", voicePreviewGenerating: "正在生成预览...", voicePreviewReady: "预览已生成。", voicePreviewError: "预览生成失败。",
         advanced: "更多参数", genre: "流派", mood: "情绪", instruments: "乐器", tempo: "节奏感", bpm: "BPM", key: "调性",
@@ -1369,8 +1369,9 @@ def clone_voice(audio_path: Path, custom_voice_id: str) -> dict[str, Any]:
     return clone_resp
 
 
-def synthesize_speech(text: str, voice_id: str, output_path: Path, model: str = "speech-02-hd") -> Path:
+def synthesize_speech(text: str, voice_id: str, output_path: Path, model: str = "speech-2.8-hd") -> Path:
     """Synthesize speech using a cloned or system voice_id, save to output_path."""
+    output_path = Path(output_path)
     if not MINIMAX_API_KEY:
         raise RuntimeError("MINIMAX_API_KEY is not configured.")
     resp = _call_minimax_api(
@@ -1380,20 +1381,19 @@ def synthesize_speech(text: str, voice_id: str, output_path: Path, model: str = 
             "text": text[:5000],
             "stream": False,
             "voice_setting": {"voice_id": voice_id},
-            "output_format": "mp3",
+            "output_format": "hex",
         },
     )
-    audio_data = (
+    audio_hex = (
         resp.get("data", {}).get("audio_file")
         or resp.get("data", {}).get("audio")
         or resp.get("audio_file")
         or resp.get("audio")
     )
-    if not audio_data:
+    if not audio_hex:
         print(f"[TTS] unexpected resp: {resp}")
         raise RuntimeError(f"No audio in TTS response: {resp}")
-    import base64
-    audio_bytes = base64.b64decode(audio_data)
+    audio_bytes = bytes.fromhex(audio_hex)
     output_path.write_bytes(audio_bytes)
     return output_path
 
@@ -1643,7 +1643,7 @@ def generate_music(job_id: str) -> None:
 
 
 def generate_music_with_voice(job_id: str) -> None:
-    """Generate music using a cloned voice as reference for TTS + music cover."""
+    """Generate music using a cloned voice as reference audio for music cover."""
     with JOBS_LOCK:
         job = dict(JOBS[job_id])
     mark_job(job_id, status="running", error=None)
@@ -1671,7 +1671,6 @@ def generate_music_with_voice(job_id: str) -> None:
         file_name = download_file_name(song_title)
         stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
         out_path = OUTPUT_DIR / f"terry_music_{stamp}_{safe_name(song_title)}_{job_id[:8]}.mp3"
-        # Use the saved voice WAV directly as reference audio for music cover
         voice_wav = job.get("voice_wav_path")
         if not voice_wav or not Path(voice_wav).exists():
             raise RuntimeError("Voice recording not found. Please re-record your voice.")
@@ -1688,13 +1687,11 @@ def generate_music_with_voice(job_id: str) -> None:
             if value:
                 args.extend([flag, value])
         run_mmx(args)
-        tts_path.unlink(missing_ok=True)
         mark_job(job_id, status="completed", file_name=file_name, file_path=str(out_path))
         if job.get("email") and out_path.exists():
             ok = send_email(str(job["email"]), out_path, prompt)
             mark_job(job_id, email_sent=ok)
     except Exception as exc:
-        tts_path.unlink(missing_ok=True)
         mark_job(job_id, status="error", error=str(exc))
 
 
@@ -1990,10 +1987,7 @@ class MusicHandler(BaseHTTPRequestHandler):
             if not voice_id:
                 raise ValueError("voice_id is required.")
             tmp_sing = OUTPUT_DIR / f"sing_preview_{secrets.token_hex(8)}.mp3"
-            try:
-                synthesize_speech(lyrics, voice_id, tmp_sing)
-            except Exception as exc:
-                raise RuntimeError(f"TTS synthesis failed: {exc}")
+            synthesize_speech(lyrics, voice_id, tmp_sing)
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "audio/mpeg")
             self.send_header("Content-Length", str(tmp_sing.stat().st_size))
