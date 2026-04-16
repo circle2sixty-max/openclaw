@@ -758,7 +758,7 @@ INDEX_HTML = r"""<!doctype html>
     let currentSegment = -1;
     let segmentStream = null;
     let recordingTimer = null;
-    const SEGMENT_DURATION = 10000; // 10s per segment
+    const SEGMENT_DURATION = 5000; // 5s per segment
 
     function getSegments() {
       return lang === "zh" ? VOICE_SEGMENTS_ZH : VOICE_SEGMENTS_EN;
@@ -831,17 +831,19 @@ INDEX_HTML = r"""<!doctype html>
 
     async function startSegmentRecording(idx) {
       try {
-        segmentStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(segmentStream, { mimeType: "audio/webm" });
+        segmentStream = await navigator.mediaDevices.getUserMedia({ audio: true, sampleRate: 16000 });
+        const mimeType = MediaRecorder.isTypeSupported("audio/wav") ? "audio/wav" : "audio/webm";
+        mediaRecorder = new MediaRecorder(segmentStream, { mimeType });
         recordedChunks = [];
         mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
-        mediaRecorder.onstop = () => {
-          const blob = new Blob(recordedChunks, { type: "audio/webm" });
-          recordedSegments[idx] = blob;
+        mediaRecorder.onstop = async () => {
+          const rawBlob = new Blob(recordedChunks, { type: mimeType });
+          const wavBlob = mimeType === "audio/wav" ? rawBlob : await convertToWav(rawBlob);
+          recordedSegments[idx] = wavBlob;
           segmentStream.getTracks().forEach(t => t.stop());
           segmentStream = null;
           if (idx + 1 < getSegments().length) {
-            showReview(idx, blob);
+            showReview(idx, wavBlob);
           } else {
             showAllDone();
           }
@@ -850,7 +852,7 @@ INDEX_HTML = r"""<!doctype html>
         document.getElementById("recStartSeg").disabled = true;
         document.getElementById("recStartSeg").textContent = lang === "en" ? "Recording..." : "录制中...";
         const countdownEl = document.getElementById("recCountdown");
-        let remaining = 10;
+        let remaining = 5;
         countdownEl.textContent = lang === "en" ? `Recording... ${remaining}s` : `录制中... ${remaining}s`;
         recordingTimer = setInterval(() => {
           remaining--;
@@ -863,6 +865,39 @@ INDEX_HTML = r"""<!doctype html>
         alert(lang === "en" ? "Microphone access denied. Please allow microphone access." : "麦克风访问被拒绝，请允许麦克风权限。");
         closeVoiceRecorder();
       }
+    }
+
+    async function convertToWav(blob) {
+      const arrayBuffer = await blob.arrayBuffer();
+      const audioCtx = new AudioContext({ sampleRate: 16000 });
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      const numChannels = 1;
+      const sampleRate = 16000;
+      const bitsPerSample = 16;
+      const bytesPerSample = bitsPerSample / 8;
+      const blockAlign = numChannels * bytesPerSample;
+      const byteRate = sampleRate * blockAlign;
+      const dataLength = Math.ceil(audioBuffer.length) * numChannels * bytesPerSample;
+      const headerLength = 44;
+      const totalLength = headerLength + dataLength;
+      const buffer = new ArrayBuffer(totalLength);
+      const view = new DataView(buffer);
+      const writeStr = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
+      writeStr(0, "RIFF"); view.setUint32(4, totalLength - 8, true); writeStr(8, "WAVE");
+      writeStr(12, "fmt "); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
+      view.setUint16(22, numChannels, true); view.setUint32(24, sampleRate, true);
+      view.setUint32(28, byteRate, true); view.setUint16(32, blockAlign, true);
+      view.setUint16(34, bitsPerSample, true);
+      writeStr(36, "data"); view.setUint32(40, dataLength, true);
+      const channelData = audioBuffer.getChannelData(0);
+      let offset = 44;
+      for (let i = 0; i < audioBuffer.length; i++) {
+        const s = Math.max(-1, Math.min(1, channelData[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+        offset += 2;
+      }
+      audioCtx.close();
+      return new Blob([buffer], { type: "audio/wav" });
     }
 
     function startRecordingSegment(idx) {
@@ -901,7 +936,7 @@ INDEX_HTML = r"""<!doctype html>
       try {
         const combined = await mergeAudioBlobs(recordedSegments);
         const fd = new FormData();
-        fd.append("audio", combined, "voice_sample.webm");
+        fd.append("audio", combined, "voice_sample.wav");
         voiceStatus.textContent = lang === "en" ? "Uploading & cloning..." : "上传中并复刻声音...";
         voiceStatus.style.color = "var(--muted)";
         const res = await fetch("/api/voice/clone", { method: "POST", headers: headers(), body: fd });
@@ -923,12 +958,57 @@ INDEX_HTML = r"""<!doctype html>
     }
 
     async function mergeAudioBlobs(blobs) {
-      const arrayBuffers = await Promise.all(blobs.map(b => b.arrayBuffer()));
-      const totalLen = arrayBuffers.reduce((s, ab) => s + ab.byteLength, 0);
-      const merged = new Uint8Array(totalLen);
-      let offset = 0;
-      for (const ab of arrayBuffers) merged.set(new Uint8Array(ab), offset), offset += ab.byteLength;
-      return new Blob([merged], { type: "audio/webm" });
+      const SAMPLE_RATE = 16000;
+      const NUM_CHANNELS = 1;
+      const BITS_PER_SAMPLE = 16;
+      const BYTES_PER_SAMPLE = BITS_PER_SAMPLE / 8;
+      let totalSamples = 0;
+      const pcmBuffers = [];
+      for (const blob of blobs) {
+        const ab = await blob.arrayBuffer();
+        const view = new DataView(ab);
+        let offset = 0;
+        while (offset + 44 <= ab.byteLength) {
+          const tag = String.fromCharCode(view.getUint8(offset), view.getUint8(offset + 1), view.getUint8(offset + 2), view.getUint8(offset + 3));
+          if (tag !== "RIFF") break;
+          const chunkSize = view.getUint32(offset + 4, true);
+          const wave = String.fromCharCode(view.getUint8(offset + 8), view.getUint8(offset + 9), view.getUint8(offset + 10), view.getUint8(offset + 11));
+          if (wave !== "WAVE") break;
+          let dataOffset = offset + 12;
+          while (dataOffset + 8 < offset + 8 + chunkSize) {
+            const subTag = String.fromCharCode(view.getUint8(dataOffset), view.getUint8(dataOffset + 1), view.getUint8(dataOffset + 2), view.getUint8(dataOffset + 3));
+            const subSize = view.getUint32(dataOffset + 4, true);
+            if (subTag === "data") {
+              const pcmStart = dataOffset + 8;
+              const pcmEnd = Math.min(pcmStart + subSize, ab.byteLength);
+              const pcmBytes = new Uint8Array(ab).slice(pcmStart, pcmEnd);
+              pcmBuffers.push(pcmBytes);
+              totalSamples += (pcmEnd - pcmStart) / BYTES_PER_SAMPLE;
+              dataOffset = pcmEnd;
+            } else {
+              dataOffset += 8 + subSize;
+            }
+          }
+          break;
+        }
+      }
+      const dataLength = totalSamples * NUM_CHANNELS * BYTES_PER_SAMPLE;
+      const totalLength = 44 + dataLength;
+      const out = new ArrayBuffer(totalLength);
+      const v = new DataView(out);
+      const ws = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+      ws(0, "RIFF"); v.setUint32(4, totalLength - 8, true); ws(8, "WAVE"); ws(12, "fmt ");
+      v.setUint32(16, 16, true); v.setUint16(20, 1, true);
+      v.setUint16(22, NUM_CHANNELS, true); v.setUint32(24, SAMPLE_RATE, true);
+      v.setUint32(28, SAMPLE_RATE * NUM_CHANNELS * BYTES_PER_SAMPLE, true);
+      v.setUint16(32, NUM_CHANNELS * BYTES_PER_SAMPLE, true);
+      v.setUint16(34, BITS_PER_SAMPLE, true); ws(36, "data"); v.setUint32(40, dataLength, true);
+      let offset = 44;
+      for (const buf of pcmBuffers) {
+        new Uint8Array(out).set(buf, offset);
+        offset += buf.byteLength;
+      }
+      return new Blob([out], { type: "audio/wav" });
     }
 
     document.getElementById("voiceRecordBtn").addEventListener("click", () => {
