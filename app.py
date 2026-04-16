@@ -728,10 +728,6 @@ INDEX_HTML = r"""<!doctype html>
       { label: "Normal Speech", desc: "Speak naturally at your normal pitch and pace." },
       { label: "High Pitch", desc: "Raise your voice and speak in a bright, high tone." },
       { label: "Whisper", desc: "Speak very softly — a quiet, intimate whisper." },
-      { label: "Excited Shout", desc: "Act excited! Speak loudly with energy and joy." },
-      { label: "Slow & Steady", desc: "Speak slowly and rhythmically, like a storyteller." },
-      { label: "Narrating", desc: "Tell a short story with expression and feeling." },
-      { label: "Breathy Voice", desc: "Use a breathy, airy tone. Like sighing as you speak." },
       { label: "Natural Close", desc: "Speak your natural closing words, relaxed and clear." },
     ];
     const VOICE_SEGMENTS_ZH = [
@@ -739,10 +735,6 @@ INDEX_HTML = r"""<!doctype html>
       { label: "正常念白", desc: "用正常的音高和语速自然说话。" },
       { label: "高音", desc: "提高音量，用明亮高亢的声调说话。" },
       { label: "小声低语", desc: "非常轻柔地说话——像悄悄话。" },
-      { label: "兴奋呐喊", desc: "表现得兴奋一点！用充满能量的声音大声说话！" },
-      { label: "缓慢讲述", desc: "缓慢而有节奏地说话，像讲故事一样。" },
-      { label: "叙述感", desc: "带感情地讲述一小段故事。" },
-      { label: "气息音", desc: "用带气息的、轻轻的声音说话，像边呼吸边说。" },
       { label: "自然收尾", desc: "用放松自然的声音说结束的句子。" },
     ];
     const SEGMENT_SCRIPTS_EN = [
@@ -750,10 +742,6 @@ INDEX_HTML = r"""<!doctype html>
       "Today is a beautiful day and I feel really happy and grateful.",
       "Can you hear me all the way in the back of the room?",
       "This is a secret between us, please don't tell anyone.",
-      "We won! This is absolutely amazing! Let's celebrate together!",
-      "The sun is slowly setting behind the distant hills, painting the sky gold.",
-      "Once upon a time, in a faraway land, there lived a brave knight.",
-      "Ahhhh... taking a deep breath... that feels so calm and relaxing.",
       "Thank you for listening. This is my voice, unique and real.",
     ];
     const SEGMENT_SCRIPTS_ZH = [
@@ -761,10 +749,6 @@ INDEX_HTML = r"""<!doctype html>
       "今天是美好的一天，我感到非常开心和感恩。",
       "在后排的你能听到我说话吗？",
       "这是我们之间的秘密，请不要告诉任何人。",
-      "我们赢了！这太棒了！让我们一起庆祝吧！",
-      "太阳正缓缓落在远山之后，把天空染成金色。",
-      "从前，在遥远的土地上，住着一位勇敢的骑士。",
-      "啊……深吸一口气……感觉真好，很放松。",
       "感谢聆听。这就是我的声音，独一无二，真实自然。",
     ];
 
@@ -774,7 +758,7 @@ INDEX_HTML = r"""<!doctype html>
     let currentSegment = -1;
     let segmentStream = null;
     let recordingTimer = null;
-    const SEGMENT_DURATION = 18000; // 18s per segment
+    const SEGMENT_DURATION = 10000; // 10s per segment
 
     function getSegments() {
       return lang === "zh" ? VOICE_SEGMENTS_ZH : VOICE_SEGMENTS_EN;
@@ -866,7 +850,7 @@ INDEX_HTML = r"""<!doctype html>
         document.getElementById("recStartSeg").disabled = true;
         document.getElementById("recStartSeg").textContent = lang === "en" ? "Recording..." : "录制中...";
         const countdownEl = document.getElementById("recCountdown");
-        let remaining = SEGMENT_DURATION / 1000;
+        let remaining = 10;
         countdownEl.textContent = lang === "en" ? `Recording... ${remaining}s` : `录制中... ${remaining}s`;
         recordingTimer = setInterval(() => {
           remaining--;
@@ -1721,36 +1705,41 @@ class MusicHandler(BaseHTTPRequestHandler):
             boundary_match = re.search(r"boundary=(.+)", content_type)
             if not boundary_match:
                 raise ValueError("Missing multipart boundary.")
-            boundary = boundary_match.group(1).strip('"')
+            boundary = boundary_match.group(1).strip('"').encode()
             parts = {}
-            import email.policy
-            from email import parser as email_parser
-            from email.parser import BytesParser
-            from email.policy import HTTP
-            msg = BytesParser(policy=HTTP.policy()).parsestr(
-                body.decode("latin-1"), headers=("Content-Disposition", "Content-Type")
-            )
-            for part in msg.iter_parts():
-                cd = part.get("Content-Disposition", "")
-                field_match = re.search(r'name="([^"]+)"', cd)
-                if not field_match:
+            for chunk in body.split(b"--" + boundary):
+                chunk = chunk.strip()
+                if not chunk or chunk.startswith(b"--") or chunk.startswith(b"\r\n--"):
                     continue
-                name = field_match.group(1)
-                if part.get_content_type() == "application/octet-stream":
-                    filename = re.search(r'filename="([^"]+)"', cd)
-                    filename = filename.group(1) if filename else "audio.mp3"
-                    parts[name] = (filename, part.get_payload(decode=True))
+                hdr_end = chunk.find(b"\r\n\r\n")
+                if hdr_end < 0:
+                    continue
+                hdr_block = chunk[:hdr_end].decode("latin-1")
+                body_data = chunk[hdr_end + 4:]
+                name_m = re.search(r'name="([^"]+)"', hdr_block)
+                if not name_m:
+                    continue
+                name = name_m.group(1)
+                fn_m = re.search(r'filename="([^"]+)"', hdr_block)
+                if fn_m:
+                    parts[name] = (fn_m.group(1), body_data.rstrip(b"\r\n"))
                 else:
-                    parts[name] = part.get_payload()
+                    parts[name] = body_data.rstrip(b"\r\n").decode("utf-8", errors="replace")
             audio_bytes = parts.get("audio")
             if not audio_bytes:
                 raise ValueError("No audio field in form data.")
-            suffix = ".mp3"
-            if "audio/mp4" in parts.get("audio_type", ""):
+            filename_audio = parts.get("audio", (None,))[0] or ""
+            suffix = ".webm"
+            if filename_audio.lower().endswith(".mp3"):
+                suffix = ".mp3"
+            elif filename_audio.lower().endswith(".m4a"):
                 suffix = ".m4a"
+            elif filename_audio.lower().endswith(".wav"):
+                suffix = ".wav"
             voice_id = f"user_{client_id[:16]}"
             tmp_path = OUTPUT_DIR / f"voice_sample_{secrets.token_hex(8)}{suffix}"
-            tmp_path.write_bytes(audio_bytes)
+            audio_data = audio_bytes[1] if isinstance(audio_bytes, tuple) else audio_bytes
+            tmp_path.write_bytes(audio_data)
             try:
                 result = clone_voice(tmp_path, voice_id)
             finally:
