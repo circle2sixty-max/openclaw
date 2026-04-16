@@ -183,6 +183,23 @@ INDEX_HTML = r"""<!doctype html>
     .voice-clone-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
     .voice-status { min-height: 18px; margin-top: 0; }
     .voice-preview-row { align-items: center; }
+    .rec-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 999; display: flex; align-items: center; justify-content: center; }
+    .rec-modal-content { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; width: min(520px, 95vw); max-height: 90vh; overflow-y: auto; }
+    .rec-modal-header { padding: 18px 20px 14px; border-bottom: 1px solid var(--line); }
+    .rec-modal-header h3 { margin: 0; font-size: 18px; }
+    .rec-modal-body { padding: 20px; }
+    .rec-progress { margin-bottom: 16px; }
+    .rec-step { font-size: 14px; font-weight: 700; color: var(--accent); margin-bottom: 8px; }
+    .rec-bar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+    .rec-bar-fill { height: 100%; background: var(--accent); transition: width 0.4s ease; }
+    .rec-script-box { background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 14px; }
+    .rec-instruction { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+    .rec-script { font-size: 15px; line-height: 1.5; color: var(--text); }
+    .rec-countdown { font-size: 28px; font-weight: 800; color: var(--accent); text-align: center; margin: 12px 0; }
+    .rec-review-audio { margin: 10px 0; }
+    .rec-controls-row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+    .rec-done { text-align: center; padding: 24px 0; font-size: 16px; color: var(--accent); }
+    .rec-error { color: var(--danger); }
     .error-text { color: var(--danger); min-height: 20px; font-size: 14px; }
     .jobs { display: grid; gap: 10px; padding: 14px 16px 16px; }
     .empty { border: 1px dashed var(--line); border-radius: 8px; padding: 18px; color: var(--muted); text-align: center; }
@@ -272,12 +289,11 @@ INDEX_HTML = r"""<!doctype html>
             </div>
             <div id="voiceCloneSection" class="field" style="margin-top:4px;">
               <label data-i18n="voiceCloneLabel">Voice Clone (optional)</label>
-              <div class="voice-clone-row">
-                <input id="voiceFile" type="file" accept=".mp3,.m4a,.wav" style="display:none;">
-                <button id="voiceUploadBtn" class="secondary-btn" type="button" data-i18n="voiceUploadBtn">Upload My Voice</button>
+              <div id="voiceTopRow" class="voice-clone-row">
+                <button id="voiceRecordBtn" class="secondary-btn" type="button" data-i18n="voiceRecordBtn">Record My Voice</button>
                 <div id="voiceStatus" class="hint voice-status"></div>
               </div>
-              <div class="hint" data-i18n="voiceCloneHint">Upload 10s–5min audio to clone your voice. Cloned voice expires in 7 days.</div>
+              <div class="hint" data-i18n="voiceCloneHint">Record 9 short passages covering different tones and styles. Takes about 2 minutes. Cloned voice expires in 7 days.</div>
               <div id="voicePreviewRow" class="voice-preview-row" style="display:none; margin-top:10px;">
                 <button id="voicePreviewBtn" class="secondary-btn" type="button" data-i18n="voicePreviewBtn">Preview Voice</button>
                 <audio id="voicePreviewAudio" controls style="height:36px; margin-left:8px;"></audio>
@@ -337,9 +353,10 @@ INDEX_HTML = r"""<!doctype html>
         lyricsPlaceholder: "[Verse]\nYour lyrics here...\n[Hook]\nYour chorus...",
         instrumental: "Instrumental", instrumentalHint: "No vocals. Lyrics will be ignored.",
         autoLyrics: "Auto-generate Lyrics", autoLyricsHint: "AI writes lyrics from your prompt.",
-        voiceCloneLabel: "Voice Clone (optional)", voiceUploadBtn: "Upload My Voice", voiceCloneHint: "Upload 10s–5min clear audio of one person speaking. The same voice will be used to sing. Cloned voice expires in 7 days.",
+        voiceCloneLabel: "Voice Clone (optional)", voiceRecordBtn: "Record My Voice", voiceCloneHint: "Record 9 short passages covering different tones and styles. Takes about 2 minutes. Cloned voice expires in 7 days.",
         voicePreviewBtn: "Preview Voice", voiceUploading: "Cloning your voice...", voiceReady: "Voice cloned! Use Preview to listen.",
         voiceError: "Voice clone failed.", voicePreviewGenerating: "Generating preview...", voicePreviewReady: "Preview ready.", voicePreviewError: "Preview failed.",
+        recModalTitle: "Record Your Voice",
         advanced: "More Parameters", genre: "Genre", mood: "Mood", instruments: "Instruments", tempo: "Tempo Feel", bpm: "BPM", key: "Musical Key",
         vocals: "Vocal Style", structure: "Song Structure", references: "References", avoid: "Avoid", useCase: "Use Case", extra: "Extra Details",
         genrePlaceholder: "pop, reggae, jazz", moodPlaceholder: "warm, bright, intense", instrumentsPlaceholder: "piano, guitar, drums",
@@ -370,7 +387,7 @@ INDEX_HTML = r"""<!doctype html>
         lyricsPlaceholder: "[主歌]\n在这里写歌词...\n[副歌]\n在这里写副歌...",
         instrumental: "纯音乐", instrumentalHint: "无人声，歌词会被忽略。",
         autoLyrics: "自动生成歌词", autoLyricsHint: "AI 根据描述写歌词。",
-        voiceCloneLabel: "声纹复刻（可选）", voiceUploadBtn: "上传我的声音", voiceCloneHint: "上传10秒至5分钟的清晰单人音频。复刻后的声音会用于演唱。有效期7天。",
+        voiceCloneLabel: "声纹复刻（可选）", voiceRecordBtn: "录制我的声音", voiceCloneHint: "录制9段不同音调和风格的短句，约2分钟。复刻声音有效期7天。",
         voicePreviewBtn: "预览声音", voiceUploading: "正在复刻你的声音...", voiceReady: "声音复刻完成！点击预览试听。",
         voiceError: "声音复刻失败。", voicePreviewGenerating: "正在生成预览...", voicePreviewReady: "预览已生成。", voicePreviewError: "预览生成失败。",
         advanced: "更多参数", genre: "流派", mood: "情绪", instruments: "乐器", tempo: "节奏感", bpm: "BPM", key: "调性",
@@ -402,8 +419,7 @@ INDEX_HTML = r"""<!doctype html>
     const lyricsIdea = document.getElementById("lyricsIdea");
     const generateLyricsBtn = document.getElementById("generateLyricsBtn");
     const lyricsAssistMessage = document.getElementById("lyricsAssistMessage");
-    const voiceFile = document.getElementById("voiceFile");
-    const voiceUploadBtn = document.getElementById("voiceUploadBtn");
+    const voiceRecordBtn = document.getElementById("voiceRecordBtn");
     const voiceStatus = document.getElementById("voiceStatus");
     const voicePreviewRow = document.getElementById("voicePreviewRow");
     const voicePreviewBtn = document.getElementById("voicePreviewBtn");
@@ -621,31 +637,6 @@ INDEX_HTML = r"""<!doctype html>
         generateLyricsBtn.disabled = instrumental.checked;
       }
     });
-    voiceUploadBtn.addEventListener("click", () => voiceFile.click());
-    voiceFile.addEventListener("change", async () => {
-      const file = voiceFile.files[0];
-      if (!file) return;
-      voiceStatus.textContent = t("voiceUploading");
-      voiceStatus.style.color = "var(--muted)";
-      const fd = new FormData();
-      fd.append("audio", file);
-      try {
-        const res = await fetch("/api/voice/clone", {method: "POST", headers: headers(), body: fd});
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || t("voiceError"));
-        clonedVoiceId = data.voice_id || "";
-        const expiresHours = data.expires_in_hours || 168;
-        const expiresAt = Date.now() + expiresHours * 3600 * 1000;
-        localStorage.setItem("terry_music_voice_id", clonedVoiceId);
-        localStorage.setItem("terry_music_voice_expires", String(expiresAt));
-        voiceStatus.textContent = t("voiceReady");
-        voiceStatus.style.color = "var(--accent)";
-        voicePreviewRow.style.display = "flex";
-      } catch (err) {
-        voiceStatus.textContent = err.message || t("voiceError");
-        voiceStatus.style.color = "var(--danger)";
-      }
-    });
     voicePreviewBtn.addEventListener("click", async () => {
       const currentLyrics = lyrics.value.trim();
       if (!currentLyrics) {
@@ -731,7 +722,251 @@ INDEX_HTML = r"""<!doctype html>
     loadDraft();
     loadJobs();
     setInterval(loadJobs, 3000);
+
+    const VOICE_SEGMENTS_EN = [
+      { label: "Low Voice", desc: "Speak in a calm, deep, low voice." },
+      { label: "Normal Speech", desc: "Speak naturally at your normal pitch and pace." },
+      { label: "High Pitch", desc: "Raise your voice and speak in a bright, high tone." },
+      { label: "Whisper", desc: "Speak very softly — a quiet, intimate whisper." },
+      { label: "Excited Shout", desc: "Act excited! Speak loudly with energy and joy." },
+      { label: "Slow & Steady", desc: "Speak slowly and rhythmically, like a storyteller." },
+      { label: "Narrating", desc: "Tell a short story with expression and feeling." },
+      { label: "Breathy Voice", desc: "Use a breathy, airy tone. Like sighing as you speak." },
+      { label: "Natural Close", desc: "Speak your natural closing words, relaxed and clear." },
+    ];
+    const VOICE_SEGMENTS_ZH = [
+      { label: "低音", desc: "用平静、低沉的声音说话。" },
+      { label: "正常念白", desc: "用正常的音高和语速自然说话。" },
+      { label: "高音", desc: "提高音量，用明亮高亢的声调说话。" },
+      { label: "小声低语", desc: "非常轻柔地说话——像悄悄话。" },
+      { label: "兴奋呐喊", desc: "表现得兴奋一点！用充满能量的声音大声说话！" },
+      { label: "缓慢讲述", desc: "缓慢而有节奏地说话，像讲故事一样。" },
+      { label: "叙述感", desc: "带感情地讲述一小段故事。" },
+      { label: "气息音", desc: "用带气息的、轻轻的声音说话，像边呼吸边说。" },
+      { label: "自然收尾", desc: "用放松自然的声音说结束的句子。" },
+    ];
+    const SEGMENT_SCRIPTS_EN = [
+      "Hello, my name is Alex. I speak in a calm, low, and steady voice.",
+      "Today is a beautiful day and I feel really happy and grateful.",
+      "Can you hear me all the way in the back of the room?",
+      "This is a secret between us, please don't tell anyone.",
+      "We won! This is absolutely amazing! Let's celebrate together!",
+      "The sun is slowly setting behind the distant hills, painting the sky gold.",
+      "Once upon a time, in a faraway land, there lived a brave knight.",
+      "Ahhhh... taking a deep breath... that feels so calm and relaxing.",
+      "Thank you for listening. This is my voice, unique and real.",
+    ];
+    const SEGMENT_SCRIPTS_ZH = [
+      "你好，我的名字是阿明，我用平静低沉的声音说话。",
+      "今天是美好的一天，我感到非常开心和感恩。",
+      "在后排的你能听到我说话吗？",
+      "这是我们之间的秘密，请不要告诉任何人。",
+      "我们赢了！这太棒了！让我们一起庆祝吧！",
+      "太阳正缓缓落在远山之后，把天空染成金色。",
+      "从前，在遥远的土地上，住着一位勇敢的骑士。",
+      "啊……深吸一口气……感觉真好，很放松。",
+      "感谢聆听。这就是我的声音，独一无二，真实自然。",
+    ];
+
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let recordedSegments = [];
+    let currentSegment = -1;
+    let segmentStream = null;
+    let recordingTimer = null;
+    const SEGMENT_DURATION = 18000; // 18s per segment
+
+    function getSegments() {
+      return lang === "zh" ? VOICE_SEGMENTS_ZH : VOICE_SEGMENTS_EN;
+    }
+    function getScripts() {
+      return lang === "zh" ? SEGMENT_SCRIPTS_ZH : SEGMENT_SCRIPTS_EN;
+    }
+
+    function openVoiceRecorder() {
+      recordedSegments = [];
+      currentSegment = -1;
+      const segs = getSegments();
+      const scrs = getScripts();
+      const container = document.getElementById("recModalBody");
+      container.innerHTML = `<div class="rec-progress"><div class="rec-step">${lang === "en" ? "Preparing..." : "准备中..."}</div></div><div class="rec-script-box"></div><div class="rec-controls-row"><button id="recModalClose" class="secondary-btn" type="button">${lang === "en" ? "Cancel" : "取消"}</button></div>`;
+      document.getElementById("recModal").style.display = "flex";
+      document.getElementById("recModalClose").addEventListener("click", closeVoiceRecorder);
+    }
+
+    function closeVoiceRecorder() {
+      if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+      if (segmentStream) { segmentStream.getTracks().forEach(t => t.stop()); segmentStream = null; }
+      clearTimeout(recordingTimer);
+      document.getElementById("recModal").style.display = "none";
+    }
+
+    function showSegment(idx) {
+      currentSegment = idx;
+      const segs = getSegments();
+      const scrs = getScripts();
+      const seg = segs[idx];
+      const script = scrs[idx];
+      const total = segs.length;
+      const progress = ((idx + 1) / total) * 100;
+      const body = document.getElementById("recModalBody");
+      body.innerHTML = `
+        <div class="rec-progress">
+          <div class="rec-step">${lang === "en" ? "Segment" : "段落"} ${idx + 1} / ${total} — ${seg.label}</div>
+          <div class="rec-bar"><div class="rec-bar-fill" style="width:${progress}%"></div></div>
+        </div>
+        <div class="rec-script-box">
+          <div class="rec-instruction">${seg.desc}</div>
+          <div class="rec-script">"${script}"</div>
+        </div>
+        <div class="rec-countdown" id="recCountdown">${lang === "en" ? "Starting in 3..." : "3秒后开始..."}</div>
+        <div class="rec-controls-row">
+          <button id="recStartSeg" class="secondary-btn" type="button">${lang === "en" ? "Start Recording" : "开始录制"}</button>
+          <button id="recModalClose" class="ghost" type="button">${lang === "en" ? "Cancel" : "取消"}</button>
+        </div>
+      `;
+      document.getElementById("recStartSeg").addEventListener("click", () => showCountdownAndRecord(idx));
+      document.getElementById("recModalClose").addEventListener("click", closeVoiceRecorder);
+    }
+
+    function showCountdownAndRecord(idx) {
+      let count = 3;
+      const countdownEl = document.getElementById("recCountdown");
+      const countdownInterval = setInterval(() => {
+        count--;
+        if (count > 0) {
+          countdownEl.textContent = (lang === "en" ? `Starting in ${count}...` : `${count}秒后开始...`);
+        } else {
+          clearInterval(countdownInterval);
+          countdownEl.textContent = "";
+          startRecordingSegment(idx);
+        }
+      }, 1000);
+    }
+
+    async function startSegmentRecording(idx) {
+      try {
+        segmentStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(segmentStream, { mimeType: "audio/webm" });
+        recordedChunks = [];
+        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(recordedChunks, { type: "audio/webm" });
+          recordedSegments[idx] = blob;
+          segmentStream.getTracks().forEach(t => t.stop());
+          segmentStream = null;
+          if (idx + 1 < getSegments().length) {
+            showReview(idx, blob);
+          } else {
+            showAllDone();
+          }
+        };
+        mediaRecorder.start();
+        document.getElementById("recStartSeg").disabled = true;
+        document.getElementById("recStartSeg").textContent = lang === "en" ? "Recording..." : "录制中...";
+        const countdownEl = document.getElementById("recCountdown");
+        let remaining = SEGMENT_DURATION / 1000;
+        countdownEl.textContent = lang === "en" ? `Recording... ${remaining}s` : `录制中... ${remaining}s`;
+        recordingTimer = setInterval(() => {
+          remaining--;
+          if (remaining > 0) {
+            countdownEl.textContent = lang === "en" ? `Recording... ${remaining}s` : `录制中... ${remaining}s`;
+          }
+        }, 1000);
+        setTimeout(() => { if (mediaRecorder.state === "recording") mediaRecorder.stop(); }, SEGMENT_DURATION);
+      } catch (err) {
+        alert(lang === "en" ? "Microphone access denied. Please allow microphone access." : "麦克风访问被拒绝，请允许麦克风权限。");
+        closeVoiceRecorder();
+      }
+    }
+
+    function startRecordingSegment(idx) {
+      startSegmentRecording(idx);
+    }
+
+    function showReview(idx, blob) {
+      const segs = getSegments();
+      const scrs = getScripts();
+      const seg = segs[idx];
+      const script = scrs[idx];
+      const url = URL.createObjectURL(blob);
+      const body = document.getElementById("recModalBody");
+      body.innerHTML = `
+        <div class="rec-progress">
+          <div class="rec-step">${lang === "en" ? "Segment" : "段落"} ${idx + 1} / ${segs.length} — ${seg.label} ✓</div>
+          <div class="rec-bar"><div class="rec-bar-fill" style="width:${((idx + 1) / segs.length) * 100}%"></div></div>
+        </div>
+        <div class="rec-script-box">
+          <div class="rec-instruction">${seg.desc}</div>
+          <div class="rec-script">"${script}"</div>
+        </div>
+        <div class="rec-review-audio"><audio src="${url}" controls style="height:40px; width:100%;"></audio></div>
+        <div class="rec-controls-row">
+          <button id="recRerecord" class="ghost" type="button">${lang === "en" ? "🔄 Re-record" : "🔄 重新录制"}</button>
+          <button id="recNext" class="secondary-btn" type="button">${lang === "en" ? "Next →" : "下一个 →"}</button>
+        </div>
+      `;
+      document.getElementById("recRerecord").addEventListener("click", () => showSegment(idx));
+      document.getElementById("recNext").addEventListener("click", () => showSegment(idx + 1));
+    }
+
+    async function showAllDone() {
+      const body = document.getElementById("recModalBody");
+      body.innerHTML = `<div class="rec-done">${lang === "en" ? "All recordings complete! Merging..." : "全部录制完成！正在合并..."}</div>`;
+      try {
+        const combined = await mergeAudioBlobs(recordedSegments);
+        const fd = new FormData();
+        fd.append("audio", combined, "voice_sample.webm");
+        voiceStatus.textContent = lang === "en" ? "Uploading & cloning..." : "上传中并复刻声音...";
+        voiceStatus.style.color = "var(--muted)";
+        const res = await fetch("/api/voice/clone", { method: "POST", headers: headers(), body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || (lang === "en" ? "Clone failed." : "声音复刻失败。"));
+        clonedVoiceId = data.voice_id || "";
+        const expiresHours = data.expires_in_hours || 168;
+        const expiresAt = Date.now() + expiresHours * 3600 * 1000;
+        localStorage.setItem("terry_music_voice_id", clonedVoiceId);
+        localStorage.setItem("terry_music_voice_expires", String(expiresAt));
+        voicePreviewRow.style.display = "flex";
+        closeVoiceRecorder();
+        voiceStatus.textContent = lang === "en" ? "Voice cloned! Use Preview to listen." : "声音复刻完成！点击预览试听。";
+        voiceStatus.style.color = "var(--accent)";
+      } catch (err) {
+        body.innerHTML = `<div class="rec-done rec-error">${lang === "en" ? "Clone failed: " : "复刻失败："}${err.message}</div><div class="rec-controls-row"><button id="recModalClose2" class="secondary-btn" type="button">${lang === "en" ? "Close" : "关闭"}</button></div>`;
+        document.getElementById("recModalClose2").addEventListener("click", closeVoiceRecorder);
+      }
+    }
+
+    async function mergeAudioBlobs(blobs) {
+      const arrayBuffers = await Promise.all(blobs.map(b => b.arrayBuffer()));
+      const totalLen = arrayBuffers.reduce((s, ab) => s + ab.byteLength, 0);
+      const merged = new Uint8Array(totalLen);
+      let offset = 0;
+      for (const ab of arrayBuffers) merged.set(new Uint8Array(ab), offset), offset += ab.byteLength;
+      return new Blob([merged], { type: "audio/webm" });
+    }
+
+    document.getElementById("voiceRecordBtn").addEventListener("click", () => {
+      if (clonedVoiceId && voiceCloneExpires && parseInt(voiceCloneExpires) > Date.now()) {
+        if (confirm(lang === "en" ? "Re-record voice? This will create a new voice clone." : "重新录制？这将创建新的声音复刻。")) {
+          localStorage.removeItem("terry_music_voice_id");
+          localStorage.removeItem("terry_music_voice_expires");
+          clonedVoiceId = "";
+          openVoiceRecorder();
+        }
+      } else {
+        openVoiceRecorder();
+      }
+    });
   </script>
+  <div id="recModal" class="rec-modal" style="display:none;">
+    <div class="rec-modal-content">
+      <div class="rec-modal-header">
+        <h3 data-i18n="recModalTitle">Record Your Voice</h3>
+      </div>
+      <div id="recModalBody" class="rec-modal-body"></div>
+    </div>
+  </div>
 </body>
 </html>
 """
