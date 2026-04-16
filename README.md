@@ -1,6 +1,6 @@
-# Terry Music
+# Music Speaks
 
-Private AI music generator for friends. It generates MP3 tracks with MiniMax music-2.6 and provides a direct download button when the track is ready.
+Private AI music generator for friends. Music Speaks helps people turn feelings, stories, lyrics, and style ideas into downloadable MP3 tracks with MiniMax music-2.6.
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/circle2sixty-max/openclaw)
 
@@ -46,11 +46,11 @@ If `ADMIN_KEY` is not set, the app derives a stable admin key from the MiniMax k
 
 ## Lyrics Helper
 
-Users can either paste finished lyrics or describe the lyrics they want in their own language. The Generate Lyrics button calls the MiniMax text model, constrains the response to song lyrics only, and fills the finished lyrics box so users can edit before generating music. If users skip that button, Terry Music can still generate lyrics during music creation when a lyrics brief is present.
+Users can either paste finished lyrics or describe the lyrics they want in their own language. The Generate Lyrics button calls the MiniMax text model, constrains the response to song lyrics only, and fills the finished lyrics box so users can edit before generating music. If users skip that button, Music Speaks can still generate lyrics during music creation when a lyrics brief is present.
 
 ## Song Titles
 
-Users can provide a song title. If they leave it empty, Terry Music asks the MiniMax text model to create a concise title from the lyrics. The downloaded MP3 uses the title as its file name.
+Users can provide a song title. If they leave it empty, Music Speaks asks the MiniMax text model to create a concise title from the lyrics. The downloaded MP3 uses the title as its file name.
 
 ## Drafts
 

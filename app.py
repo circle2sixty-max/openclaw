@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Terry Music web app for Render."""
+"""Music Speaks web app for Render."""
 
 from __future__ import annotations
 
@@ -83,7 +83,7 @@ INDEX_HTML = r"""<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Terry Music</title>
+  <title>Music Speaks</title>
   <style>
     :root {
       color-scheme: dark;
@@ -212,8 +212,8 @@ INDEX_HTML = r"""<!doctype html>
   <main class="page">
     <div class="top">
       <div>
-        <h1>Terry Music</h1>
-        <p id="subtitle" class="subtitle">Describe a music style, generate an MP3, and download it when it is ready.</p>
+        <h1>Music Speaks</h1>
+        <p id="subtitle" class="subtitle">Let music speak what is inside. Create a song that carries your mood, taste, longing, and dreams.</p>
       </div>
       <div class="top-actions">
         <div class="pill">music-2.6</div>
@@ -224,7 +224,7 @@ INDEX_HTML = r"""<!doctype html>
       <section class="panel">
         <div class="panel-head">
           <h2 data-i18n="createTitle">Create Music</h2>
-          <p data-i18n="createDesc">Fill in the form. Terry Music will generate the track and keep it available for download.</p>
+          <p data-i18n="createDesc">Write a feeling, story, lyric, or style. Music Speaks turns it into a downloadable song.</p>
         </div>
         <div class="panel-body">
           <form id="jobForm">
@@ -236,7 +236,7 @@ INDEX_HTML = r"""<!doctype html>
             <div class="field">
               <label for="songTitle" data-i18n="titleLabel">Song Title (optional)</label>
               <input id="songTitle" type="text" maxlength="120" data-i18n-placeholder="titlePlaceholder" placeholder="Leave empty and AI will name the song">
-              <div class="hint" data-i18n="titleHint">If empty, Terry Music will create a title from the lyrics before saving the MP3.</div>
+              <div class="hint" data-i18n="titleHint">If empty, Music Speaks will create a title from the lyrics before saving the MP3.</div>
             </div>
             <div class="field">
               <label for="prompt" data-i18n="promptLabel">Music Style Prompt</label>
@@ -246,7 +246,7 @@ INDEX_HTML = r"""<!doctype html>
             <div class="field">
               <label for="lyricsIdea" data-i18n="lyricsIdeaLabel">Lyrics Brief for AI (optional)</label>
               <textarea id="lyricsIdea" maxlength="2500" data-i18n-placeholder="lyricsIdeaPlaceholder" placeholder="Tell the story, feelings, images, language, chorus idea, or fragments you want in the lyrics."></textarea>
-              <div class="hint" data-i18n="lyricsIdeaHint">If finished lyrics are empty, Terry Music will ask AI to write lyrics from this brief.</div>
+              <div class="hint" data-i18n="lyricsIdeaHint">If finished lyrics are empty, Music Speaks will ask AI to write lyrics from this brief.</div>
               <div class="assist-row">
                 <button id="generateLyricsBtn" class="secondary-btn" type="button" data-i18n="generateLyrics">Generate Lyrics</button>
                 <div id="lyricsAssistMessage" class="hint assist-msg"></div>
@@ -305,15 +305,15 @@ INDEX_HTML = r"""<!doctype html>
   <script>
     const I18N = {
       en: {
-        subtitle: "Describe a music style, generate an MP3, and download it when it is ready.",
-        createTitle: "Create Music", createDesc: "Fill in the form. Terry Music will generate the track and keep it available for download.",
+        subtitle: "Let music speak what is inside. People have always chosen songs to express mood, state of mind, taste, longing, and dreams. Now you can create one that speaks closer to your own heart.",
+        createTitle: "Create Music", createDesc: "Write a feeling, story, lyric, or style. Music Speaks turns it into a downloadable song.",
         emailLabel: "Email Address (optional)", emailHint: "Optional. The download button is the main way to get your MP3.",
         emailPlaceholder: "your@email.com",
-        titleLabel: "Song Title (optional)", titleHint: "If empty, Terry Music will create a title from the lyrics before saving the MP3.",
+        titleLabel: "Song Title (optional)", titleHint: "If empty, Music Speaks will create a title from the lyrics before saving the MP3.",
         titlePlaceholder: "Leave empty and AI will name the song",
         promptLabel: "Music Style Prompt", promptHint: "Include style, mood, instruments, tempo, and any references.",
         promptPlaceholder: "Cinematic electronic pop, confident and bright, polished production, strong hook",
-        lyricsIdeaLabel: "Lyrics Brief for AI (optional)", lyricsIdeaHint: "If finished lyrics are empty, Terry Music will ask AI to write lyrics from this brief.",
+        lyricsIdeaLabel: "Lyrics Brief for AI (optional)", lyricsIdeaHint: "If finished lyrics are empty, Music Speaks will ask AI to write lyrics from this brief.",
         lyricsIdeaPlaceholder: "Tell the story, feelings, images, language, chorus idea, or fragments you want in the lyrics.",
         generateLyrics: "Generate Lyrics", generatingLyrics: "Generating lyrics...", lyricsGenerated: "Lyrics added below. You can edit them before generating music.",
         lyricsAssistNeedBrief: "Add a lyrics brief or music style prompt first.", lyricsAssistFailed: "Lyrics generation failed.",
@@ -335,15 +335,15 @@ INDEX_HTML = r"""<!doctype html>
         download: "Download MP3", delete: "Delete", sent: "Sent to", instrumentalMode: "Instrumental", vocalMode: "Vocal", deleteConfirm: "Delete this job?", deleteFailed: "Delete failed"
       },
       zh: {
-        subtitle: "描述音乐风格，生成 MP3，完成后可直接下载。",
-        createTitle: "创建音乐", createDesc: "填写表单，Terry Music 会生成音乐，并保留下载按钮。",
+        subtitle: "让音乐表达你的心声。过去，人们通过选择听什么音乐来表达情绪、状态、品味、向往和梦想；现在，你可以直接创作一首更贴近内心的歌。",
+        createTitle: "创建音乐", createDesc: "写下感受、故事、歌词或风格，Music Speaks 会把它变成一首可以下载的歌。",
         emailLabel: "邮箱地址（可选）", emailHint: "可不填写。下载按钮是获取 MP3 的主要方式。",
         emailPlaceholder: "你的邮箱（可选）",
-        titleLabel: "歌名（可选）", titleHint: "不填写时，Terry Music 会根据歌词分析生成歌名，并用作 MP3 文件名。",
+        titleLabel: "歌名（可选）", titleHint: "不填写时，Music Speaks 会根据歌词分析生成歌名，并用作 MP3 文件名。",
         titlePlaceholder: "留空时，AI 会自动起歌名",
         promptLabel: "音乐风格描述", promptHint: "写清风格、情绪、乐器、速度和参考对象。",
         promptPlaceholder: "例如：明亮自信的电子流行，制作精致，副歌有记忆点",
-        lyricsIdeaLabel: "歌词需求描述（可选）", lyricsIdeaHint: "如果没有填写完整歌词，Terry Music 会让 AI 根据这里的故事、感受、片段或概念生成歌词。",
+        lyricsIdeaLabel: "歌词需求描述（可选）", lyricsIdeaHint: "如果没有填写完整歌词，Music Speaks 会让 AI 根据这里的故事、感受、片段或概念生成歌词。",
         lyricsIdeaPlaceholder: "写下你想要的故事、情绪、画面、语言、某句副歌，或零散歌词片段。",
         generateLyrics: "生成歌词", generatingLyrics: "正在生成歌词...", lyricsGenerated: "歌词已填入下方，你可以编辑后再生成音乐。",
         lyricsAssistNeedBrief: "请先填写歌词需求描述或音乐风格。", lyricsAssistFailed: "歌词生成失败。",
@@ -645,7 +645,7 @@ ADMIN_HTML = r"""<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Terry Music Admin</title>
+  <title>Music Speaks Admin</title>
   <style>
     :root { color-scheme: dark; --bg:#0b0d0c; --panel:#141716; --line:#2d3430; --text:#f4f7f1; --muted:#a7b0aa; --accent:#50d890; --danger:#ff756d; }
     * { box-sizing: border-box; }
@@ -672,7 +672,7 @@ ADMIN_HTML = r"""<!doctype html>
   <main>
     <header>
       <div>
-        <h1>Terry Music Admin</h1>
+        <h1>Music Speaks Admin</h1>
         <div id="summary" class="muted">Loading all jobs...</div>
       </div>
       <button id="refresh" type="button">Refresh</button>
@@ -941,7 +941,7 @@ def fallback_song_title(job: dict[str, Any], lyrics: str) -> str:
         title = compact_title_candidate(str(extra.get(key, "")))
         if title:
             return title
-    return "Terry Music"
+    return "Music Speaks"
 
 
 def generate_lyrics_from_text_model(job: dict[str, Any]) -> str:
@@ -1065,8 +1065,8 @@ def send_email(to_email: str, file_path: Path, prompt: str) -> bool:
         msg = email.mime.multipart.MIMEMultipart()
         msg["From"] = SMTP_USER
         msg["To"] = to_email
-        msg["Subject"] = "Terry Music - Your Generated Track"
-        body = f"Hi! Your Terry Music track is ready.\n\nPrompt: {prompt}\nFile: {file_path.name}\n\nEnjoy!\n"
+        msg["Subject"] = "Music Speaks - Your Generated Track"
+        body = f"Hi! Your Music Speaks track is ready.\n\nPrompt: {prompt}\nFile: {file_path.name}\n\nEnjoy!\n"
         msg.attach(email.mime.text.MIMEText(body, "plain", "utf-8"))
         attachment = email.mime.base.MIMEBase(main_type, sub_type)
         attachment.set_payload(file_path.read_bytes())
@@ -1132,7 +1132,7 @@ def generate_music(job_id: str) -> None:
 
 
 class MusicHandler(BaseHTTPRequestHandler):
-    server_version = "TerryMusic/1.0"
+    server_version = "MusicSpeaks/1.0"
 
     def log_message(self, fmt: str, *args: Any) -> None:
         print(f"{self.log_date_time_string()} {self.address_string()} {fmt % args}")
@@ -1436,12 +1436,12 @@ def main() -> None:
     load_jobs()
     load_drafts()
     server = ThreadingHTTPServer((HOST, PORT), MusicHandler)
-    print(f"Terry Music running at http://{HOST}:{PORT}")
+    print(f"Music Speaks running at http://{HOST}:{PORT}")
     print(f"Output directory: {OUTPUT_DIR}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\nStopping Terry Music.")
+        print("\nStopping Music Speaks.")
     finally:
         server.server_close()
 
