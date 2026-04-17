@@ -310,6 +310,48 @@ INDEX_HTML = r"""<!doctype html>
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+    /* Animations */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    @keyframes bounce-in { 0% { transform: scale(0.8); opacity: 0; } 50% { transform: scale(1.05); } 100% { transform: scale(1); opacity: 1; } }
+    @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+    @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes slide-down { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes glow { 0%, 100% { box-shadow: 0 0 5px var(--accent); } 50% { box-shadow: 0 0 20px var(--accent), 0 0 30px var(--accent-dim); } }
+    @keyframes ripple { to { transform: scale(4); opacity: 0; } }
+    @keyframes beat { 0% { transform: scale(1); } 15% { transform: scale(1.15); } 30% { transform: scale(1); } 45% { transform: scale(1.1); } 60% { transform: scale(1); } }
+
+    .animate-spin { animation: spin 1s linear infinite; }
+    .animate-pulse { animation: pulse 1.5s ease-in-out infinite; }
+    .animate-bounce-in { animation: bounce-in 0.5s ease-out forwards; }
+    .animate-shake { animation: shake 0.4s ease-in-out; }
+    .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+    .animate-slide-up { animation: slide-up 0.4s ease-out forwards; }
+    .animate-slide-down { animation: slide-down 0.4s ease-out forwards; }
+    .animate-glow { animation: glow 2s ease-in-out infinite; }
+    .animate-beat { animation: beat 1s ease-in-out; }
+
+    /* Loading spinner */
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(0,0,0,0.2);
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+    }
+    .spinner-white {
+      border-color: rgba(255,255,255,0.2);
+      border-top-color: #fff;
+    }
+
+    /* Sound toggle */
+    .sound-toggle { position: relative; }
+    .sound-toggle.on .sound-icon { opacity: 1; }
+    .sound-toggle.off .sound-icon { opacity: 0.4; }
   </style>
 </head>
 <body>
@@ -320,6 +362,7 @@ INDEX_HTML = r"""<!doctype html>
         <span>Music Speaks</span>
       </a>
       <div class="header-actions">
+        <button id="soundBtn" class="header-btn sound-toggle on" title="Toggle sound" onclick="toggleSound()">🔊</button>
         <button id="themeBtn" class="header-btn" title="Toggle theme">🌙</button>
         <button id="langBtn" class="header-btn lang-toggle">中文</button>
       </div>
@@ -554,6 +597,79 @@ INDEX_HTML = r"""<!doctype html>
     </div>
   </div>
   <script>
+    // ── Sound Effects System (Web Audio API) ──────────────────────
+    const SoundSystem = {
+      ctx: null,
+      enabled: true,
+      init() {
+        try {
+          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch(e) { console.warn("Web Audio API not supported"); }
+      },
+      play(type) {
+        if (!this.enabled || !this.ctx) return;
+        if (this.ctx.state === "suspended") this.ctx.resume();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        switch(type) {
+          case "click":
+            osc.frequency.setValueAtTime(800, now);
+            osc.frequency.exponentialRampToValueAtTime(400, now + 0.05);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+            osc.start(now); osc.stop(now + 0.05);
+            break;
+          case "success":
+            osc.frequency.setValueAtTime(523.25, now);
+            osc.frequency.setValueAtTime(659.25, now + 0.1);
+            osc.frequency.setValueAtTime(783.99, now + 0.2);
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+            osc.start(now); osc.stop(now + 0.4);
+            break;
+          case "error":
+            osc.frequency.setValueAtTime(200, now);
+            osc.frequency.setValueAtTime(150, now + 0.1);
+            gain.gain.setValueAtTime(0.12, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+            osc.start(now); osc.stop(now + 0.2);
+            break;
+          case "complete":
+            osc.frequency.setValueAtTime(523.25, now);
+            osc.frequency.setValueAtTime(659.25, now + 0.08);
+            osc.frequency.setValueAtTime(783.99, now + 0.16);
+            osc.frequency.setValueAtTime(1046.50, now + 0.24);
+            gain.gain.setValueAtTime(0.12, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+            osc.start(now); osc.stop(now + 0.5);
+            break;
+          case "startup":
+            osc.frequency.setValueAtTime(440, now);
+            osc.frequency.setValueAtTime(554.37, now + 0.1);
+            osc.frequency.setValueAtTime(659.25, now + 0.2);
+            gain.gain.setValueAtTime(0.08, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+            osc.start(now); osc.stop(now + 0.35);
+            break;
+          case "record":
+            osc.type = "sawtooth";
+            osc.frequency.setValueAtTime(300, now);
+            gain.gain.setValueAtTime(0.08, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+            osc.start(now); osc.stop(now + 0.15);
+            break;
+        }
+      },
+      toggle() {
+        this.enabled = !this.enabled;
+        return this.enabled;
+      }
+    };
+    SoundSystem.init();
+
     const I18N = {
       en: {
         subtitle: "When words fall short, let music speak. Give your inner world a sound of its own.",
@@ -647,6 +763,7 @@ INDEX_HTML = r"""<!doctype html>
     const jobsBox = document.getElementById("jobs");
     const form = document.getElementById("jobForm");
     const submitBtn = document.getElementById("submitBtn");
+    let submitBtnOriginalText = submitBtn.textContent;
     const clearDraftBtn = document.getElementById("clearDraftBtn");
     const formError = document.getElementById("formError");
     const draftStatus = document.getElementById("draftStatus");
@@ -701,6 +818,7 @@ INDEX_HTML = r"""<!doctype html>
       document.getElementById("langBtn").textContent = lang === "en" ? "中文" : "EN";
       document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
       document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+      submitBtnOriginalText = submitBtn.textContent; // Update original text when language changes
       renderJobs(lastJobs);
     }
     function statusLabel(status) {
@@ -717,18 +835,19 @@ INDEX_HTML = r"""<!doctype html>
         jobsBox.innerHTML = `<div class="job-empty">${t("empty")}</div>`;
         return;
       }
-      jobsBox.innerHTML = lastJobs.map(job => {
+      jobsBox.innerHTML = lastJobs.map((job, idx) => {
         const status = escapeHtml(job.status || "unknown");
         const fileName = escapeHtml(job.file_name || "terry-music.mp3");
         const title = escapeHtml(job.song_title || job.prompt || "Untitled");
         const mode = job.is_instrumental ? t("instrumentalMode") : t("vocalMode");
         const downloadUrl = job.download_url ? `${escapeHtml(job.download_url)}?client_id=${encodeURIComponent(clientId)}` : "";
         const isRunning = job.status === "running" || job.status === "queued";
+        const completedClass = job.status === "completed" ? "animate-bounce-in" : "";
         const actions = job.status === "completed" && job.download_url
           ? `<button class="job-action-btn download" onclick="playJob('${escapeHtml(job.id)}')">▶ Play</button><a class="job-action-btn download" href="${downloadUrl}" download="${fileName}">${t("download")}</a>`
-          : isRunning ? `<span style="font-size:12px;color:var(--text-muted);">${statusLabel(status)}...</span>` : "";
-        return `<div class="job-card" data-job-id="${escapeHtml(job.id)}">
-          <div class="job-art">🎵</div>
+          : isRunning ? `<span style="font-size:12px;color:var(--text-muted);"><span class="spinner" style="width:12px;height:12px;border-width:1.5px;"></span> ${statusLabel(status)}...</span>` : "";
+        return `<div class="job-card ${completedClass}" data-job-id="${escapeHtml(job.id)}" style="animation-delay:${idx * 50}ms">
+          <div class="job-art">${job.status === "completed" ? "✅" : job.status === "error" ? "❌" : "🎵"}</div>
           <div class="job-info">
             <div class="job-title">${title}</div>
             <div class="job-meta"><span class="job-badge ${status}">${statusLabel(status)}</span><span>${mode}</span><span>${formatDate(job.created_at)}</span></div>
@@ -751,7 +870,17 @@ INDEX_HTML = r"""<!doctype html>
       try {
         const res = await fetch("/api/jobs", {headers: headers(), cache: "no-store"});
         const data = await res.json();
-        renderJobs(data.jobs || []);
+        const prevJobs = window._prevJobs || {};
+        const newJobs = data.jobs || [];
+        // Play completion sound when a job transitions to completed
+        newJobs.forEach(job => {
+          const prev = prevJobs[job.id];
+          if (prev && prev.status !== "completed" && job.status === "completed") {
+            SoundSystem.play("complete");
+          }
+        });
+        window._prevJobs = Object.fromEntries(newJobs.map(j => [j.id, j]));
+        renderJobs(newJobs);
       } catch {
         renderJobs([]);
       }
@@ -861,6 +990,7 @@ INDEX_HTML = r"""<!doctype html>
     }
     instrumental.addEventListener("change", syncInstrumentalFields);
     generateLyricsBtn.addEventListener("click", async () => {
+      SoundSystem.play("click");
       setLyricsAssistMessage("");
       const payload = collectPayload();
       if (!payload.prompt && !payload.lyrics_idea) {
@@ -868,7 +998,8 @@ INDEX_HTML = r"""<!doctype html>
         return;
       }
       generateLyricsBtn.disabled = true;
-      generateLyricsBtn.textContent = t("generatingLyrics");
+      generateLyricsBtn.classList.add("animate-pulse");
+      generateLyricsBtn.innerHTML = '<span class="spinner"></span> ' + t("generatingLyrics");
       try {
         const res = await fetch("/api/lyrics", {method: "POST", headers: headers({"Content-Type": "application/json"}), body: JSON.stringify(payload)});
         const data = await res.json().catch(() => ({}));
@@ -879,8 +1010,15 @@ INDEX_HTML = r"""<!doctype html>
         lyrics.value = data.lyrics || "";
         saveDraftSoon();
         setLyricsAssistMessage(t("lyricsGenerated"));
+        generateLyricsBtn.classList.remove("animate-pulse");
+        generateLyricsBtn.classList.add("animate-bounce-in");
+        setTimeout(() => generateLyricsBtn.classList.remove("animate-bounce-in"), 500);
       } catch (error) {
         setLyricsAssistMessage(error.message || t("lyricsAssistFailed"), true);
+        generateLyricsBtn.classList.remove("animate-pulse");
+        generateLyricsBtn.classList.add("animate-shake");
+        setTimeout(() => generateLyricsBtn.classList.remove("animate-shake"), 400);
+        SoundSystem.play("error");
       } finally {
         generateLyricsBtn.textContent = t("generateLyrics");
         generateLyricsBtn.disabled = instrumental.checked;
@@ -943,9 +1081,16 @@ INDEX_HTML = r"""<!doctype html>
     const savedTheme = localStorage.getItem("terry_music_theme");
     if (savedTheme) setTheme(savedTheme);
     themeBtn.addEventListener("click", () => {
+      SoundSystem.play("click");
       const current = document.documentElement.getAttribute("data-theme");
       setTheme(current === "light" ? "" : "light");
     });
+    // Sound toggle
+    function toggleSound() {
+      const enabled = SoundSystem.toggle();
+      document.getElementById("soundBtn").textContent = enabled ? "🔊" : "🔇";
+      document.getElementById("soundBtn").className = "header-btn sound-toggle " + (enabled ? "on" : "off");
+    }
     // Advanced panel toggle
     const advancedToggle = document.getElementById("advancedToggle");
     const advancedPanel = document.getElementById("advancedPanel");
@@ -958,6 +1103,7 @@ INDEX_HTML = r"""<!doctype html>
     document.querySelectorAll(".nav-item").forEach(item => {
       item.addEventListener("click", (e) => {
         e.preventDefault();
+        SoundSystem.play("click");
         const view = item.dataset.view;
         document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
         item.classList.add("active");
@@ -1058,8 +1204,11 @@ INDEX_HTML = r"""<!doctype html>
     });
     form.addEventListener("submit", async event => {
       event.preventDefault();
+      SoundSystem.play("click");
       formError.textContent = "";
       submitBtn.disabled = true;
+      submitBtn.classList.add("animate-pulse");
+      submitBtn.innerHTML = '<span class="spinner"></span> Generating...';
       const payload = collectPayload();
       const endpoint = clonedVoiceId ? "/api/jobs/voice" : "/api/jobs";
       try {
@@ -1075,16 +1224,30 @@ INDEX_HTML = r"""<!doctype html>
         applyLang();
         syncInstrumentalFields();
         await loadJobs();
+        SoundSystem.play("success");
+        submitBtn.classList.remove("animate-pulse");
+        submitBtn.classList.add("animate-bounce-in");
+        setTimeout(() => submitBtn.classList.remove("animate-bounce-in"), 500);
       } catch (error) {
         formError.textContent = error.message;
+        submitBtn.classList.remove("animate-pulse");
+        submitBtn.classList.add("animate-shake");
+        setTimeout(() => submitBtn.classList.remove("animate-shake"), 400);
+        SoundSystem.play("error");
       } finally {
         submitBtn.disabled = false;
+        submitBtn.innerHTML = submitBtnOriginalText;
       }
     });
     applyLang();
     loadDraft();
     loadJobs();
     setInterval(loadJobs, 3000);
+    // Play startup sound on first load (user interaction required for audio)
+    document.addEventListener("click", function startupSound() {
+      SoundSystem.play("startup");
+      document.removeEventListener("click", startupSound);
+    }, { once: true });
 
     const VOICE_SEGMENTS_EN = [
       { label: "Low Voice", desc: "Speak in a calm, deep, low voice." },
@@ -1327,8 +1490,11 @@ INDEX_HTML = r"""<!doctype html>
         closeVoiceRecorder();
         voiceStatus.textContent = lang === "en" ? "Voice cloned! Use Preview to listen." : "声音复刻完成！点击预览试听。";
         voiceStatus.style.color = "var(--accent)";
+        voiceStatus.classList.add("animate-bounce-in");
+        SoundSystem.play("success");
       } catch (err) {
         body.innerHTML = `<div class="rec-done rec-error">${lang === "en" ? "Clone failed: " : "复刻失败："}${err.message}</div><div class="rec-controls-row"><button id="recModalClose2" class="secondary-btn" type="button">${lang === "en" ? "Close" : "关闭"}</button></div>`;
+        SoundSystem.play("error");
         document.getElementById("recModalClose2").addEventListener("click", closeVoiceRecorder);
       }
     }
@@ -1388,6 +1554,7 @@ INDEX_HTML = r"""<!doctype html>
     }
 
     document.getElementById("voiceRecordBtn").addEventListener("click", () => {
+      SoundSystem.play("click");
       if (clonedVoiceId && voiceCloneExpires && parseInt(voiceCloneExpires) > Date.now()) {
         if (confirm(lang === "en" ? "Re-record voice? This will create a new voice clone." : "重新录制？这将创建新的声音复刻。")) {
           localStorage.removeItem("terry_music_voice_id");
