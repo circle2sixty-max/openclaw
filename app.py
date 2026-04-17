@@ -534,7 +534,6 @@ INDEX_HTML = r"""<!doctype html>
     <div class="modal-content">
       <div class="modal-header">
         <h3 class="modal-title" data-i18n="recModalTitle">Record Your Voice</h3>
-        <button class="modal-close" id="recModalClose">✕</button>
       </div>
       <div class="modal-body" id="recModalBody">
         <div class="rec-progress">
