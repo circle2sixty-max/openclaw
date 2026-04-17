@@ -902,7 +902,7 @@ INDEX_HTML = r"""<!doctype html>
       await loadJobs();
     }
     function collectPayload() {
-      const get = id => document.getElementById(id).value.trim();
+      const get = id => { const el = document.getElementById(id); return el ? el.value.trim() : ""; };
       return {
         email: get("email"), song_title: get("songTitle"), prompt: get("prompt"), lyrics: get("lyrics"), lyrics_idea: get("lyricsIdea"),
         is_instrumental: instrumental.checked, lyrics_optimizer: lyricsOptimizer.checked,
@@ -912,7 +912,7 @@ INDEX_HTML = r"""<!doctype html>
       };
     }
     function restorePayload(payload = {}) {
-      const set = (id, value) => { document.getElementById(id).value = value || ""; };
+      const set = (id, value) => { const el = document.getElementById(id); if (el) el.value = value || ""; };
       set("email", payload.email);
       set("songTitle", payload.song_title);
       set("prompt", payload.prompt);
