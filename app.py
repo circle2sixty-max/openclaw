@@ -873,7 +873,10 @@ INDEX_HTML = r"""<!doctype html>
       try {
         const res = await fetch("/api/lyrics", {method: "POST", headers: headers({"Content-Type": "application/json"}), body: JSON.stringify(payload)});
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || t("lyricsAssistFailed"));
+        if (!res.ok) {
+          const errMsg = typeof data.error === "string" ? data.error : data.error?.message || data.error?.error || t("lyricsAssistFailed");
+          throw new Error(errMsg);
+        }
         lyrics.value = data.lyrics || "";
         saveDraftSoon();
         setLyricsAssistMessage(t("lyricsGenerated"));
@@ -904,7 +907,11 @@ INDEX_HTML = r"""<!doctype html>
           headers: headers({"Content-Type": "application/json"}),
           body: JSON.stringify({lyrics: currentLyrics, voice_id: clonedVoiceId}),
         });
-        if (!res.ok) throw new Error(t("voicePreviewError"));
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const errMsg = typeof data.error === "string" ? data.error : data.error?.message || t("voicePreviewError");
+          throw new Error(errMsg);
+        }
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         voicePreviewAudio.src = url;
@@ -1059,7 +1066,10 @@ INDEX_HTML = r"""<!doctype html>
       try {
         const res = await fetch(endpoint, {method: "POST", headers: headers({"Content-Type": "application/json"}), body: JSON.stringify(payload)});
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        if (!res.ok) {
+          const errMsg = typeof data.error === "string" ? data.error : data.error?.message || data.error?.error || `HTTP ${res.status}`;
+          throw new Error(errMsg);
+        }
         saveDraftLocal(payload);
         await saveDraftRemote(payload).catch(() => {});
         setDraftStatus(t("draftSaved"));
@@ -1112,6 +1122,7 @@ INDEX_HTML = r"""<!doctype html>
     let currentSegment = -1;
     let segmentStream = null;
     let recordingTimer = null;
+    let countdownInterval = null;
     const SEGMENT_DURATION = 5000; // 5s per segment
 
     function getSegments() {
@@ -1137,10 +1148,17 @@ INDEX_HTML = r"""<!doctype html>
       if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
       if (segmentStream) { segmentStream.getTracks().forEach(t => t.stop()); segmentStream = null; }
       clearTimeout(recordingTimer);
+      recordingTimer = null;
+      if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
       document.getElementById("recModal").style.display = "none";
     }
 
     function showSegment(idx) {
+      // Clean up any existing timers and media streams before starting new segment
+      if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+      if (recordingTimer) { clearTimeout(recordingTimer); recordingTimer = null; }
+      if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+      if (segmentStream) { segmentStream.getTracks().forEach(t => t.stop()); segmentStream = null; }
       currentSegment = idx;
       const segs = getSegments();
       const scrs = getScripts();
@@ -1171,12 +1189,13 @@ INDEX_HTML = r"""<!doctype html>
     function showCountdownAndRecord(idx) {
       let count = 3;
       const countdownEl = document.getElementById("recCountdown");
-      const countdownInterval = setInterval(() => {
+      countdownInterval = setInterval(() => {
         count--;
         if (count > 0) {
           countdownEl.textContent = (lang === "en" ? `Starting in ${count}...` : `${count}秒后开始...`);
         } else {
           clearInterval(countdownInterval);
+          countdownInterval = null;
           countdownEl.textContent = "";
           startRecordingSegment(idx);
         }
@@ -1295,7 +1314,10 @@ INDEX_HTML = r"""<!doctype html>
         voiceStatus.style.color = "var(--muted)";
         const res = await fetch("/api/voice/clone", { method: "POST", headers: headers(), body: fd });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || (lang === "en" ? "Clone failed." : "声音复刻失败。"));
+        if (!res.ok) {
+          const errMsg = typeof data.error === "string" ? data.error : data.error?.message || (lang === "en" ? "Clone failed." : "声音复刻失败。");
+          throw new Error(errMsg);
+        }
         clonedVoiceId = data.voice_id || "";
         const expiresHours = data.expires_in_hours || 168;
         const expiresAt = Date.now() + expiresHours * 3600 * 1000;
@@ -1472,7 +1494,10 @@ ADMIN_HTML = r"""<!doctype html>
       try {
         const res = await fetch(`/api/admin/jobs?key=${encodeURIComponent(adminKey)}`, {cache:"no-store"});
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        if (!res.ok) {
+          const errMsg = typeof data.error === "string" ? data.error : data.error?.message || `HTTP ${res.status}`;
+          throw new Error(errMsg);
+        }
         render(data.jobs || []);
       } catch (error) {
         summary.textContent = "Unable to load admin data";
@@ -1907,7 +1932,21 @@ def run_mmx(args: list[str], timeout: int = 900) -> str:
     result = subprocess.run([MMX_BIN] + args, capture_output=True, text=True, env=env, timeout=timeout)
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "Unknown mmx error").strip()
-        raise RuntimeError(detail)
+        # Try to extract meaningful error message from mmx output
+        try:
+            err_json = json.loads(detail)
+            if isinstance(err_json, dict):
+                if isinstance(err_json.get("error"), dict):
+                    err_msg = err_json["error"].get("message") or err_json["error"].get("error") or str(err_json["error"])
+                elif isinstance(err_json.get("error"), str):
+                    err_msg = err_json["error"]
+                else:
+                    err_msg = err_json.get("message") or str(err_json)
+            else:
+                err_msg = str(err_json)
+        except (json.JSONDecodeError, TypeError):
+            err_msg = detail
+        raise RuntimeError(err_msg)
     return result.stdout.strip()
 
 
