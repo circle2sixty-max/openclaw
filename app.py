@@ -708,7 +708,8 @@ INDEX_HTML = r"""<!doctype html>
         empty: "No jobs yet. Fill in the form to start creating.", queued: "Queued", running: "Generating", completed: "Done", error: "Error", unknown: "Unknown",
         download: "Download MP3", delete: "Delete", sent: "Sent to", instrumentalMode: "Instrumental", vocalMode: "Vocal", deleteConfirm: "Delete this job?", deleteFailed: "Delete failed",
         navCreate: "Create", navLibrary: "Library", navFavorites: "Favorites", navHistory: "History", navPlaylists: "Playlists", playlistAll: "All Songs", playlistRecent: "Recently Played",
-        libraryDesc: "All your generated songs in one place.", favoritesDesc: "Your liked and saved songs.", historyDesc: "Recently generated songs."
+        libraryDesc: "All your generated songs in one place.", favoritesDesc: "Your liked and saved songs.", historyDesc: "Recently generated songs.",
+        toastMusicStarted: "Music generation started!", toastMusicReady: "Music ready: ", toastLyricsSuccess: "Lyrics generated successfully!", toastLyricsError: "Lyrics generation failed.", toastVoiceCloneSuccess: "Voice cloned successfully!", toastVoiceCloneError: "Voice clone failed."
       },
       zh: {
         subtitle: "当语言无法抵达时，让音乐替你表达。给你的内心世界一种属于自己的声音。",
@@ -745,7 +746,8 @@ INDEX_HTML = r"""<!doctype html>
         empty: "暂无任务，填写表单开始创作。", queued: "排队中", running: "生成中", completed: "完成", error: "错误", unknown: "未知",
         download: "下载 MP3", delete: "删除", sent: "已发送到", instrumentalMode: "纯音乐", vocalMode: "有人声", deleteConfirm: "删除此任务？", deleteFailed: "删除失败",
         navCreate: "创建", navLibrary: "曲库", navFavorites: "收藏", navHistory: "历史", navPlaylists: "播放列表", playlistAll: "全部歌曲", playlistRecent: "最近播放",
-        libraryDesc: "你生成的所有歌曲。", favoritesDesc: "你喜欢的歌曲。", historyDesc: "最近生成的歌曲。"
+        libraryDesc: "你生成的所有歌曲。", favoritesDesc: "你喜欢的歌曲。", historyDesc: "最近生成的歌曲。",
+        toastMusicStarted: "音乐生成已开始！", toastMusicReady: "音乐完成：", toastLyricsSuccess: "歌词生成成功！", toastLyricsError: "歌词生成失败。", toastVoiceCloneSuccess: "声音复刻成功！", toastVoiceCloneError: "声音复刻失败。"
       }
     };
 
@@ -879,7 +881,7 @@ INDEX_HTML = r"""<!doctype html>
           const prev = prevJobs[job.id];
           if (prev && prev.status !== "completed" && job.status === "completed") {
             SoundSystem.play("complete");
-            showToast((lang === "en" ? "🎵 Music ready: " : "🎵 音乐完成：") + (job.song_title || job.prompt || "Untitled"), "success", 5000);
+            showToast(t("toastMusicReady") + (job.song_title || job.prompt || "Untitled"), "success", 5000);
           }
         });
         window._prevJobs = Object.fromEntries(newJobs.map(j => [j.id, j]));
@@ -1029,13 +1031,13 @@ INDEX_HTML = r"""<!doctype html>
         lyrics.value = data.lyrics || "";
         saveDraftSoon();
         setLyricsAssistMessage(t("lyricsGenerated"));
-        showToast(t("lyricsGenerated"), "success");
+        showToast(t("toastLyricsSuccess"), "success");
         generateLyricsBtn.classList.remove("animate-pulse");
         generateLyricsBtn.classList.add("animate-bounce-in");
         setTimeout(() => generateLyricsBtn.classList.remove("animate-bounce-in"), 500);
       } catch (error) {
         setLyricsAssistMessage(error.message || t("lyricsAssistFailed"), true);
-        showToast(error.message || t("lyricsAssistFailed"), "error");
+        showToast(t("toastLyricsError"), "error");
         generateLyricsBtn.classList.remove("animate-pulse");
         generateLyricsBtn.classList.add("animate-shake");
         setTimeout(() => generateLyricsBtn.classList.remove("animate-shake"), 400);
@@ -1242,7 +1244,7 @@ INDEX_HTML = r"""<!doctype html>
         saveDraftLocal(payload);
         await saveDraftRemote(payload).catch(() => {});
         setDraftStatus(t("draftSaved"));
-        showToast(lang === "en" ? "Music generation started!" : "音乐生成已开始！", "success");
+        showToast(t("toastMusicStarted"), "success");
         applyLang();
         syncInstrumentalFields();
         await loadJobs();
@@ -1515,11 +1517,11 @@ INDEX_HTML = r"""<!doctype html>
         voiceStatus.style.color = "var(--accent)";
         voiceStatus.classList.add("animate-bounce-in");
         SoundSystem.play("success");
-        showToast(lang === "en" ? "Voice cloned successfully!" : "声音复刻成功！", "success");
+        showToast(t("toastVoiceCloneSuccess"), "success");
       } catch (err) {
         body.innerHTML = `<div class="rec-done rec-error">${lang === "en" ? "Clone failed: " : "复刻失败："}${err.message}</div><div class="rec-controls-row"><button id="recModalClose2" class="secondary-btn" type="button">${lang === "en" ? "Close" : "关闭"}</button></div>`;
         SoundSystem.play("error");
-        showToast(lang === "en" ? "Voice clone failed: " + err.message : "声音复刻失败：" + err.message, "error");
+        showToast(t("toastVoiceCloneError") + " " + err.message, "error");
         document.getElementById("recModalClose2").addEventListener("click", closeVoiceRecorder);
       }
     }
