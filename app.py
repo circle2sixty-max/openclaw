@@ -146,10 +146,10 @@ INDEX_HTML = r"""<!doctype html>
     .app { display: flex; flex-direction: column; height: 100vh; }
     .app-header { display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 64px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); flex-shrink: 0; }
     .logo { display: flex; align-items: center; gap: 10px; font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: var(--text-primary); text-decoration: none; }
-    .logo-icon { width: 36px; height: 36px; background: var(--gradient-green); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .logo-icon { width: 36px; height: 36px; background: var(--gradient-green); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; animation: glow 3s ease-in-out infinite; }
     .header-actions { display: flex; gap: 8px; align-items: center; }
     .header-btn { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: none; border-radius: 50%; background: var(--bg-tertiary); color: var(--text-secondary); cursor: pointer; font-size: 18px; transition: var(--transition); }
-    .header-btn:hover { background: var(--bg-elevated); color: var(--text-primary); }
+    .header-btn:hover { background: var(--bg-elevated); color: var(--text-primary); transform: scale(1.05); }
     .lang-toggle { width: auto; padding: 0 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
     /* Main Layout */
     .app-body { display: flex; flex: 1; overflow: hidden; }
@@ -163,6 +163,7 @@ INDEX_HTML = r"""<!doctype html>
     .sidebar-section { padding: 8px 12px; }
     .sidebar-section-title { padding: 8px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
     .playlist-item { display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-radius: var(--radius-sm); color: var(--text-secondary); cursor: pointer; transition: var(--transition); }
+    .playlist-item:hover { color: var(--text-primary); background: var(--bg-tertiary); }
     .playlist-item:hover { color: var(--text-primary); }
     /* Main Content */
     .main-content { flex: 1; overflow-y: auto; padding: 32px 40px 120px; background: var(--bg-primary); }
@@ -224,9 +225,10 @@ INDEX_HTML = r"""<!doctype html>
     .jobs-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
     .jobs-title { font-size: 16px; font-weight: 700; color: var(--text-primary); }
     .jobs-list { display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto; }
-    .job-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); transition: var(--transition); }
-    .job-card:hover { border-color: var(--border-light); }
-    .job-art { width: 56px; height: 56px; background: var(--gradient-green); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+    .job-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); transition: var(--transition); cursor: pointer; }
+    .job-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    .job-art { width: 56px; height: 56px; background: var(--gradient-green); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; transition: var(--transition); }
+    .job-card:hover .job-art { transform: scale(1.05); }
     .job-info { flex: 1; min-width: 0; }
     .job-title { font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
     .job-meta { display: flex; gap: 8px; font-size: 12px; color: var(--text-muted); }
@@ -872,11 +874,12 @@ INDEX_HTML = r"""<!doctype html>
         const data = await res.json();
         const prevJobs = window._prevJobs || {};
         const newJobs = data.jobs || [];
-        // Play completion sound when a job transitions to completed
+        // Play completion sound and show toast when a job transitions to completed
         newJobs.forEach(job => {
           const prev = prevJobs[job.id];
           if (prev && prev.status !== "completed" && job.status === "completed") {
             SoundSystem.play("complete");
+            showToast((lang === "en" ? "🎵 Music ready: " : "🎵 音乐完成：") + (job.song_title || job.prompt || "Untitled"), "success", 5000);
           }
         });
         window._prevJobs = Object.fromEntries(newJobs.map(j => [j.id, j]));
@@ -926,6 +929,22 @@ INDEX_HTML = r"""<!doctype html>
     }
     function setDraftStatus(message) {
       draftStatus.textContent = message;
+    }
+    // Toast notification system
+    function showToast(message, type = "info", duration = 3000) {
+      const existing = document.getElementById("toast-container");
+      if (existing) existing.remove();
+      const container = document.createElement("div");
+      container.id = "toast-container";
+      container.style.cssText = "position:fixed;top:80px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;";
+      const toast = document.createElement("div");
+      const colors = { success: "var(--accent)", error: "var(--danger)", warning: "var(--warning)", info: "var(--text-secondary)" };
+      const bgColors = { success: "rgba(29,185,84,0.15)", error: "rgba(255,82,82,0.15)", warning: "rgba(255,171,0,0.15)", info: "var(--bg-elevated)" };
+      toast.style.cssText = `padding:12px 20px;background:${bgColors[type] || bgColors.info};border:1px solid ${colors[type] || colors.info};border-radius:var(--radius-md);color:${colors[type] || colors.info};font-size:13px;font-weight:600;animation:slide-down 0.3s ease-out;pointer-events:auto;max-width:300px;`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      document.body.appendChild(container);
+      setTimeout(() => { toast.style.opacity = "0"; toast.style.transition = "opacity 0.3s"; setTimeout(() => container.remove(), 300); }, duration);
     }
     function saveDraftLocal(payload = collectPayload()) {
       localStorage.setItem(draftStorageKey, JSON.stringify({updated_at: new Date().toISOString(), draft: payload}));
@@ -1010,11 +1029,13 @@ INDEX_HTML = r"""<!doctype html>
         lyrics.value = data.lyrics || "";
         saveDraftSoon();
         setLyricsAssistMessage(t("lyricsGenerated"));
+        showToast(t("lyricsGenerated"), "success");
         generateLyricsBtn.classList.remove("animate-pulse");
         generateLyricsBtn.classList.add("animate-bounce-in");
         setTimeout(() => generateLyricsBtn.classList.remove("animate-bounce-in"), 500);
       } catch (error) {
         setLyricsAssistMessage(error.message || t("lyricsAssistFailed"), true);
+        showToast(error.message || t("lyricsAssistFailed"), "error");
         generateLyricsBtn.classList.remove("animate-pulse");
         generateLyricsBtn.classList.add("animate-shake");
         setTimeout(() => generateLyricsBtn.classList.remove("animate-shake"), 400);
@@ -1221,6 +1242,7 @@ INDEX_HTML = r"""<!doctype html>
         saveDraftLocal(payload);
         await saveDraftRemote(payload).catch(() => {});
         setDraftStatus(t("draftSaved"));
+        showToast(lang === "en" ? "Music generation started!" : "音乐生成已开始！", "success");
         applyLang();
         syncInstrumentalFields();
         await loadJobs();
@@ -1230,6 +1252,7 @@ INDEX_HTML = r"""<!doctype html>
         setTimeout(() => submitBtn.classList.remove("animate-bounce-in"), 500);
       } catch (error) {
         formError.textContent = error.message;
+        showToast(error.message, "error");
         submitBtn.classList.remove("animate-pulse");
         submitBtn.classList.add("animate-shake");
         setTimeout(() => submitBtn.classList.remove("animate-shake"), 400);
@@ -1492,9 +1515,11 @@ INDEX_HTML = r"""<!doctype html>
         voiceStatus.style.color = "var(--accent)";
         voiceStatus.classList.add("animate-bounce-in");
         SoundSystem.play("success");
+        showToast(lang === "en" ? "Voice cloned successfully!" : "声音复刻成功！", "success");
       } catch (err) {
         body.innerHTML = `<div class="rec-done rec-error">${lang === "en" ? "Clone failed: " : "复刻失败："}${err.message}</div><div class="rec-controls-row"><button id="recModalClose2" class="secondary-btn" type="button">${lang === "en" ? "Close" : "关闭"}</button></div>`;
         SoundSystem.play("error");
+        showToast(lang === "en" ? "Voice clone failed: " + err.message : "声音复刻失败：" + err.message, "error");
         document.getElementById("recModalClose2").addEventListener("click", closeVoiceRecorder);
       }
     }
