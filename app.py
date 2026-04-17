@@ -1235,17 +1235,54 @@ INDEX_HTML = r"""<!doctype html>
       SoundSystem.play("click");
       formError.textContent = "";
       submitBtn.disabled = true;
+      const startTime = Date.now();
+      let elapsed = 0;
       submitBtn.classList.add("animate-pulse");
-      submitBtn.innerHTML = '<span class="spinner"></span> Generating...';
+      submitBtn.innerHTML = '<span class="spinner"></span> Generating... 0s';
       const payload = collectPayload();
       const endpoint = clonedVoiceId ? "/api/jobs/voice" : "/api/jobs";
+      let currentJobId = null;
+      // Progress updater: update button text with elapsed time and poll job status
+      const progressTimer = setInterval(async () => {
+        elapsed = Math.round((Date.now() - startTime) / 1000);
+        submitBtn.innerHTML = `<span class="spinner"></span> Generating... ${elapsed}s`;
+        if (currentJobId) {
+          try {
+            const r = await fetch(`/api/jobs/${currentJobId}`, {headers: headers()});
+            if (r.ok) {
+              const j = await r.json();
+              if (j.status === "completed") {
+                clearInterval(progressTimer);
+                submitBtn.classList.remove("animate-pulse");
+                submitBtn.classList.add("animate-bounce-in");
+                setTimeout(() => submitBtn.classList.remove("animate-bounce-in"), 500);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = submitBtnOriginalText;
+                loadJobs();
+                return;
+              }
+              if (j.status === "error") {
+                clearInterval(progressTimer);
+                submitBtn.classList.remove("animate-pulse");
+                submitBtn.classList.add("animate-shake");
+                setTimeout(() => submitBtn.classList.remove("animate-shake"), 400);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = submitBtnOriginalText;
+                return;
+              }
+            }
+          } catch {}
+        }
+      }, 2000);
       try {
         const res = await fetch(endpoint, {method: "POST", headers: headers({"Content-Type": "application/json"}), body: JSON.stringify(payload)});
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
+          clearInterval(progressTimer);
           const errMsg = typeof data.error === "string" ? data.error : data.error?.message || data.error?.error || `HTTP ${res.status}`;
           throw new Error(errMsg);
         }
+        currentJobId = data.job?.id || null;
         saveDraftLocal(payload);
         await saveDraftRemote(payload).catch(() => {});
         setDraftStatus(t("draftSaved"));
@@ -1254,17 +1291,14 @@ INDEX_HTML = r"""<!doctype html>
         syncInstrumentalFields();
         await loadJobs();
         SoundSystem.play("success");
-        submitBtn.classList.remove("animate-pulse");
-        submitBtn.classList.add("animate-bounce-in");
-        setTimeout(() => submitBtn.classList.remove("animate-bounce-in"), 500);
       } catch (error) {
+        clearInterval(progressTimer);
         formError.textContent = error.message;
         showToast(error.message, "error");
         submitBtn.classList.remove("animate-pulse");
         submitBtn.classList.add("animate-shake");
         setTimeout(() => submitBtn.classList.remove("animate-shake"), 400);
         SoundSystem.play("error");
-      } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = submitBtnOriginalText;
       }
@@ -1397,13 +1431,25 @@ INDEX_HTML = r"""<!doctype html>
     async function startSegmentRecording(idx) {
       try {
         segmentStream = await navigator.mediaDevices.getUserMedia({ audio: true, sampleRate: 16000 });
-        const mimeType = MediaRecorder.isTypeSupported("audio/wav") ? "audio/wav" : "audio/webm";
+        // Always use audio/webm — it is the most reliable cross-browser format for MediaRecorder
+        const mimeType = "audio/webm";
         mediaRecorder = new MediaRecorder(segmentStream, { mimeType });
         recordedChunks = [];
+        // Use timeslice to fire ondataavailable every 100ms for reliable data collection
         mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
         mediaRecorder.onstop = async () => {
+          if (recordedChunks.length === 0) {
+            alert(lang === "en" ? "Recording failed — no audio data captured. Please try again." : "录音失败 — 未捕获到音频数据，请重试。");
+            closeVoiceRecorder();
+            return;
+          }
           const rawBlob = new Blob(recordedChunks, { type: mimeType });
-          const wavBlob = mimeType === "audio/wav" ? rawBlob : await convertToWav(rawBlob);
+          if (rawBlob.size < 1000) {
+            alert(lang === "en" ? "Recording too small — check microphone. Please try again." : "录音文件过小 — 请检查麦克风后重试。");
+            closeVoiceRecorder();
+            return;
+          }
+          const wavBlob = await convertToWav(rawBlob);
           recordedSegments[idx] = wavBlob;
           segmentStream.getTracks().forEach(t => t.stop());
           segmentStream = null;
@@ -1413,7 +1459,7 @@ INDEX_HTML = r"""<!doctype html>
             showAllDone();
           }
         };
-        mediaRecorder.start();
+        mediaRecorder.start(100); // timeslice=100ms ensures regular data events
         document.getElementById("recStartSeg").disabled = true;
         document.getElementById("recStartSeg").textContent = lang === "en" ? "Recording..." : "录制中...";
         const countdownEl = document.getElementById("recCountdown");
@@ -2361,6 +2407,16 @@ class MusicHandler(BaseHTTPRequestHandler):
                     reverse=True,
                 )
             self.send_json({"jobs": jobs})
+            return
+        if parsed.path.startswith("/api/jobs/"):
+            job_id = urllib.parse.unquote(parsed.path.removeprefix("/api/jobs/"))
+            client_id = normalize_client_id(self.headers.get("X-Client-Id"))
+            with JOBS_LOCK:
+                job = JOBS.get(job_id)
+                if not job or job.get("owner_id") != client_id:
+                    self.send_json({"error": "Job not found"}, HTTPStatus.NOT_FOUND)
+                    return
+                self.send_json(public_job(job))
             return
         if path.startswith("/api/drafts/"):
             self.handle_get_draft(path.removeprefix("/api/drafts/"))
