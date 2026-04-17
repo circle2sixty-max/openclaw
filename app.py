@@ -764,6 +764,11 @@ INDEX_HTML = r"""<!doctype html>
 
     let lang = "en";
     let lastJobs = [];
+    // Set default prompt value if empty
+    const promptEl = document.getElementById("prompt");
+    if (!promptEl.value.trim()) {
+      promptEl.value = "Upbeat pop song with catchy melody, bright synthesizer, driving drum beat";
+    }
     const jobsBox = document.getElementById("jobs");
     const form = document.getElementById("jobForm");
     const submitBtn = document.getElementById("submitBtn");
