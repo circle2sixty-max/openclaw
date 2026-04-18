@@ -44,6 +44,7 @@ MMX_PATH_HINTS = [
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", str(Path.home() / "terry_music_outputs")))
 JOBS_DB = OUTPUT_DIR / "jobs.json"
 DRAFTS_DB = OUTPUT_DIR / "drafts.json"
+PLAYLISTS_DB = OUTPUT_DIR / "playlists.json"
 MAX_BODY_BYTES = 1024 * 1024
 
 
@@ -76,10 +77,62 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
 SMTP_USER = os.getenv("SMTP_USER") or legacy_local_config("SMTP_USER")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD") or legacy_local_config("SMTP_PASSWORD")
 
+# ── Cloudflare R2 Storage ──────────────────────────────────────────────────────
+R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID", "")
+R2_ACCESS_KEY = os.getenv("R2_ACCESS_KEY", "")
+R2_SECRET_KEY = os.getenv("R2_SECRET_KEY", "")
+R2_BUCKET = os.getenv("R2_BUCKET", "terry-music")
+R2_PUBLIC_URL = os.getenv("R2_PUBLIC_URL", "")  # e.g. https://pub-xxx.r2.dev
+
+def is_r2_configured() -> bool:
+    """Check if R2 storage is properly configured."""
+    return bool(R2_ACCOUNT_ID and R2_ACCESS_KEY and R2_SECRET_KEY and R2_BUCKET)
+
+
+def upload_to_r2(file_path: str | Path) -> str | None:
+    """
+    Upload a file to Cloudflare R2 and return the public URL.
+    Returns None if R2 is not configured or upload fails.
+    """
+    if not is_r2_configured():
+        return None
+    try:
+        path = Path(file_path)
+        if not path.exists():
+            print(f"[r2] file not found: {file_path}")
+            return None
+        object_key = f"music/{dt.datetime.now().strftime('%Y/%m/%d')}/{path.name}"
+        client = boto3.client(
+            "s3",
+            endpoint_url=f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+            aws_access_key_id=R2_ACCESS_KEY,
+            aws_secret_access_key=R2_SECRET_KEY,
+            config=BotoConfig(signature_version="s3v4"),
+        )
+        client.upload_file(str(path), R2_BUCKET, object_key, ExtraArgs={"ContentType": "audio/mpeg"})
+        if R2_PUBLIC_URL:
+            public_url = f"{R2_PUBLIC_URL.rstrip('/')}/{object_key}"
+        else:
+            public_url = f"https://{R2_BUCKET}.{R2_ACCOUNT_ID}.r2.cloudflarestorage.com/{object_key}"
+        print(f"[r2] uploaded: {public_url}")
+        return public_url
+    except Exception as exc:
+        print(f"[r2] upload failed: {exc}")
+        return None
+
+
 JOBS: dict[str, dict[str, Any]] = {}
 JOBS_LOCK = threading.RLock()
 DRAFTS: dict[str, dict[str, Any]] = {}
 DRAFTS_LOCK = threading.RLock()
+PLAYLISTS: dict[str, dict[str, Any]] = {}
+PLAYLISTS_LOCK = threading.RLock()
+ADMIN_LOGS: list[dict[str, Any]] = []
+ADMIN_LOGS_LOCK = threading.RLock()
+FEEDBACK: dict[str, dict[str, Any]] = {}
+FEEDBACK_LOCK = threading.RLock()
+FEEDBACK_DB = OUTPUT_DIR / "feedback.json"
+
 
 # ── Rate Limiting ─────────────────────────────────────────────────────────────
 _RATE_LIMIT_WINDOW = 60  # seconds
@@ -113,6 +166,21 @@ def _rate_limit_ip(client_ip: str) -> bool:
             return False
         timestamps.append(now)
         return True
+
+
+def log_admin_action(action: str, target: str, detail: str = "") -> None:
+    """Record an admin operation in the admin log."""
+    entry = {
+        "timestamp": now_iso(),
+        "action": action,
+        "target": target,
+        "detail": detail,
+    }
+    with ADMIN_LOGS_LOCK:
+        ADMIN_LOGS.append(entry)
+        # Keep last 500 entries
+        if len(ADMIN_LOGS) > 500:
+            ADMIN_LOGS[:] = ADMIN_LOGS[-500:]
 
 
 def _get_client_ip(handler: "MusicHandler") -> str:
@@ -195,6 +263,15 @@ INDEX_HTML = r"""<!doctype html>
     .header-btn { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: none; border-radius: 50%; background: var(--bg-tertiary); color: var(--text-secondary); cursor: pointer; font-size: 18px; transition: var(--transition); }
     .header-btn:hover { background: var(--bg-elevated); color: var(--text-primary); transform: scale(1.05); }
     .lang-toggle { width: auto; padding: 0 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+    /* Theme Dropdown */
+    .theme-wrapper { position: relative; }
+    .theme-btn { position: relative; }
+    .theme-menu { display: none; position: absolute; top: calc(100% + 8px); right: 0; background: var(--bg-elevated); border: 1px solid var(--border-light); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); min-width: 160px; z-index: 1000; overflow: hidden; }
+    .theme-menu.open { display: block; }
+    .theme-menu-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text-secondary); transition: var(--transition); }
+    .theme-menu-item:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+    .theme-menu-item.active { color: var(--accent); background: var(--accent-dim); }
+    .theme-menu-item-icon { font-size: 16px; width: 20px; text-align: center; }
     /* Main Layout */
     .app-body { display: flex; flex: 1; overflow: hidden; }
     /* Sidebar */
@@ -262,10 +339,17 @@ INDEX_HTML = r"""<!doctype html>
     .advanced-panel { margin-top: 12px; padding: 20px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); display: none; }
     .advanced-panel.open { display: block; }
     .param-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-    .param-field { display: flex; flex-direction: column; gap: 6px; }
-    .param-field label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+    .param-field { display: flex; flex-direction: column; gap: 6px; cursor: grab; transition: transform 0.2s, opacity 0.2s; }
+    .param-field:active { cursor: grabbing; }
+    .param-field.dragging { opacity: 0.5; transform: scale(0.98); }
+    .param-field.drag-over { border: 2px dashed var(--accent); border-radius: var(--radius-sm); background: var(--accent-dim); }
+    .param-field .drag-handle { display: none; align-items: center; justify-content: center; width: 20px; height: 20px; color: var(--text-muted); font-size: 12px; opacity: 0; transition: opacity 0.2s; }
+    .param-field:hover .drag-handle { opacity: 1; }
+    .param-field label { font-size: 12px; font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
     .param-field input { padding: 10px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 13px; }
     .param-field input:focus { outline: none; border-color: var(--accent); }
+    .param-grid-sortable .param-field { position: relative; padding: 8px; border: 1px solid transparent; border-radius: var(--radius-sm); }
+    .param-grid-sortable .param-field:hover { border-color: var(--border); background: var(--bg-secondary); }
     /* Reference Audio */
     .ref-audio-section { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px; }
     .ref-audio-section h4 { font-size: 13px; font-weight: 600; color: var(--text-primary); margin: 0 0 12px 0; }
@@ -323,10 +407,46 @@ INDEX_HTML = r"""<!doctype html>
     .job-progress { display: flex; align-items: center; gap: 10px; }
     .progress-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
     .progress-fill { height: 100%; background: var(--accent); transition: width 0.3s; }
+    /* Jobs Toolbar */
+    .jobs-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+    .jobs-toolbar .search-wrap { position: relative; flex: 1; min-width: 160px; }
+    .jobs-toolbar .search-wrap .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 13px; pointer-events: none; }
+    .jobs-toolbar input[type="text"], .jobs-toolbar select { padding: 7px 10px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 12px; outline: none; transition: var(--transition); }
+    .jobs-toolbar input[type="text"]:focus, .jobs-toolbar select:focus { border-color: var(--accent); }
+    .jobs-toolbar input[type="text"] { padding-left: 30px; width: 100%; }
+    .jobs-toolbar select { cursor: pointer; min-width: 90px; }
+    .jobs-toolbar .date-input { padding: 7px 10px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 12px; outline: none; transition: var(--transition); }
+    .jobs-toolbar .date-input:focus { border-color: var(--accent); }
+    .jobs-toolbar .clear-btn { padding: 7px 12px; background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-muted); font-size: 12px; cursor: pointer; transition: var(--transition); }
+    .jobs-toolbar .clear-btn:hover { border-color: var(--danger); color: var(--danger); }
+    /* Batch actions bar */
+    .batch-bar { display: none; align-items: center; gap: 10px; padding: 10px 14px; background: var(--accent-dim); border: 1px solid var(--accent); border-radius: var(--radius-md); margin-bottom: 12px; font-size: 13px; color: var(--accent); }
+    .batch-bar.active { display: flex; }
+    .batch-bar span { flex: 1; }
+    .batch-btn { padding: 6px 14px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 600; cursor: pointer; transition: var(--transition); border: none; }
+    .batch-btn.delete { background: var(--danger); color: #fff; }
+    .batch-btn.delete:hover { background: #e04444; }
+    .batch-btn.download { background: var(--accent); color: #000; }
+    .batch-btn.download:hover { background: var(--accent-hover); }
+    .batch-btn.cancel { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
+    .batch-btn.cancel:hover { border-color: var(--text-secondary); }
+    /* Job extra info */
+    .job-extra { display: flex; gap: 8px; font-size: 11px; color: var(--text-muted); flex-wrap: wrap; }
+    .job-extra span { background: var(--bg-elevated); padding: 2px 6px; border-radius: 4px; }
+    .job-fav-btn { background: none; border: none; cursor: pointer; font-size: 16px; padding: 4px; color: var(--text-muted); transition: var(--transition); }
+    .job-fav-btn:hover, .job-fav-btn.active { color: #f59e0b; }
+    /* Pagination */
+    .jobs-pagination { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; }
+    .jobs-pagination button { padding: 6px 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 12px; cursor: pointer; transition: var(--transition); }
+    .jobs-pagination button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .jobs-pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .jobs-pagination .page-info { font-size: 12px; color: var(--text-muted); }
     /* Bottom Player */
-    .player { position: fixed; bottom: 0; left: 0; right: 0; height: 90px; background: var(--bg-secondary); border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 20px; z-index: 100; }
+    .player { position: fixed; bottom: 0; left: 0; right: 0; min-height: 90px; background: var(--bg-secondary); border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 20px; z-index: 100; transition: min-height 0.3s ease; }
+    .player.expanded { min-height: 240px; flex-wrap: wrap; padding-bottom: 24px; }
     .player-track { display: flex; align-items: center; gap: 14px; width: 280px; flex-shrink: 0; }
-    .player-art { width: 56px; height: 56px; background: var(--gradient-green); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 24px; }
+    .player-art { width: 56px; height: 56px; background: var(--gradient-green); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 24px; transition: transform 0.3s; }
+    .player-art.playing { animation: spin 8s linear infinite; }
     .player-info { min-width: 0; }
     .player-title { font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .player-artist { font-size: 12px; color: var(--text-muted); }
@@ -334,6 +454,7 @@ INDEX_HTML = r"""<!doctype html>
     .player-buttons { display: flex; align-items: center; gap: 16px; }
     .player-btn { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 20px; padding: 8px; transition: var(--transition); }
     .player-btn:hover { color: var(--text-primary); }
+    .player-btn.active { color: var(--accent); }
     .player-btn.play { width: 40px; height: 40px; background: var(--text-primary); color: var(--bg-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; }
     .player-btn.play:hover { transform: scale(1.05); }
     .player-progress { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 600px; }
@@ -341,13 +462,30 @@ INDEX_HTML = r"""<!doctype html>
     .player-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; cursor: pointer; position: relative; }
     .player-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; transition: width 0.1s; }
     .player-bar:hover .player-bar-fill { background: var(--accent-hover); }
+    .player-bar-thumb { position: absolute; top: 50%; left: 0%; transform: translate(-50%, -50%) scale(0); width: 12px; height: 12px; background: var(--accent); border-radius: 50%; transition: transform 0.2s; }
+    .player-bar:hover .player-bar-thumb { transform: translate(-50%, -50%) scale(1); }
     .player-volume { display: flex; align-items: center; gap: 8px; width: 140px; flex-shrink: 0; }
-    .volume-icon { color: var(--text-muted); font-size: 18px; cursor: pointer; }
-    .volume-slider { flex: 1; height: 4px; background: var(--border); border-radius: 2px; cursor: pointer; }
-    .volume-fill { height: 100%; background: var(--text-muted); border-radius: 2px; width: 70%; }
+    .volume-icon { color: var(--text-muted); font-size: 18px; cursor: pointer; transition: color 0.2s; }
+    .volume-icon:hover { color: var(--text-primary); }
+    .volume-icon.muted { color: var(--danger); }
+    .volume-slider { flex: 1; height: 4px; background: var(--border); border-radius: 2px; cursor: pointer; position: relative; }
+    .volume-fill { height: 100%; background: var(--text-muted); border-radius: 2px; width: 70%; transition: background 0.2s; }
+    .volume-slider:hover .volume-fill { background: var(--accent); }
     .player-lyrics { flex: 1; max-width: 500px; overflow: hidden; text-align: center; padding: 0 20px; }
     .lyrics-text { font-size: 14px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.3s; }
     .lyrics-text.playing { color: var(--accent); }
+    .player-mode-btn { font-size: 16px; }
+    .player-expand { display: none; position: absolute; top: -20px; left: 50%; transform: translateX(-50%); background: var(--bg-secondary); border: 1px solid var(--border); border-bottom: none; border-radius: 8px 8px 0 0; padding: 4px 12px; cursor: pointer; font-size: 12px; color: var(--text-muted); }
+    .player:hover .player-expand { display: flex; align-items: center; gap: 4px; }
+    .player-expand:hover { color: var(--text-primary); }
+    .player-waveform { display: none; width: 100%; height: 60px; margin-top: 12px; background: var(--bg-tertiary); border-radius: var(--radius-sm); overflow: hidden; }
+    .player.expanded .player-waveform { display: block; }
+    .waveform-canvas { width: 100%; height: 100%; }
+    .player-extras { display: none; width: 100%; gap: 16px; justify-content: center; margin-top: 12px; }
+    .player.expanded .player-extras { display: flex; }
+    .player-action-btn { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 16px; font-size: 12px; color: var(--text-secondary); cursor: pointer; transition: var(--transition); display: flex; align-items: center; gap: 6px; }
+    .player-action-btn:hover { background: var(--bg-elevated); color: var(--text-primary); border-color: var(--accent); }
+    .player-action-btn.active { color: var(--accent); border-color: var(--accent); }
     /* Recording Modal */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; }
     .modal-content { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-lg); width: min(520px, 95vw); max-height: 90vh; overflow-y: auto; }
@@ -379,10 +517,41 @@ INDEX_HTML = r"""<!doctype html>
     }
     @media (max-width: 768px) {
       .sidebar { display: none; }
-      .main-content { padding: 20px 16px 100px; }
-      .player { padding: 0 16px; gap: 12px; }
+      .main-content { padding: 16px 12px 100px; }
+      .page-title { font-size: 24px; }
+      .page-desc { font-size: 13px; }
+      .create-form { padding: 16px; }
+      .template-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+      .template-btn { padding: 10px 8px; font-size: 12px; }
+      .checkbox-grid { flex-direction: column; }
+      .checkbox-item { width: 100%; }
+      .player { padding: 0 12px; gap: 8px; }
       .player-track { width: auto; }
       .player-volume { display: none; }
+      .player-lyrics { display: none; }
+      .player-controls { gap: 4px; }
+      .player-buttons { gap: 8px; }
+      .player-btn { font-size: 16px; padding: 4px; }
+      .form-actions { flex-direction: column; }
+      .btn-primary, .btn-secondary { width: 100%; }
+      .param-grid { grid-template-columns: 1fr; }
+      .advanced-panel { padding: 12px; }
+      .error-alert { padding: 10px 12px; }
+      .app-header { padding: 0 12px; height: 56px; }
+      .logo { font-size: 16px; }
+      .logo-icon { width: 30px; height: 30px; font-size: 14px; }
+      .header-btn { width: 36px; height: 36px; font-size: 16px; }
+      .nav-item { padding: 10px 12px; }
+      .job-card { padding: 10px 12px; }
+      .job-actions { gap: 6px; }
+      .job-action-btn { padding: 6px 10px; font-size: 11px; }
+      #toast-container { top: 70px; right: 10px; left: 10px; }
+      #toast-container > div { max-width: none; width: 100%; }
+    }
+    @media (max-width: 480px) {
+      .template-grid { grid-template-columns: 1fr 1fr; }
+      .ref-audio-mode { flex-direction: column; }
+      .ref-audio-mode label { width: 100%; }
     }
     /* Scrollbar */
     ::-webkit-scrollbar { width: 8px; }
@@ -466,16 +635,35 @@ INDEX_HTML = r"""<!doctype html>
 <body>
   <div class="app">
     <header class="app-header">
+      <button class="mobile-nav-toggle" id="mobileNavToggle" aria-label="Toggle navigation">☰</button>
       <a href="/" class="logo">
         <div class="logo-icon">🎵</div>
         <span>Music Speaks</span>
       </a>
       <div class="header-actions">
         <button id="soundBtn" class="header-btn sound-toggle on" title="Toggle sound" onclick="toggleSound()">🔊</button>
-        <button id="themeBtn" class="header-btn" title="Toggle theme">🌙</button>
+        <button id="notifyBtn" class="header-btn notify-toggle off" title="Toggle notifications" onclick="toggleNotifications()">🔕</button>
+        <div class="theme-wrapper">
+          <button id="themeBtn" class="header-btn theme-btn" title="Toggle theme">🌙</button>
+          <div id="themeMenu" class="theme-menu">
+            <div class="theme-menu-item" data-theme-value="">
+              <span class="theme-menu-item-icon">💻</span>
+              <span data-i18n="themeSystem">System</span>
+            </div>
+            <div class="theme-menu-item" data-theme-value="light">
+              <span class="theme-menu-item-icon">☀️</span>
+              <span data-i18n="themeLight">Light Mode</span>
+            </div>
+            <div class="theme-menu-item" data-theme-value="dark">
+              <span class="theme-menu-item-icon">🌙</span>
+              <span data-i18n="themeDark">Dark Mode</span>
+            </div>
+          </div>
+        </div>
         <button id="langBtn" class="header-btn lang-toggle">中文</button>
       </div>
     </header>
+    <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
     <div class="app-body">
       <aside class="sidebar">
         <nav class="sidebar-nav">
@@ -531,20 +719,21 @@ INDEX_HTML = r"""<!doctype html>
             <div class="form-section">
               <label class="form-label" data-i18n="templates">Prompt Templates</label>
               <div class="template-grid">
-                <button class="template-btn" type="button" data-template="upbeat_pop">🎵 Upbeat Pop</button>
-                <button class="template-btn" type="button" data-template="chill_ambient">🌙 Chill Ambient</button>
-                <button class="template-btn" type="button" data-template="rock_anthem">🎸 Rock Anthem</button>
-                <button class="template-btn" type="button" data-template="acoustic_story">🎸 Acoustic Story</button>
-                <button class="template-btn" type="button" data-template="electronic_dream">💫 Electronic Dream</button>
-                <button class="template-btn" type="button" data-template="hiphop_beats">🎤 Hip-Hop Beats</button>
-                <button class="template-btn" type="button" data-template="cinematic_epic">🎬 Cinematic Epic</button>
-                <button class="template-btn" type="button" data-template="lofi_chill">☕ Lo-Fi Chill</button>
+                <button class="template-btn" type="button" data-template="upbeat_pop" data-i18n="templateUpbeatPop">🎵 Upbeat Pop</button>
+                <button class="template-btn" type="button" data-template="chill_ambient" data-i18n="templateChillAmbient">🌙 Chill Ambient</button>
+                <button class="template-btn" type="button" data-template="rock_anthem" data-i18n="templateRockAnthem">🎸 Rock Anthem</button>
+                <button class="template-btn" type="button" data-template="acoustic_story" data-i18n="templateAcousticStory">🎸 Acoustic Story</button>
+                <button class="template-btn" type="button" data-template="electronic_dream" data-i18n="templateElectronicDream">💫 Electronic Dream</button>
+                <button class="template-btn" type="button" data-template="hiphop_beats" data-i18n="templateHiphopBeats">🎤 Hip-Hop Beats</button>
+                <button class="template-btn" type="button" data-template="cinematic_epic" data-i18n="templateCinematicEpic">🎬 Cinematic Epic</button>
+                <button class="template-btn" type="button" data-template="lofi_chill" data-i18n="templateLofiChill">☕ Lo-Fi Chill</button>
               </div>
             </div>
             <!-- Lyrics Idea -->
             <div class="form-section">
               <label class="form-label" data-i18n="lyricsIdeaLabel">Lyrics Brief for AI (optional)</label>
               <textarea id="lyricsIdea" maxlength="2500" class="form-input" data-i18n-placeholder="lyricsIdeaPlaceholder" placeholder="Tell the story, feelings, images, language, chorus idea, or fragments you want in the lyrics."></textarea>
+              <div class="char-counter" id="lyricsIdeaCounter"><span class="counter-bar"><span class="counter-fill" style="width:0%"></span></span><span class="counter-text">0 / 2500</span></div>
               <div class="form-hint" data-i18n="lyricsIdeaHint">If finished lyrics are empty, Music Speaks will ask AI to write lyrics from this brief.</div>
               <div style="margin-top:12px;display:flex;align-items:center;gap:12px;">
                 <button id="generateLyricsBtn" class="btn-secondary" type="button" data-i18n="generateLyrics">Generate Lyrics</button>
@@ -555,6 +744,7 @@ INDEX_HTML = r"""<!doctype html>
             <div class="form-section">
               <label class="form-label" data-i18n="lyricsLabel">Finished Lyrics (optional)</label>
               <textarea id="lyrics" maxlength="3500" class="form-input" data-i18n-placeholder="lyricsPlaceholder" placeholder="[Verse]&#10;Your lyrics here...&#10;[Hook]&#10;Your chorus..."></textarea>
+              <div class="char-counter" id="lyricsCounter"><span class="counter-bar"><span class="counter-fill" style="width:0%"></span></span><span class="counter-text">0 / 3500</span></div>
               <div class="form-hint" data-i18n="lyricsHint">Paste exact lyrics here if you already have them. Exact lyrics take priority.</div>
             </div>
             <!-- Options -->
@@ -642,7 +832,13 @@ INDEX_HTML = r"""<!doctype html>
               <button id="submitBtn" class="btn-primary" type="submit" data-i18n="submit">Generate Music</button>
               <button id="clearDraftBtn" class="btn-secondary" type="button" data-i18n="clearDraft">Clear Draft</button>
             </div>
-            <div id="formError" class="error-text"></div>
+            <div id="formError" class="error-alert" style="display:none;">
+              <span class="error-alert-icon">&#9888;</span>
+              <div class="error-alert-content">
+                <div class="error-alert-message" id="formErrorMessage"></div>
+              </div>
+              <button class="error-alert-close" onclick="this.parentElement.style.display='none'">&#x2715;</button>
+            </div>
             <div id="draftStatus" style="margin-top:12px;font-size:12px;color:var(--text-muted);"></div>
           </form>
           <!-- Jobs Panel -->
@@ -650,7 +846,35 @@ INDEX_HTML = r"""<!doctype html>
             <div class="jobs-header">
               <h3 class="jobs-title" data-i18n="jobsTitle">Generation Jobs</h3>
             </div>
+            <div class="jobs-toolbar" id="jobs-toolbar">
+              <div class="search-wrap">
+                <span class="search-icon">&#128269;</span>
+                <input type="text" id="jobs-search" data-i18n-placeholder="jobsSearchPlaceholder" placeholder="Search title...">
+              </div>
+              <select id="jobs-status-filter">
+                <option value="" data-i18n="jobsFilterAll">All</option>
+                <option value="completed" data-i18n="completed">Done</option>
+                <option value="running" data-i18n="running">Generating</option>
+                <option value="queued" data-i18n="queued">Queued</option>
+                <option value="error" data-i18n="error">Error</option>
+              </select>
+              <input type="date" class="date-input" id="jobs-date-from" data-i18n-placeholder="jobsDateFrom" title="From date">
+              <span style="color:var(--text-muted);font-size:12px;">—</span>
+              <input type="date" class="date-input" id="jobs-date-to" data-i18n-placeholder="jobsDateTo" title="To date">
+              <button class="clear-btn" id="jobs-clear-filters" data-i18n="jobsClearFilters">Clear</button>
+            </div>
+            <div class="batch-bar" id="jobs-batch-bar">
+              <span id="jobs-batch-count">0 selected</span>
+              <button class="batch-btn download" id="jobs-batch-download" data-i18n="batchDownload">Download</button>
+              <button class="batch-btn delete" id="jobs-batch-delete" data-i18n="batchDelete">Delete</button>
+              <button class="batch-btn cancel" id="jobs-batch-cancel" data-i18n="cancel">Cancel</button>
+            </div>
             <div id="jobs" class="jobs-list"></div>
+            <div class="jobs-pagination" id="jobs-pagination" style="display:none;">
+              <button id="jobs-page-prev">&#8592;</button>
+              <span class="page-info" id="jobs-page-info"></span>
+              <button id="jobs-page-next">&#8594;</button>
+            </div>
           </div>
         </div>
         <!-- Library View -->
@@ -659,7 +883,33 @@ INDEX_HTML = r"""<!doctype html>
             <h1 class="page-title" data-i18n="navLibrary">Library</h1>
             <p class="page-desc" data-i18n="libraryDesc">All your generated songs in one place.</p>
           </div>
+          <div class="jobs-toolbar" id="lib-toolbar">
+            <div class="search-wrap">
+              <span class="search-icon">&#128269;</span>
+              <input type="text" id="lib-search" data-i18n-placeholder="jobsSearchPlaceholder" placeholder="Search title...">
+            </div>
+            <select id="lib-status-filter">
+              <option value="" data-i18n="jobsFilterAll">All</option>
+              <option value="completed" data-i18n="completed">Done</option>
+              <option value="error" data-i18n="error">Error</option>
+            </select>
+            <input type="date" class="date-input" id="lib-date-from" title="From date">
+            <span style="color:var(--text-muted);font-size:12px;">—</span>
+            <input type="date" class="date-input" id="lib-date-to" title="To date">
+            <button class="clear-btn" id="lib-clear-filters" data-i18n="jobsClearFilters">Clear</button>
+          </div>
+          <div class="batch-bar" id="lib-batch-bar">
+            <span id="lib-batch-count">0 selected</span>
+            <button class="batch-btn download" id="lib-batch-download" data-i18n="batchDownload">Download</button>
+            <button class="batch-btn delete" id="lib-batch-delete" data-i18n="batchDelete">Delete</button>
+            <button class="batch-btn cancel" id="lib-batch-cancel" data-i18n="cancel">Cancel</button>
+          </div>
           <div id="library-list" class="jobs-list"></div>
+          <div class="jobs-pagination" id="lib-pagination" style="display:none;">
+            <button id="lib-page-prev">&#8592;</button>
+            <span class="page-info" id="lib-page-info"></span>
+            <button id="lib-page-next">&#8594;</button>
+          </div>
         </div>
         <!-- Favorites View -->
         <div id="view-favorites" style="display:none;">
@@ -845,7 +1095,7 @@ INDEX_HTML = r"""<!doctype html>
         submit: "Generate Music", jobsTitle: "Jobs", jobsDesc: "Real-time status. Download appears when the MP3 is ready.",
         clearDraft: "Clear Draft", clearDraftConfirm: "Clear the current draft? This will not delete generated music.",
         draftSaved: "Draft saved", draftRestored: "Draft restored", draftCleared: "Draft cleared", draftRestoreFailed: "Could not restore server draft.",
-        empty: "No jobs yet. Fill in the form to start creating.", queued: "Queued", running: "Generating", completed: "Done", error: "Error", unknown: "Unknown",
+        empty: "No jobs yet. Fill in the form to start creating.", queued: "Queued", running: "Generating", completed: "Done", error: "Error", unknown: "Unknown", untitled: "Untitled",
         download: "Download MP3", delete: "Delete", sent: "Sent to", instrumentalMode: "Instrumental", vocalMode: "Vocal", deleteConfirm: "Delete this job?", deleteFailed: "Delete failed",
         navCreate: "Create", navLibrary: "Library", navFavorites: "Favorites", navHistory: "History", navPlaylists: "Playlists", playlistAll: "All Songs", playlistRecent: "Recently Played",
         libraryDesc: "All your generated songs in one place.", favoritesDesc: "Your liked and saved songs.", historyDesc: "Recently generated songs.",
@@ -853,7 +1103,13 @@ INDEX_HTML = r"""<!doctype html>
         stemSplit: "Split Audio", stemSplitting: "Splitting...", stemDone: "Split Complete", stemError: "Split Failed",
         stemDrums: "Drums", stemBass: "Bass", stemVocals: "Vocals", stemOther: "Instrumental",
         stemDownload: "Download", stemModalTitle: "Split Audio Stems", stemModalDesc: "Download individual tracks from your song.",
-        notificationsEnabled: "Notifications enabled", notificationsDisabled: "Notifications disabled", songReadyNotification: "Your song \"{title}\" is ready!"
+        themeLight: "Light Mode", themeDark: "Dark Mode", themeSystem: "System"
+        notificationsEnabled: "Notifications enabled", notificationsDisabled: "Notifications disabled", songReadyNotification: "Your song \"{title}\" is ready!",
+        playBtn: "▶ Play", untitled: "Untitled", audioFileRequired: "Please select an audio file.",
+        langBtnLabel: "EN",
+        templateUpbeatPop: "Upbeat Pop", templateChillAmbient: "Chill Ambient", templateRockAnthem: "Rock Anthem",
+        templateAcousticStory: "Acoustic Story", templateElectronicDream: "Electronic Dream", templateHiphopBeats: "Hip-Hop Beats",
+        templateCinematicEpic: "Cinematic Epic", templateLofiChill: "Lo-Fi Chill"
       },
       zh: {
         subtitle: "当语言无法抵达时，让音乐替你表达。给你的内心世界一种属于自己的声音。",
@@ -892,15 +1148,243 @@ INDEX_HTML = r"""<!doctype html>
         submit: "生成音乐", jobsTitle: "生成任务", jobsDesc: "实时状态。MP3 准备好后会出现下载按钮。",
         clearDraft: "清空草稿", clearDraftConfirm: "清空当前草稿？这不会删除已经生成的音乐。",
         draftSaved: "草稿已保存", draftRestored: "已恢复上次草稿", draftCleared: "草稿已清空", draftRestoreFailed: "无法恢复服务器草稿。",
-        empty: "暂无任务，填写表单开始创作。", queued: "排队中", running: "生成中", completed: "完成", error: "错误", unknown: "未知",
+        empty: "暂无任务，填写表单开始创作。", queued: "排队中", running: "生成中", completed: "完成", error: "错误", unknown: "未知", untitled: "无标题",
         download: "下载 MP3", delete: "删除", sent: "已发送到", instrumentalMode: "纯音乐", vocalMode: "有人声", deleteConfirm: "删除此任务？", deleteFailed: "删除失败",
         navCreate: "创建", navLibrary: "曲库", navFavorites: "收藏", navHistory: "历史", navPlaylists: "播放列表", playlistAll: "全部歌曲", playlistRecent: "最近播放",
         libraryDesc: "你生成的所有歌曲。", favoritesDesc: "你喜欢的歌曲。", historyDesc: "最近生成的歌曲。",
         toastMusicStarted: "音乐生成已开始！", toastMusicReady: "音乐完成：", toastLyricsSuccess: "歌词生成成功！", toastLyricsError: "歌词生成失败。", toastVoiceCloneSuccess: "声音复刻成功！", toastVoiceCloneError: "声音复刻失败。",
         stemSplit: "分离音轨", stemSplitting: "分离中...", stemDone: "分离完成", stemError: "分离失败",
         stemDrums: "鼓", stemBass: "贝斯", stemVocals: "人声", stemOther: "器乐",
-        stemDownload: "下载", stemModalTitle: "分离音频音轨", stemModalDesc: "下载歌曲的各个音轨。"
+        stemDownload: "下载", stemModalTitle: "分离音频音轨", stemModalDesc: "下载歌曲的各个音轨。",
+        themeLight: "浅色模式", themeDark: "深色模式", themeSystem: "跟随系统"
+        notificationsEnabled: "通知已开启", notificationsDisabled: "通知已关闭", songReadyNotification: "你的歌曲「{title}」已准备就绪！",
+        playBtn: "▶ 播放", untitled: "未命名", audioFileRequired: "请选择一个音频文件。",
+        langBtnLabel: "中文",
+        templateUpbeatPop: "流行活力", templateChillAmbient: "氛围 Chill", templateRockAnthem: "摇滚圣歌",
+        templateAcousticStory: "民谣故事", templateElectronicDream: "电子梦境", templateHiphopBeats: "嘻哈节拍",
+        templateCinematicEpic: "电影史诗", templateLofiChill: "Lo-Fi 放松"
+      },
+      ja: {
+        subtitle: "言葉が足りないとき、音楽が代わりに語る。あなたの内なる世界に音を。",
+        createTitle: "音楽を作成", createDesc: "気分、物語、歌詞、スタイルを入力してください。Music Speaksがダウンロード可能な曲にします。",
+        emailLabel: "メールアドレス（任意）", emailHint: "任意。ダウンロードボタンがMP3を受け取る主な方法です。",
+        emailPlaceholder: "your@email.com",
+        titleLabel: "曲名（任意）", titleHint: "空欄の場合、Music Speaksが歌詞から曲名を作成し、MP3のファイル名にします。",
+        titlePlaceholder: "空欄でAIが曲名をつける",
+        promptLabel: "音楽スタイルのプロンプト", promptHint: "スタイル、ムード、楽器、テンポ、参考曲を入れてください。",
+        promptPlaceholder: "例：明亮で自信のあるエレクトロニックポップ、制作精良、フック印象深刻",
+        lyricsIdeaLabel: "歌詞브리핑（任意）", lyricsIdeaHint: "完全な歌詞がない場合、Music Speaksはこのストーリーズ、感情、片段からAIに歌詞を書かせます。",
+        lyricsIdeaPlaceholder: "伝えたいストーリー、感情、画面感、言語、副歌のアイデア、歌詞の断片を入力。",
+        generateLyrics: "歌詞を生成", generatingLyrics: "歌詞を生成中...", lyricsGenerated: "歌詞が追加されました。音楽生成前に編集できます。",
+        lyricsAssistNeedBrief: "先に歌詞ブリーフまたは音楽スタイルを入力してください。", lyricsAssistFailed: "歌詞生成に失敗しました。",
+        lyricsLabel: "完全な歌詞（任意）", lyricsHint: "すでに確定した歌詞がある場合はここに貼り付けてください。完全な歌詞がブリーフより優先されます。",
+        lyricsPlaceholder: "[主歌]
+ここに歌詞...
+[副歌]
+ここに副歌...",
+        instrumental: " инструментал", instrumentalHint: "ボーカルなし。歌詞は無視されます。",
+        autoLyrics: "自動歌詞生成", autoLyricsHint: "AIが描述から歌詞を書きます。",
+        voiceCloneLabel: "声紋クローン（任意）", voiceRecordBtn: "声を録音", voiceCloneHint: "異なる音調とスタイルの5つの短いセンテンスを録音してください。約30秒。クローン声は7日間有効です。",
+        voicePreviewBtn: "声をプレビュー", voiceUploading: "声をクローン中...", voiceReady: "声のクローン完了！プレビューで试听。",
+        voiceError: "声のクローンに失敗しました。", voicePreviewGenerating: "プレビューを生成中...", voicePreviewReady: "プレビュー生成完了。", voicePreviewError: "プレビュー生成に失敗しました。",
+        recModalTitle: "声を録音",
+        templates: "スタイルテンプレート",
+        advanced: "更多パラメータ", genre: "ジャンル", mood: "ムード", instruments: "楽器", tempo: "テンポ感", bpm: "BPM", key: "調性",
+        vocals: "ボーカルスタイル", structure: "曲構造", references: "参考", avoid: "避ける", useCase: "使用シーン", extra: "其他詳細",
+        refAudioTitle: "参考オーディオ（Audio-to-Audio）", refAudioDrop: "オーディオファイルをここにドラッグまたはクリックしてアップロード（MP3、WAV、6秒-6分）",
+        refAudioRemove: "移除", refAudioHint: "似たスタイルの音楽を生成するために参考オーディオをアップロードしてください。スタイル転送は参考オーディオをスタイルのインスピレーションとして使用します。",
+        refModeStyle: "スタイル転送", refModeKeepVocals: "ボーカル保持", refModeRemix: "リミックス",
+        duration: "長さ", durationHint: "MiniMaxは1回あたり約30秒生成します。より長い長さは複数回の生成が必要で、時間がかかります。",
+        duration30s: "30秒（デフォルト）", duration1m: "1分", duration2m: "2分", duration3m: "3分", duration5m: "5分", duration10m: "10分",
+        genrePlaceholder: "ポップ、レゲエ、ジャズ", moodPlaceholder: "温かい、明るい、激しい", instrumentsPlaceholder: "ピアノ、吉他、鼓",
+        tempoPlaceholder: "速い、中程度、遅い", bpmPlaceholder: "85", keyPlaceholder: "C major、A minor",
+        vocalsPlaceholder: "温かい男性ボーカル、明るい女性ボーカル、デュオ", structurePlaceholder: "主歌-副歌-主歌-橋-副歌",
+        referencesPlaceholder: "ある曲、ある歌手、または某种感觉参考", avoidPlaceholder: "露骨な内容、重いディストーション避ける",
+        useCasePlaceholder: "動画背景、テーマ曲、友人への誕生日歌", extraPlaceholder: "其他補足要件",
+        submit: "音楽を生成", jobsTitle: "生成ジョブ", jobsDesc: "リアルタイム状態。MP3準備完了後、ダウンロードボタンが表示されます。",
+        clearDraft: "下書きをクリア", clearDraftConfirm: "現在の下書きをクリアしますか？生成された音楽は削除されません。",
+        draftSaved: "下書き保存済み", draftRestored: "前回の下書きを復元しました", draftCleared: "下書きをクリアしました", draftRestoreFailed: "サーバー下書きを復元できませんでした。",
+        empty: "ジョブなし。フォームに記入して創作を開始してください。", queued: "待機中", running: "生成中", completed: "完了", error: "エラー", unknown: "不明",
+        download: "MP3をダウンロード", delete: "削除", sent: "送信先", instrumentalMode: "インスト", vocalMode: "ボーカル", deleteConfirm: "このジョブを削除しますか？", deleteFailed: "削除に失敗しました",
+        navCreate: "作成", navLibrary: "ライブラリ", navFavorites: "お気に入り", navHistory: "履歴", navPlaylists: "プレイリスト", playlistAll: "全曲", playlistRecent: "最近再生",
+        libraryDesc: "生成したすべての音楽。", favoritesDesc: "好きな音楽。", historyDesc: "最近生成した音楽。",
+        toastMusicStarted: "音楽生成が開始されました！", toastMusicReady: "音楽準備完了：", toastLyricsSuccess: "歌詞生成成功！", toastLyricsError: "歌詞生成に失敗しました。", toastVoiceCloneSuccess: "声紋クローン成功！", toastVoiceCloneError: "声紋クローンに失敗しました。",
+        stemSplit: "オーディオを分離", stemSplitting: "分離中...", stemDone: "分離完了", stemError: "分離失敗",
+        stemDrums: "鼓", stemBass: "ベース", stemVocals: "ボーカル", stemOther: "器楽",
+        stemDownload: "ダウンロード", stemModalTitle: "オーディオステムを分離", stemModalDesc: "曲の各トラックをダウンロード。",
+        notificationsEnabled: "通知有効", notificationsDisabled: "通知無効", songReadyNotification: "曲「{title}」の準備ができました！",
+        playBtn: "▶ 再生", untitled: "無題", audioFileRequired: "オーディオファイルを選択してください。",
+        langBtnLabel: "日本語",
+        templateUpbeatPop: "ポップ活力", templateChillAmbient: "氛围 Chill", templateRockAnthem: "ロックanthem",
+        templateAcousticStory: "アコースティックストーリー", templateElectronicDream: "電子の夢", templateHiphopBeats: "ヒップホップ节拍",
+        templateCinematicEpic: "シネマティックエピック", templateLofiChill: "Lo-Fi リラックス"
+      },
+      ko: {
+        subtitle: "말이 부족할 때, 음악이 대신 말한다. 당신의 내면 세계에属于自己的 소리를.",
+        createTitle: "음악 만들기", createDesc: "느낌, 이야기, 가사, 스타일을 적어주세요. Music Speaks가 다운로드 가능한 노래로 만들어줍니다.",
+        emailLabel: "이메일 주소 (선택)", emailHint: "선택사항. 다운로드 버튼이 MP3를 받는 주된 방법입니다.",
+        emailPlaceholder: "your@email.com",
+        titleLabel: "노래 제목 (선택)", titleHint: "비워두면 Music Speaks가 가사에서 제목을 만들어 MP3 파일명으로 사용합니다.",
+        titlePlaceholder: "비워두면 AI가 제목을 붙여줍니다",
+        promptLabel: "뮤직 스타일 프롬프트", promptHint: "스타일, 무드, 악기, 템포, 참고 곡을 넣어주세요.",
+        promptPlaceholder: "예: 밝고 자신감 있는 일렉트로닉 팝, 정교한 프로덕션, 기억할 만한 후크",
+        lyricsIdeaLabel: "가사 브리프 (선택)", lyricsIdeaHint: "완전한 가사가 비어 있으면 Music Speaks가 여기서 이야기, 느낌,片段 또는 개념으로 AI에게 가사를 쓰게 합니다.",
+        lyricsIdeaPlaceholder: "원하는 이야기, 느낌, 이미지, 언어, 후크 아이디어, 가사片段을 적어주세요.",
+        generateLyrics: "가사 생성", generatingLyrics: "가사 생성 중...", lyricsGenerated: "가사가 아래에 추가되었습니다. 음악 생성 전에 편집할 수 있습니다.",
+        lyricsAssistNeedBrief: "먼저 가사 브리프 또는 음악 스타일을 입력하세요.", lyricsAssistFailed: "가사 생성에 실패했습니다.",
+        lyricsLabel: "완전한 가사 (선택)", lyricsHint: "이미 확정된 가사가 있으면 여기에 붙여넣으세요. 완전한 가사가 브리프보다 우선합니다.",
+        lyricsPlaceholder: "[verse]
+여기에 가사...
+[후크]
+여기에 후크...",
+        instrumental: " инструментал", instrumentalHint: "보컬 없음. 가사는 무시됩니다.",
+        autoLyrics: "자동 가사 생성", autoLyricsHint: "AI가 설명에서 가사를씁니다.",
+        voiceCloneLabel: "음성 클론 (선택)", voiceRecordBtn: "내 목소리 녹음", voiceCloneHint: "다양한 음조와 스타일의 5개 짧은 문장을 녹음하세요. 약 30초. 클론 목소리는 7일 동안 유효합니다.",
+        voicePreviewBtn: "목소리 미리보기", voiceUploading: "목소리 클론 중...", voiceReady: "목소리 클론 완료! 미리보기로 들어보세요.",
+        voiceError: "목소리 클론에 실패했습니다.", voicePreviewGenerating: "미리보기 생성 중...", voicePreviewReady: "미리보기 생성 완료.", voicePreviewError: "미리보기 생성에 실패했습니다.",
+        recModalTitle: "목소리 녹음",
+        templates: "스타일 템플릿",
+        advanced: "추가 파라미터", genre: "장르", mood: "무드", instruments: "악기", tempo: "템포 느낌", bpm: "BPM", key: "조성",
+        vocals: "보컬 스타일", structure: "노래 구조", references: "참고", avoid: "피하기", useCase: "사용 케이스", extra: "기타 세부",
+        refAudioTitle: "참考 오디오 (Audio-to-Audio)", refAudioDrop: "오디오 파일을 여기에 드래그하거나 클릭하여 업로드 (MP3, WAV, 6초-6분)",
+        refAudioRemove: "제거", refAudioHint: "유사한 스타일의 음악을 생성하려면 참고 오디오를 업로드하세요. 스타일 전송은 참고 오디오를 스타일 영감으로 사용합니다.",
+        refModeStyle: "스타일 전송", refModeKeepVocals: "보컬 유지", refModeRemix: "리믹스",
+        duration: "길이", durationHint: "MiniMax는 통화당 약 30초를 생성합니다. 더 긴 길이는 여러 생성이 필요하며 시간이 더 오래 걸립니다.",
+        duration30s: "30초 (기본)", duration1m: "1분", duration2m: "2분", duration3m: "3분", duration5m: "5분", duration10m: "10분",
+        genrePlaceholder: "팝, 레게, 재즈", moodPlaceholder: "따뜻한, 밝은, 강한", instrumentsPlaceholder: "피아노, 기타, 드럼",
+        tempoPlaceholder: "빠른, 중간, 느린", bpmPlaceholder: "85", keyPlaceholder: "C major, A minor",
+        vocalsPlaceholder: "따뜻한 남성 보컬, 밝은 여성 보컬, 듀엣", structurePlaceholder: " verse-후크-verse-브릿지-후크",
+        referencesPlaceholder: "어떤 노래, 가수 또는 느낌 참고", avoidPlaceholder: "노골적인 내용, 무거운 디스토션 피하기",
+        useCasePlaceholder: "비디오 배경, 테마 송, 친구 생일 노래", extraPlaceholder: "기타 추가 요청",
+        submit: "음악 생성", jobsTitle: "생성 작업", jobsDesc: "실시간 상태. MP3 준비 완료 시 다운로드 버튼이 나타납니다.",
+        clearDraft: "초안 지우기", clearDraftConfirm: "현재 초안을 지울까요? 생성된 음악은 삭제되지 않습니다.",
+        draftSaved: "초안 저장됨", draftRestored: "이전 초안 복원됨", draftCleared: "초안 지워짐", draftRestoreFailed: "서버 초안을 복원할 수 없습니다.",
+        empty: "작업 없음. 양식을 작성하여 만들기 시작하세요.", queued: "대기 중", running: "생성 중", completed: "완료", error: "오류", unknown: "알 수 없음",
+        download: "MP3 다운로드", delete: "삭제", sent: "보낸 사람", instrumentalMode: "음악", vocalMode: "보컬", deleteConfirm: "이 작업을 삭제할까요?", deleteFailed: "삭제 실패",
+        navCreate: "만들기", navLibrary: "라이브러리", navFavorites: "즐겨찾기", navHistory: "기록", navPlaylists: "재생목록", playlistAll: "모든 노래", playlistRecent: "최근 재생",
+        libraryDesc: "생성한 모든 노래.", favoritesDesc: "좋아하는 노래.", historyDesc: "최근 생성한 노래.",
+        toastMusicStarted: "음악 생성 시작!", toastMusicReady: "음악 준비 완료: ", toastLyricsSuccess: "가사 생성 성공!", toastLyricsError: "가사 생성 실패.", toastVoiceCloneSuccess: "음성 클론 성공!", toastVoiceCloneError: "음성 클론 실패.",
+        stemSplit: "오디오 분할", stemSplitting: "분할 중...", stemDone: "분할 완료", stemError: "분할 실패",
+        stemDrums: "드럼", stemBass: "베이스", stemVocals: "보컬", stemOther: "악기",
+        stemDownload: "다운로드", stemModalTitle: "오디오 스텝 분할", stemModalDesc: "노래의 각 트랙을 다운로드.",
+        notificationsEnabled: "알림 활성화", notificationsDisabled: "알림 비활성화", songReadyNotification: "노래 "{title}"이(가) 준비되었습니다!",
+        playBtn: "▶ 재생", untitled: "제목 없음", audioFileRequired: "오디오 파일을 선택해 주세요.",
+        langBtnLabel: "한국어",
+        templateUpbeatPop: "팝 热舞", templateChillAmbient: "Chill 环境", templateRockAnthem: "摇滚 圣歌",
+        templateAcousticStory: "原声 故事", templateElectronicDream: "电子 梦", templateHiphopBeats: "嘻哈 节拍",
+        templateCinematicEpic: "电影 史诗", templateLofiChill: "Lo-Fi 放松"
+      },
+      es: {
+        subtitle: "Cuando las palabras fallan, que la música hable. Dale a tu mundo interior su propio sonido.",
+        createTitle: "Crear Música", createDesc: "Escribe un sentimiento, historia, letra o estilo. Music Speaks lo convierte en una canción descargable.",
+        emailLabel: "Correo electrónico (opcional)", emailHint: "Opcional. El botón de descarga es la forma principal de obtener tu MP3.",
+        emailPlaceholder: "tu@email.com",
+        titleLabel: "Título de la canción (opcional)", titleHint: "Si está vacío, Music Speaks creará un título a partir de las letras antes de guardar el MP3.",
+        titlePlaceholder: "Déjalo vacío y la IA nombrará la canción",
+        promptLabel: "Prompt de Estilo Musical", promptHint: "Incluye estilo, estado de ánimo, instrumentos, tempo y referencias.",
+        promptPlaceholder: "Ej: Pop electrónico cinematográfico, confiado y brillante, producción pulida, gancho fuerte",
+        lyricsIdeaLabel: "Brief de Letras para la IA (opcional)", lyricsIdeaHint: "Si las letras finales están vacías, Music Speaks pedirá a la IA que escriba letras basadas en este brief.",
+        lyricsIdeaPlaceholder: "Cuéntanos la historia, sentimientos, imágenes, idioma, idea del coro o fragmentos que quieras en las letras.",
+        generateLyrics: "Generar Letras", generatingLyrics: "Generando letras...", lyricsGenerated: "Letras añadidas abajo. Puedes editarlas antes de generar la música.",
+        lyricsAssistNeedBrief: "Añade primero un brief de letras o un prompt de estilo musical.", lyricsAssistFailed: "La generación de letras ha fallado.",
+        lyricsLabel: "Letras Finales (opcional)", lyricsHint: "Pega aquí las letras que ya tengas. Las letras exactas tienen prioridad sobre el brief de letras.",
+        lyricsPlaceholder: "[Verso]
+Tus letras aquí...
+[Estribillo]
+Tu estribillo...",
+        instrumental: "Instrumental", instrumentalHint: "Sin voces. Las letras serán ignoradas.",
+        autoLyrics: "Auto-generar Letras", autoLyricsHint: "La IA escribe letras a partir de tu descripción.",
+        voiceCloneLabel: "Clon de Voz (opcional)", voiceRecordBtn: "Grabar Mi Voz", voiceCloneHint: "Graba 5 pasajes cortos cubriendo diferentes tonos y estilos. Tarda unos 30 segundos. La voz clonada caduca en 7 días.",
+        voicePreviewBtn: "Vista Previa de Voz", voiceUploading: "Clonando tu voz...", voiceReady: "¡Voz clonada! Usa Vista Previa para escuchar.",
+        voiceError: "El clon de voz ha fallado.", voicePreviewGenerating: "Generando vista previa...", voicePreviewReady: "Vista previa lista.", voicePreviewError: "La vista previa ha fallado.",
+        recModalTitle: "Graba Tu Voz",
+        templates: "Plantillas de Estilo",
+        advanced: "Más Parámetros", genre: "Género", mood: "Estado de ánimo", instruments: "Instrumentos", tempo: "Sensación de Tempo", bpm: "BPM", key: "Tonalidad",
+        vocals: "Estilo Vocal", structure: "Estructura de la Canción", references: "Referencias", avoid: "Evitar", useCase: "Caso de Uso", extra: "Detalles Extra",
+        refAudioTitle: "Audio de Referencia (Audio-a-Audio)", refAudioDrop: "Arrastra el archivo de audio aquí o haz clic para subir (MP3, WAV, 6s-6min)",
+        refAudioRemove: "Eliminar", refAudioHint: "Sube audio de referencia para generar música de estilo similar. La Transferencia de Estilo usa la referencia como inspiración.",
+        refModeStyle: "Transferencia de Estilo", refModeKeepVocals: "Mantener Voces", refModeRemix: "Remix",
+        duration: "Duración", durationHint: "MiniMax genera ~30s por llamada. Duraciones más largas requieren múltiples generaciones y tardarán más.",
+        duration30s: "30 segundos (por defecto)", duration1m: "1 minuto", duration2m: "2 minutos", duration3m: "3 minutos", duration5m: "5 minutos", duration10m: "10 minutos",
+        genrePlaceholder: "pop, reggae, jazz", moodPlaceholder: "cálido, brillante, intenso", instrumentsPlaceholder: "piano, guitarra, batería",
+        tempoPlaceholder: "rápido, lento, moderado", bpmPlaceholder: "85", keyPlaceholder: "Do mayor, La menor",
+        vocalsPlaceholder: "vocal masculina cálida, vocal femenina brillante, dúo", structurePlaceholder: "verso-estribillo-verso-puente-estribillo",
+        referencesPlaceholder: "similar a...", avoidPlaceholder: "contenido explícito, auto-tune",
+        useCasePlaceholder: "fondo de video, canción temática", extraPlaceholder: "Notas adicionales",
+        submit: "Generar Música", jobsTitle: "Trabajos", jobsDesc: "Estado en tiempo real. El botón de descarga aparece cuando el MP3 está listo.",
+        clearDraft: "Borrar Borrador", clearDraftConfirm: "¿Borrar el borrador actual? Esto no eliminará la música generada.",
+        draftSaved: "Borrador guardado", draftRestored: "Borrador anterior restaurado", draftCleared: "Borrador borrado", draftRestoreFailed: "No se pudo restaurar el borrador del servidor.",
+        empty: "Sin trabajos aún. Completa el formulario para empezar a crear.", queued: "En cola", running: "Generando", completed: "Hecho", error: "Error", unknown: "Desconocido",
+        download: "Descargar MP3", delete: "Eliminar", sent: "Enviado a", instrumentalMode: "Instrumental", vocalMode: "Vocal", deleteConfirm: "¿Eliminar este trabajo?", deleteFailed: "Eliminar fallido",
+        navCreate: "Crear", navLibrary: "Biblioteca", navFavorites: "Favoritos", navHistory: "Historial", navPlaylists: "Listas", playlistAll: "Todas las Canciones", playlistRecent: "Reproducido Recientemente",
+        libraryDesc: "Todas tus canciones generadas en un solo lugar.", favoritesDesc: "Tus canciones liked y guardadas.", historyDesc: "Canciones generadas recientemente.",
+        toastMusicStarted: "¡Generación de música iniciada!", toastMusicReady: "Música lista: ", toastLyricsSuccess: "¡Letras generadas con éxito!", toastLyricsError: "Generación de letras fallida.", toastVoiceCloneSuccess: "¡Voz clonada con éxito!", toastVoiceCloneError: "Clon de voz fallido.",
+        stemSplit: "Dividir Audio", stemSplitting: "Dividiendo...", stemDone: "División Completa", stemError: "División Fallida",
+        stemDrums: "Batería", stemBass: "Bajo", stemVocals: "Voces", stemOther: "Instrumental",
+        stemDownload: "Descargar", stemModalTitle: "Dividir Stems de Audio", stemModalDesc: "Descarga las pistas individuales de tu canción.",
+        notificationsEnabled: "Notificaciones activadas", notificationsDisabled: "Notificaciones desactivadas", songReadyNotification: "¡Tu canción "{title}" está lista!",
+        playBtn: "▶ Reproducir", untitled: "Sin título", audioFileRequired: "Por favor selecciona un archivo de audio.",
+        langBtnLabel: "ES",
+        templateUpbeatPop: "Pop Animado", templateChillAmbient: "Ambient Relajado", templateRockAnthem: "Rock Épico",
+        templateAcousticStory: "Acústico Narrativo", templateElectronicDream: "Dream Electrónico", templateHiphopBeats: "Beats Hip-Hop",
+        templateCinematicEpic: "Épico Cinemático", templateLofiChill: "Lo-Fi Relajado"
+      },
+      fr: {
+        subtitle: "Quand les mots ne suffisent pas, laissez la musique parler. Donnez à votre monde intérieur sa propre voix.",
+        createTitle: "Créer de la Musique", createDesc: "Écrivez un sentiment, une histoire, des paroles ou un style. Music Speaks les transforme en chanson téléchargeable.",
+        emailLabel: "Adresse e-mail (facultatif)", emailHint: "Facultatif. Le bouton de téléchargement est la principale façon d'obtenir votre MP3.",
+        emailPlaceholder: "votre@email.com",
+        titleLabel: "Titre de la chanson (facultatif)", titleHint: "Si vide, Music Speaks créera un titre à partir des paroles avant d'enregistrer le MP3.",
+        titlePlaceholder: "Laissez vide et l'IA nommera la chanson",
+        promptLabel: "Prompt de Style Musical", promptHint: "Incluez le style, l'ambiance, les instruments, le tempo et les références.",
+        promptPlaceholder: "Ex: Pop électronique cinématographique, confiant et brillant, production soignée, refrain accrocheur",
+        lyricsIdeaLabel: "Brief de Paroles pour l'IA (facultatif)", lyricsIdeaHint: "Si les paroles finales sont vides, Music Speaks demandera à l'IA d'écrire des paroles à partir de ce brief.",
+        lyricsIdeaPlaceholder: "Parlez de l'histoire, des sentiments, des images, de la langue, de l'idée du refrain ou des fragments que vous voulez dans les paroles.",
+        generateLyrics: "Générer les Paroles", generatingLyrics: "Génération des paroles...", lyricsGenerated: "Paroles ajoutées ci-dessous. Vous pouvez les modifier avant de générer la musique.",
+        lyricsAssistNeedBrief: "Ajoutez d'abord un brief de paroles ou un prompt de style musical.", lyricsAssistFailed: "La génération des paroles a échoué.",
+        lyricsLabel: "Paroles Finales (facultatif)", lyricsHint: "Collez ici les paroles que vous avez déjà. Les paroles exactes ont la priorité sur le brief.",
+        lyricsPlaceholder: "[Couplet]
+Vos paroles ici...
+[Refrain]
+Votre refrain...",
+        instrumental: "Instrumental", instrumentalHint: "Sans voix. Les paroles seront ignorées.",
+        autoLyrics: "Auto-générer les Paroles", autoLyricsHint: "L'IA écrit des paroles à partir de votre description.",
+        voiceCloneLabel: "Clone Vocal (facultatif)", voiceRecordBtn: "Enregistrer Ma Voix", voiceCloneHint: "Enregistrez 5 courts passages couvrant différents tons et styles. Prend environ 30 secondes. La voix clonée expire dans 7 jours.",
+        voicePreviewBtn: "Aperçu Vocal", voiceUploading: "Clonage de votre voix...", voiceReady: "Voix clonée ! Utilisez Aperçu pour écouter.",
+        voiceError: "Le clone vocal a échoué.", voicePreviewGenerating: "Génération de l'aperçu...", voicePreviewReady: "Aperçu prêt.", voicePreviewError: "L'aperçu a échoué.",
+        recModalTitle: "Enregistrez Votre Voix",
+        templates: "Modèles de Style",
+        advanced: "Plus de Paramètres", genre: "Genre", mood: "Ambiance", instruments: "Instruments", tempo: "Sensation de Tempo", bpm: "BPM", key: "Tonalité",
+        vocals: "Style Vocal", structure: "Structure de la Chanson", references: "Références", avoid: "À Éviter", useCase: "Cas d'Usage", extra: "Détails Supplémentaires",
+        refAudioTitle: "Audio de Référence (Audio-à-Audio)", refAudioDrop: "Déposez le fichier audio ici ou cliquez pour télécharger (MP3, WAV, 6s-6min)",
+        refAudioRemove: "Supprimer", refAudioHint: "Téléchargez un audio de référence pour générer de la musique de style similaire. Le Transfert de Style utilise la référence comme inspiration.",
+        refModeStyle: "Transfert de Style", refModeKeepVocals: "Garder les Voix", refModeRemix: "Remix",
+        duration: "Durée", durationHint: "MiniMax génère ~30s par appel. Les durées plus longues nécessitent plusieurs générations et prendront plus de temps.",
+        duration30s: "30 secondes (défaut)", duration1m: "1 minute", duration2m: "2 minutes", duration3m: "3 minutes", duration5m: "5 minutes", duration10m: "10 minutes",
+        genrePlaceholder: "pop, reggae, jazz", moodPlaceholder: "chaud, brillant, intense", instrumentsPlaceholder: "piano, guitare, batterie",
+        tempoPlaceholder: "rapide, lent, modéré", bpmPlaceholder: "85", keyPlaceholder: "Do majeur, La mineur",
+        vocalsPlaceholder: "vocal masculin chaud, vocal féminin brillant, duo", structurePlaceholder: "couplet-refrain-couplet-bridge-refrain",
+        referencesPlaceholder: "similaire à...", avoidPlaceholder: "contenu explicite, auto-tune",
+        useCasePlaceholder: "fond sonore vidéo, chanson thème", extraPlaceholder: "Notes supplémentaires",
+        submit: "Générer la Musique", jobsTitle: "Tâches", jobsDesc: "Statut en temps réel. Le bouton de téléchargement apparaît quand le MP3 est prêt.",
+        clearDraft: "Effacer le Brouillon", clearDraftConfirm: "Effacer le brouillon actuel ? Cela ne supprimera pas la musique générée.",
+        draftSaved: "Brouillon enregistré", draftRestored: "Brouillon précédent restauré", draftCleared: "Brouillon effacé", draftRestoreFailed: "Impossible de restaurer le brouillon du serveur.",
+        empty: "Pas encore de tâches. Remplissez le formulaire pour commencer à créer.", queued: "En attente", running: "En cours", completed: "Terminé", error: "Erreur", unknown: "Inconnu",
+        download: "Télécharger MP3", delete: "Supprimer", sent: "Envoyé à", instrumentalMode: "Instrumental", vocalMode: "Vocal", deleteConfirm: "Supprimer cette tâche ?", deleteFailed: "Suppression échouée",
+        navCreate: "Créer", navLibrary: "Bibliothèque", navFavorites: "Favoris", navHistory: "Historique", navPlaylists: "Playlists", playlistAll: "Toutes les Chansons", playlistRecent: "Joué Récemment",
+        libraryDesc: "Toutes vos chansons générées au même endroit.", favoritesDesc: "Vos chansons aimées et sauvegardées.", historyDesc: "Chansons récemment générées.",
+        toastMusicStarted: "Génération de musique lancée !", toastMusicReady: "Musique prête : ", toastLyricsSuccess: "Paroles générées avec succès !", toastLyricsError: "Échec de la génération des paroles.", toastVoiceCloneSuccess: "Clone vocal réussi !", toastVoiceCloneError: "Échec du clone vocal.",
+        stemSplit: "Séparer l'Audio", stemSplitting: "Séparation...", stemDone: "Séparation Terminée", stemError: "Échec de Séparation",
+        stemDrums: "Batterie", stemBass: "Basse", stemVocals: "Voix", stemOther: "Instrumental",
+        stemDownload: "Télécharger", stemModalTitle: "Séparer les Stems Audio", stemModalDesc: "Téléchargez les pistes individuelles de votre chanson.",
+        notificationsEnabled: "Notifications activées", notificationsDisabled: "Notifications désactivées", songReadyNotification: "Votre chanson "{title}" est prête !",
+        playBtn: "▶ Lire", untitled: "Sans titre", audioFileRequired: "Veuillez sélectionner un fichier audio.",
+        langBtnLabel: "FR",
+        templateUpbeatPop: "Pop Animée", templateChillAmbient: "Ambient Détendue", templateRockAnthem: "Rock Hymne",
+        templateAcousticStory: "Acoustique Narrative", templateElectronicDream: "Dream Électronique", templateHiphopBeats: "Beats Hip-Hop",
+        templateCinematicEpic: "Épique Cinématique", templateLofiChill: "Lo-Fi Détendue"
       }
+    };
     };
 
     const TEMPLATES = {
@@ -977,7 +1461,7 @@ INDEX_HTML = r"""<!doctype html>
     }
     function applyLang() {
       document.documentElement.lang = lang;
-      document.getElementById("langBtn").textContent = lang === "en" ? "中文" : "EN";
+      document.getElementById("langBtn").textContent = t("langBtnLabel");
       document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
       document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
       submitBtnOriginalText = submitBtn.textContent; // Update original text when language changes
@@ -1000,13 +1484,13 @@ INDEX_HTML = r"""<!doctype html>
       jobsBox.innerHTML = lastJobs.map((job, idx) => {
         const status = escapeHtml(job.status || "unknown");
         const fileName = escapeHtml(job.file_name || "terry-music.mp3");
-        const title = escapeHtml(job.song_title || job.prompt || "Untitled");
+        const title = escapeHtml(job.song_title || job.prompt || t("untitled"));
         const mode = job.is_instrumental ? t("instrumentalMode") : t("vocalMode");
         const downloadUrl = job.download_url ? `${escapeHtml(job.download_url)}?client_id=${encodeURIComponent(clientId)}` : "";
         const isRunning = job.status === "running" || job.status === "queued";
         const completedClass = job.status === "completed" ? "animate-bounce-in" : "";
         const actions = job.status === "completed" && job.download_url
-          ? `<button class="job-action-btn download" onclick="playJob('${escapeHtml(job.id)}')">▶ Play</button><a class="job-action-btn download" href="${downloadUrl}" download="${fileName}">${t("download")}</a>`
+          ? `<button class="job-action-btn download" onclick="playJob('${escapeHtml(job.id)}')">${t("playBtn")}</button><a class="job-action-btn download" href="${downloadUrl}" download="${fileName}">${t("download")}</a>`
           : isRunning ? `<span style="font-size:12px;color:var(--text-muted);"><span class="spinner" style="width:12px;height:12px;border-width:1.5px;"></span> ${statusLabel(status)}...</span>` : "";
         return `<div class="job-card ${completedClass}" data-job-id="${escapeHtml(job.id)}" style="animation-delay:${idx * 50}ms">
           <div class="job-art">${job.status === "completed" ? "✅" : job.status === "error" ? "❌" : "🎵"}</div>
@@ -1023,7 +1507,7 @@ INDEX_HTML = r"""<!doctype html>
       if (!job || !job.download_url) return;
       const url = job.download_url + (job.download_url.includes('?') ? '&' : '?') + 'client_id=' + encodeURIComponent(clientId);
       const lyrics = job.lyrics || "";
-      currentTrack = { id: job.id, title: job.song_title || job.prompt || 'Untitled', url: url, lyrics: lyrics };
+      currentTrack = { id: job.id, title: job.song_title || job.prompt || t('untitled'), url: url, lyrics: lyrics };
       audioPlayer.src = url;
       audioPlayer.play();
       updatePlayerUI();
@@ -1034,12 +1518,27 @@ INDEX_HTML = r"""<!doctype html>
         const data = await res.json();
         const prevJobs = window._prevJobs || {};
         const newJobs = data.jobs || [];
-        // Play completion sound and show toast when a job transitions to completed
+        // Check if jobs actually changed to avoid unnecessary DOM rebuilds
+        const prevIds = new Set(Object.keys(prevJobs));
+        const sameLength = prevIds.size === newJobs.length;
+        let changed = !sameLength;
+        if (sameLength) {
+          for (const job of newJobs) {
+            const prev = prevJobs[job.id];
+            if (!prev || prev.status !== job.status || prev.updated_at !== job.updated_at) {
+              changed = true;
+              break;
+            }
+          }
+        }
+        if (!changed) return;
+        // Play completion sound, show toast, and send browser notification when a job transitions to completed
         newJobs.forEach(job => {
           const prev = prevJobs[job.id];
           if (prev && prev.status !== "completed" && job.status === "completed") {
             SoundSystem.play("complete");
-            showToast(t("toastMusicReady") + (job.song_title || job.prompt || "Untitled"), "success", 5000);
+            showToast(t("toastMusicReady") + (job.song_title || job.prompt || t("untitled")), "success", 5000);
+            notifySongReady(job.song_title || job.prompt || t("untitled"));
           }
         });
         window._prevJobs = Object.fromEntries(newJobs.map(j => [j.id, j]));
@@ -1129,7 +1628,7 @@ INDEX_HTML = r"""<!doctype html>
         } catch {
           setDraftStatus(t("draftSaved"));
         }
-      }, 700);
+      }, 1000); // Increased debounce to 1000ms to reduce server load
     }
     async function loadDraft() {
       restoringDraft = true;
@@ -1255,23 +1754,82 @@ INDEX_HTML = r"""<!doctype html>
       applyLang();
     });
     const themeBtn = document.getElementById("themeBtn");
-    function setTheme(theme) {
-      document.documentElement.setAttribute("data-theme", theme);
-      localStorage.setItem("terry_music_theme", theme);
-      themeBtn.textContent = theme === "light" ? "☀️" : "🌙";
+    const themeMenu = document.getElementById("themeMenu");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+    function getEffectiveTheme(saved) {
+      if (saved === "light" || saved === "dark") return saved;
+      return prefersDark ? "dark" : "light";
     }
-    const savedTheme = localStorage.getItem("terry_music_theme");
-    if (savedTheme) setTheme(savedTheme);
-    themeBtn.addEventListener("click", () => {
+
+    function setTheme(theme) {
+      const effective = theme === "" ? (prefersDark ? "dark" : "light") : theme;
+      document.documentElement.setAttribute("data-theme", theme === "" ? effective : theme);
+      localStorage.setItem("terry_music_theme", theme);
+      themeBtn.textContent = theme === "light" ? "☀️" : (theme === "dark" ? "🌙" : "💻");
+      document.querySelectorAll(".theme-menu-item").forEach(item => {
+        item.classList.toggle("active", item.dataset.themeValue === theme);
+      });
+    }
+
+    const savedTheme = localStorage.getItem("terry_music_theme") ?? "";
+    setTheme(savedTheme);
+
+    themeBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
       SoundSystem.play("click");
-      const current = document.documentElement.getAttribute("data-theme");
-      setTheme(current === "light" ? "" : "light");
+      themeMenu.classList.toggle("open");
+    });
+
+    document.addEventListener("click", () => themeMenu.classList.remove("open"));
+
+    document.querySelectorAll(".theme-menu-item").forEach(item => {
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        SoundSystem.play("click");
+        setTheme(item.dataset.themeValue);
+        themeMenu.classList.remove("open");
+      });
     });
     // Sound toggle
     function toggleSound() {
       const enabled = SoundSystem.toggle();
       document.getElementById("soundBtn").textContent = enabled ? "🔊" : "🔇";
       document.getElementById("soundBtn").className = "header-btn sound-toggle " + (enabled ? "on" : "off");
+    }
+    function toggleNotifications() {
+      if (!("Notification" in window)) { showToast(t("notificationsDisabled"), "warning"); return; }
+      const btn = document.getElementById("notifyBtn");
+      if (Notification.permission === "granted") {
+        const enabled = localStorage.getItem("terry_music_notifications") !== "false";
+        localStorage.setItem("terry_music_notifications", String(!enabled));
+        updateNotifyBtn(!enabled);
+        showToast(!enabled ? t("notificationsDisabled") : t("notificationsEnabled"), "success");
+      } else if (Notification.permission === "denied") {
+        showToast(t("notificationsDisabled"), "warning");
+      } else {
+        Notification.requestPermission().then(perm => {
+          if (perm === "granted") {
+            localStorage.setItem("terry_music_notifications", "true");
+            updateNotifyBtn(true);
+            showToast(t("notificationsEnabled"), "success");
+          }
+        });
+      }
+    }
+    function updateNotifyBtn(enabled) {
+      const btn = document.getElementById("notifyBtn");
+      if (!btn) return;
+      btn.textContent = enabled ? "🔔" : "🔕";
+      btn.className = "header-btn notify-toggle " + (enabled ? "on" : "off");
+    }
+    function notifySongReady(title) {
+      if (!("Notification" in window)) return;
+      if (localStorage.getItem("terry_music_notifications") === "false") return;
+      if (Notification.permission !== "granted") return;
+      if (document.hasFocus()) return;
+      const body = t("songReadyNotification").replace("{title}", title);
+      new Notification("Music Speaks", { body: body, icon: "/favicon.ico" });
     }
     // Advanced panel toggle
     const advancedToggle = document.getElementById("advancedToggle");
@@ -1478,7 +2036,7 @@ INDEX_HTML = r"""<!doctype html>
     applyLang();
     loadDraft();
     loadJobs();
-    setInterval(loadJobs, 3000);
+    setInterval(loadJobs, 5000);
     // Play startup sound on first load (user interaction required for audio)
     document.addEventListener("click", function startupSound() {
       SoundSystem.play("startup");
@@ -1827,7 +2385,7 @@ INDEX_HTML = r"""<!doctype html>
 
     function handleRefAudioFile(file) {
       if (!file || !file.type.startsWith("audio/")) {
-        showToast(lang === "en" ? "Please select an audio file." : "请选择一个音频文件。", "error");
+        showToast(t("audioFileRequired"), "error");
         return;
       }
       refAudioFile = file;
@@ -1862,6 +2420,152 @@ INDEX_HTML = r"""<!doctype html>
       refAudioInfo.style.display = "none";
       refAudioMode.style.display = "none";
     });
+  <!-- Stem Separation Modal -->
+  <div id="stemsModal" class="modal-overlay" style="display:none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="stemsModalTitle" data-i18n="stemModalTitle">Split Audio Stems</h3>
+        <button class="modal-close" onclick="closeStemsModal()">✕</button>
+      </div>
+      <div class="modal-body" id="stemsModalBody">
+        <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;" id="stemsModalDesc" data-i18n="stemModalDesc">Download individual tracks from your song.</p>
+        <div id="stemsStatus" style="margin-bottom:16px;"></div>
+        <div id="stemsList" class="stems-grid"></div>
+        <div id="stemsError" style="color:var(--danger);font-size:13px;margin-top:12px;display:none;"></div>
+      </div>
+    </div>
+  </div>
+  <style>
+    .stems-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .stem-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); }
+    .stem-card:hover { border-color: var(--accent); }
+    .stem-icon { font-size: 24px; }
+    .stem-info { flex: 1; }
+    .stem-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+    .stem-label { font-size: 12px; color: var(--text-muted); }
+    .stem-download { padding: 8px 14px; background: var(--accent); border: none; border-radius: var(--radius-sm); color: #000; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .stem-download:hover { background: var(--accent-hover); }
+    .stem-waiting { padding: 8px 14px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-muted); font-size: 12px; }
+    .stem-progress { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
+  </style>
+
+    // ── Stem Separation UI ─────────────────────────────────────
+    let currentStemsJobId = null;
+    let stemsPollTimer = null;
+
+    function openStemsModal(jobId) {
+      currentStemsJobId = jobId;
+      const job = lastJobs.find(j => j.id === jobId);
+      if (!job) { closeStemsModal(); return; }
+      document.getElementById("stemsModalTitle").textContent = t("stemModalTitle");
+      document.getElementById("stemsModalDesc").textContent = t("stemModalDesc");
+      document.getElementById("stemsError").style.display = "none";
+      document.getElementById("stemsModal").style.display = "flex";
+      renderStemsModal(job);
+      if (job.stems_status === "running") {
+        startStemsPoll(jobId);
+      }
+    }
+
+    function closeStemsModal() {
+      document.getElementById("stemsModal").style.display = "none";
+      currentStemsJobId = null;
+      if (stemsPollTimer) { clearInterval(stemsPollTimer); stemsPollTimer = null; }
+    }
+
+    function renderStemsModal(job) {
+      const list = document.getElementById("stemsList");
+      const status = document.getElementById("stemsStatus");
+      const errorEl = document.getElementById("stemsError");
+      const stemInfo = [
+        { key: "vocals", label: t("stemVocals"), icon: "🎤" },
+        { key: "drums", label: t("stemDrums"), icon: "🥁" },
+        { key: "bass", label: t("stemBass"), icon: "🎸" },
+        { key: "other", label: t("stemOther"), icon: "🎹" },
+      ];
+      if (job.stems_status === "running") {
+        status.innerHTML = `<div class="stem-progress"><span class="spinner" style="width:14px;height:14px;border-width:1.5px;"></span> ${t("stemSplitting")}</div>`;
+        list.innerHTML = stemInfo.map(s => `<div class="stem-card"><span class="stem-icon">${s.icon}</span><div class="stem-info"><div class="stem-name">${s.label}</div></div><span class="stem-waiting">...</span></div>`).join("");
+        return;
+      }
+      if (job.stems_status === "error") {
+        status.innerHTML = "";
+        errorEl.style.display = "block";
+        errorEl.textContent = job.stems_error || t("stemError");
+        list.innerHTML = "";
+        return;
+      }
+      if (job.stems_status === "done") {
+        status.innerHTML = `<div style="color:var(--accent);font-size:13px;font-weight:600;margin-bottom:8px;">✅ ${t("stemDone")}</div>`;
+        errorEl.style.display = "none";
+        list.innerHTML = stemInfo.map(s => {
+          const dlUrl = `/api/stems/${encodeURIComponent(job.id)}/${s.key}?client_id=${encodeURIComponent(clientId)}`;
+          return `<div class="stem-card">
+            <span class="stem-icon">${s.icon}</span>
+            <div class="stem-info"><div class="stem-name">${s.label}</div></div>
+            <a class="stem-download" href="${dlUrl}" download="${s.key}.mp3">${t("stemDownload")}</a>
+          </div>`;
+        }).join("");
+        return;
+      }
+      // Not started yet - show buttons to start
+      status.innerHTML = "";
+      errorEl.style.display = "none";
+      list.innerHTML = stemInfo.map(s => {
+        return `<div class="stem-card">
+          <span class="stem-icon">${s.icon}</span>
+          <div class="stem-info"><div class="stem-name">${s.label}</div></div>
+          <button class="btn-secondary" style="padding:8px 14px;font-size:12px;" onclick="startStemsSeparation('${escapeHtml(job.id)}')">${t("stemSplit")}</button>
+        </div>`;
+      }).join("");
+    }
+
+    async function startStemsSeparation(jobId) {
+      const job = lastJobs.find(j => j.id === jobId);
+      if (!job) return;
+      try {
+        const res = await fetch("/api/stems", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...headers() },
+          body: JSON.stringify({ job_id: jobId }),
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.error || "Failed to start separation"); return; }
+        // Update local job status
+        job.stems_status = "running";
+        renderStemsModal(job);
+        startStemsPoll(jobId);
+      } catch(e) {
+        alert("Failed to start separation");
+      }
+    }
+
+    function startStemsPoll(jobId) {
+      if (stemsPollTimer) clearInterval(stemsPollTimer);
+      stemsPollTimer = setInterval(async () => {
+        try {
+          const res = await fetch("/api/jobs", {headers: headers(), cache: "no-store"});
+          const data = await res.json();
+          const updated = (data.jobs || []).find(j => j.id === jobId);
+          if (!updated) { clearInterval(stemsPollTimer); return; }
+          const job = lastJobs.find(j => j.id === jobId);
+          if (job) { job.stems_status = updated.stems_status; job.stems_error = updated.stems_error; }
+          if (updated.stems_status !== "running") {
+            clearInterval(stemsPollTimer);
+            stemsPollTimer = null;
+          }
+          if (jobId === currentStemsJobId) renderStemsModal(updated);
+        } catch {}
+      }, 3000);
+    }
+
+    // Close modal on overlay click
+    document.addEventListener("click", function(e) {
+      if (e.target.classList.contains("modal-overlay") && e.target.id === "stemsModal") {
+        closeStemsModal();
+      }
+    });
+
   </script>
 </body>
 </html>
@@ -1926,7 +2630,7 @@ ADMIN_HTML = r"""<!doctype html>
       }
       jobsBox.innerHTML = jobs.map(job => {
         const download = job.download_url ? `<a class="button" href="${escapeHtml(job.download_url)}" download="${escapeHtml(job.file_name || "terry-music.mp3")}">Download MP3</a>` : "";
-        const title = escapeHtml(job.song_title || job.prompt || "Untitled");
+        const title = escapeHtml(job.song_title || job.prompt || t("untitled"));
         const details = [
           job.prompt ? `<details><summary>Music prompt</summary><pre>${escapeHtml(job.prompt)}</pre></details>` : "",
           job.lyrics_idea ? `<details><summary>Lyrics brief</summary><pre>${escapeHtml(job.lyrics_idea)}</pre></details>` : "",
@@ -2030,6 +2734,27 @@ def load_jobs() -> None:
     JOBS = data if isinstance(data, dict) else {}
 
 
+
+
+def load_feedback() -> None:
+    global FEEDBACK
+    if not FEEDBACK_DB.exists():
+        FEEDBACK = {}
+        return
+    try:
+        data = json.loads(FEEDBACK_DB.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        FEEDBACK = {}
+        return
+    FEEDBACK = data if isinstance(data, dict) else {}
+
+
+def save_feedback_locked() -> None:
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = FEEDBACK_DB.with_suffix(".tmp")
+    tmp.write_text(json.dumps(FEEDBACK, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(FEEDBACK_DB)
+
 def save_jobs_locked() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     tmp = JOBS_DB.with_suffix(".tmp")
@@ -2109,17 +2834,25 @@ def public_job(job: dict[str, Any]) -> dict[str, Any]:
         result["stems_dir"] = job.get("stems_dir")
         if job.get("stems_error"):
             result["stems_error"] = job["stems_error"]
+    # share info
+    if job.get("is_shared"):
+        result["is_shared"] = True
+        result["share_key"] = job.get("share_key")
+        result["share_url"] = f"/?share={job['id']}&key={job['share_key']}"
     return result
 
 
 def admin_job(job: dict[str, Any]) -> dict[str, Any]:
     result = public_job(job)
+    file_size = result.get("file_size", 0)
     result.update({
         "owner_id": job.get("owner_id"),
         "lyrics": job.get("lyrics", ""),
         "lyrics_idea": job.get("lyrics_idea", ""),
         "generated_lyrics": bool(job.get("generated_lyrics")),
         "extra": job.get("extra", {}),
+        "voice_id": job.get("voice_id"),
+        "admin_file_size": file_size,
     })
     if job.get("status") == "completed" and job.get("file_path"):
         result["download_url"] = f"/download/{urllib.parse.quote(str(job['id']))}?admin_key={urllib.parse.quote(ADMIN_KEY)}"
@@ -2502,7 +3235,10 @@ def generate_music(job_id: str) -> None:
             if value:
                 args.extend([flag, value])
         run_mmx(args)
-        mark_job(job_id, status="completed", file_name=file_name, file_path=str(out_path))
+        # Upload to R2 if configured
+        r2_url = upload_to_r2(out_path)
+        final_path = r2_url if r2_url else str(out_path)
+        mark_job(job_id, status="completed", file_name=file_name, file_path=final_path, r2_url=r2_url)
         if job.get("email") and out_path.exists():
             ok = send_email(str(job["email"]), out_path, prompt)
             mark_job(job_id, email_sent=ok)
@@ -2555,7 +3291,10 @@ def generate_music_with_voice(job_id: str) -> None:
             if value:
                 args.extend([flag, value])
         run_mmx(args)
-        mark_job(job_id, status="completed", file_name=file_name, file_path=str(out_path))
+        # Upload to R2 if configured
+        r2_url = upload_to_r2(out_path)
+        final_path = r2_url if r2_url else str(out_path)
+        mark_job(job_id, status="completed", file_name=file_name, file_path=final_path, r2_url=r2_url)
         if job.get("email") and out_path.exists():
             ok = send_email(str(job["email"]), out_path, prompt)
             mark_job(job_id, email_sent=ok)
@@ -2613,7 +3352,10 @@ def generate_music_audio_to_audio(job_id: str) -> None:
             if value:
                 args.extend([flag, value])
         run_mmx(args)
-        mark_job(job_id, status="completed", file_name=file_name, file_path=str(out_path))
+        # Upload to R2 if configured
+        r2_url = upload_to_r2(out_path)
+        final_path = r2_url if r2_url else str(out_path)
+        mark_job(job_id, status="completed", file_name=file_name, file_path=final_path, r2_url=r2_url)
         if job.get("email") and out_path.exists():
             ok = send_email(str(job["email"]), out_path, prompt)
             mark_job(job_id, email_sent=ok)
@@ -2774,13 +3516,92 @@ class MusicHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/jobs":
             client_id = normalize_client_id(self.headers.get("X-Client-Id"))
+            status_filter = parsed.query.get("status", "")
+            search_filter = parsed.query.get("search", "")
+            date_from = parsed.query.get("date_from", "")
+            date_to = parsed.query.get("date_to", "")
+            favorites_only = parsed.query.get("favorites") == "1"
+            page = max(1, int(parsed.query.get("page", 1)))
+            per_page = min(100, max(1, int(parsed.query.get("per_page", 50))))
             with JOBS_LOCK:
-                jobs = sorted(
-                    [public_job(job) for job in JOBS.values() if job.get("owner_id") == client_id],
-                    key=lambda item: str(item.get("created_at", "")),
-                    reverse=True,
-                )
-            self.send_json({"jobs": jobs})
+                all_jobs = [public_job(job) for job in JOBS.values() if job.get("owner_id") == client_id]
+                if status_filter:
+                    statuses = [s.strip() for s in status_filter.split(",")]
+                    all_jobs = [j for j in all_jobs if j.get("status") in statuses]
+                if favorites_only:
+                    all_jobs = [j for j in all_jobs if j.get("favorite")]
+                if date_from:
+                    all_jobs = [j for j in all_jobs if (j.get("created_at") or "") >= date_from]
+                if date_to:
+                    all_jobs = [j for j in all_jobs if (j.get("created_at") or "") <= date_to]
+                if search_filter:
+                    q = search_filter.lower()
+                    all_jobs = [j for j in all_jobs if q in (j.get("song_title") or "").lower() or q in (j.get("prompt") or "").lower()]
+                all_jobs.sort(key=lambda j: str(j.get("created_at", "")), reverse=True)
+                total = len(all_jobs)
+                start = (page - 1) * per_page
+                jobs = all_jobs[start:start + per_page]
+            self.send_json({"jobs": jobs, "total": total, "page": page, "per_page": per_page})
+            return
+        # PATCH /api/jobs/{id}/favorite
+        if parsed.path.startswith("/api/jobs/") and parsed.path.endswith("/favorite"):
+            job_id = urllib.parse.unquote(parsed.path.removeprefix("/api/jobs/").removesuffix("/favorite"))
+            client_id = normalize_client_id(self.headers.get("X-Client-Id"))
+            with JOBS_LOCK:
+                job = JOBS.get(job_id)
+                if not job or job.get("owner_id") != client_id:
+                    self.send_json({"error": "Job not found"}, HTTPStatus.NOT_FOUND)
+                    return
+                job["favorite"] = not job.get("favorite")
+                save_jobs_locked()
+                self.send_json({"job": public_job(job)})
+            return
+        # DELETE /api/jobs/batch
+        if path == "/api/jobs/batch" and self.command == "DELETE":
+            client_id = normalize_client_id(self.headers.get("X-Client-Id"))
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(length) if length else b"{}"
+                ids = json.loads(body.decode("utf-8")).get("ids", [])
+            except Exception:
+                ids = []
+            deleted = 0
+            with JOBS_LOCK:
+                for jid in ids:
+                    if JOBS.get(jid, {}).get("owner_id") == client_id:
+                        JOBS.pop(jid, None)
+                        deleted += 1
+                save_jobs_locked()
+            self.send_json({"deleted": deleted})
+            return
+        # POST /api/jobs/batch/download
+        if path == "/api/jobs/batch/download" and self.command == "POST":
+            client_id = normalize_client_id(self.headers.get("X-Client-Id"))
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(length) if length else b"{}"
+                ids = json.loads(body.decode("utf-8")).get("ids", [])
+            except Exception:
+                ids = []
+            import io, zipfile
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+                with JOBS_LOCK:
+                    for jid in ids:
+                        job = JOBS.get(jid)
+                        if not job or job.get("owner_id") != client_id:
+                            continue
+                        fp = job.get("file_path")
+                        if fp and pathlib.Path(fp).exists():
+                            zf.write(fp, pathlib.Path(fp).name)
+            buf.seek(0)
+            data = buf.read()
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "application/zip")
+            self.send_header("Content-Disposition", "attachment; filename=terry-music-batch.zip")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
             return
         if parsed.path.startswith("/api/jobs/"):
             job_id = urllib.parse.unquote(parsed.path.removeprefix("/api/jobs/"))
