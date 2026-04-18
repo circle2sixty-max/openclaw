@@ -19,12 +19,15 @@ import shutil
 import smtplib
 import subprocess
 import threading
+import time
 import urllib.parse
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+import boto3
+from botocore.config import Config as BotoConfig
 
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "5050"))
@@ -77,6 +80,47 @@ JOBS: dict[str, dict[str, Any]] = {}
 JOBS_LOCK = threading.RLock()
 DRAFTS: dict[str, dict[str, Any]] = {}
 DRAFTS_LOCK = threading.RLock()
+
+# ── Rate Limiting ─────────────────────────────────────────────────────────────
+_RATE_LIMIT_WINDOW = 60  # seconds
+_RATE_LIMIT_MAX = 30     # max requests per window per IP
+_RATE_IP_REQUESTS: dict[str, list[float]] = {}
+_RATE_IP_LOCK = threading.Lock()
+
+# ── Security Headers ───────────────────────────────────────────────────────────
+_CORS_ORIGINS = os.getenv("CORS_ORIGINS", "")  # comma-separated list, empty = no CORS
+_ALLOWED_ORIGINS = [o.strip() for o in _CORS_ORIGINS.split(",") if o.strip()] if _CORS_ORIGINS else []
+_SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "X-XSS-Protection": "1; mode=block",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "microphone=(self), camera=()",
+}
+
+
+def _rate_limit_ip(client_ip: str) -> bool:
+    """Return True if the IP is within rate limits, False if blocked."""
+    now = time.time()
+    with _RATE_IP_LOCK:
+        if client_ip not in _RATE_IP_REQUESTS:
+            _RATE_IP_REQUESTS[client_ip] = []
+        timestamps = _RATE_IP_REQUESTS[client_ip]
+        # Remove timestamps outside the window
+        cutoff = now - _RATE_LIMIT_WINDOW
+        timestamps[:] = [t for t in timestamps if t > cutoff]
+        if len(timestamps) >= _RATE_LIMIT_MAX:
+            return False
+        timestamps.append(now)
+        return True
+
+
+def _get_client_ip(handler: "MusicHandler") -> str:
+    """Extract client IP from request, checking X-Forwarded-For header."""
+    xff = handler.headers.get("X-Forwarded-For", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return handler.address_string().split(":")[0] if ":" in handler.address_string() else handler.address_string()
 
 INDEX_HTML = r"""<!doctype html>
 <html lang="en">
@@ -176,6 +220,18 @@ INDEX_HTML = r"""<!doctype html>
     .form-section:last-child { margin-bottom: 0; }
     .form-label { display: block; font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
     .form-hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+    /* Character counter */
+    .char-counter { display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 6px; font-size: 11px; color: var(--text-muted); transition: color 0.2s; }
+    .char-counter.warning { color: var(--warning); }
+    .char-counter.danger { color: var(--danger); font-weight: 600; }
+    .char-counter .counter-bar { width: 40px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .char-counter .counter-fill { height: 100%; background: var(--accent); transition: width 0.2s, background 0.2s; }
+    .char-counter.warning .counter-fill { background: var(--warning); }
+    .char-counter.danger .counter-fill { background: var(--danger); }
+    /* Input with counter */
+    .input-with-counter { position: relative; }
+    .input-with-counter .form-input { padding-bottom: 24px; }
+    .input-with-counter .char-counter { position: absolute; bottom: 8px; right: 12px; }
     .form-input { width: 100%; padding: 12px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-primary); font-size: 14px; transition: var(--transition); }
     .form-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
     .form-input::placeholder { color: var(--text-muted); }
@@ -210,6 +266,21 @@ INDEX_HTML = r"""<!doctype html>
     .param-field label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
     .param-field input { padding: 10px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 13px; }
     .param-field input:focus { outline: none; border-color: var(--accent); }
+    /* Reference Audio */
+    .ref-audio-section { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px; }
+    .ref-audio-section h4 { font-size: 13px; font-weight: 600; color: var(--text-primary); margin: 0 0 12px 0; }
+    .ref-audio-dropzone { border: 2px dashed var(--border); border-radius: var(--radius-sm); padding: 24px; text-align: center; cursor: pointer; transition: var(--transition); }
+    .ref-audio-dropzone:hover, .ref-audio-dropzone.dragover { border-color: var(--accent); background: rgba(29,185,84,0.05); }
+    .ref-audio-dropzone p { margin: 0; font-size: 13px; color: var(--text-muted); }
+    .ref-audio-dropzone .icon { font-size: 28px; margin-bottom: 8px; }
+    .ref-audio-info { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+    .ref-audio-info audio { flex: 1; height: 36px; }
+    .ref-audio-mode { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+    .ref-audio-mode label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); cursor: pointer; padding: 8px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-sm); transition: var(--transition); }
+    .ref-audio-mode label:hover { border-color: var(--border-light); }
+    .ref-audio-mode label input { accent-color: var(--accent); }
+    .ref-audio-mode label input:checked ~ span { color: var(--accent); font-weight: 600; }
+    .ref-audio-mode label input:checked + span { color: var(--accent); }
     /* Actions */
     .form-actions { display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap; }
     .btn-primary { flex: 1; padding: 14px 24px; background: var(--accent); border: none; border-radius: var(--radius-md); color: #000; font-size: 14px; font-weight: 700; cursor: pointer; transition: var(--transition); display: flex; align-items: center; justify-content: center; gap: 8px; }
@@ -220,6 +291,12 @@ INDEX_HTML = r"""<!doctype html>
     .btn-voice { padding: 12px 16px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-primary); font-size: 13px; font-weight: 600; cursor: pointer; transition: var(--transition); display: flex; align-items: center; gap: 8px; }
     .btn-voice:hover { border-color: var(--accent); color: var(--accent); }
     .error-text { color: var(--danger); font-size: 13px; min-height: 20px; margin-top: 12px; }
+    .error-alert { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; background: rgba(255,82,82,0.12); border: 1px solid var(--danger); border-radius: var(--radius-md); margin-top: 12px; animation: slide-in-right 0.3s ease-out; }
+    .error-alert-icon { font-size: 18px; flex-shrink: 0; }
+    .error-alert-content { flex: 1; }
+    .error-alert-message { color: var(--danger); font-size: 13px; font-weight: 500; line-height: 1.4; }
+    .error-alert-close { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 16px; padding: 0; opacity: 0.7; }
+    .error-alert-close:hover { opacity: 1; }
     /* Jobs Panel */
     .jobs-panel { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-top: 24px; max-width: 900px; }
     .jobs-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
@@ -324,6 +401,15 @@ INDEX_HTML = r"""<!doctype html>
     @keyframes glow { 0%, 100% { box-shadow: 0 0 5px var(--accent); } 50% { box-shadow: 0 0 20px var(--accent), 0 0 30px var(--accent-dim); } }
     @keyframes ripple { to { transform: scale(4); opacity: 0; } }
     @keyframes beat { 0% { transform: scale(1); } 15% { transform: scale(1.15); } 30% { transform: scale(1); } 45% { transform: scale(1.1); } 60% { transform: scale(1); } }
+    @keyframes eq1 { 0%, 100% { height: 4px; } 50% { height: 16px; } }
+    @keyframes eq2 { 0%, 100% { height: 8px; } 50% { height: 20px; } }
+    @keyframes eq3 { 0%, 100% { height: 12px; } 50% { height: 24px; } }
+    @keyframes eq4 { 0%, 100% { height: 6px; } 50% { height: 18px; } }
+    @keyframes loading-dots { 0%, 20% { opacity: 0; } 40%, 100% { opacity: 1; } }
+    @keyframes morph { 0% { border-radius: 50%; transform: scale(0.8); } 50% { border-radius: 40%; transform: scale(1.1); } 100% { border-radius: 50%; transform: scale(0.8); } }
+    @keyframes gradient-shift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+    @keyframes slide-in-right { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
     .animate-spin { animation: spin 1s linear infinite; }
     .animate-pulse { animation: pulse 1.5s ease-in-out infinite; }
@@ -334,8 +420,10 @@ INDEX_HTML = r"""<!doctype html>
     .animate-slide-down { animation: slide-down 0.4s ease-out forwards; }
     .animate-glow { animation: glow 2s ease-in-out infinite; }
     .animate-beat { animation: beat 1s ease-in-out; }
+    .animate-morph { animation: morph 1.2s ease-in-out infinite; }
+    .animate-float { animation: float 2s ease-in-out infinite; }
 
-    /* Loading spinner */
+    /* Enhanced Loading spinners */
     .spinner {
       width: 18px;
       height: 18px;
@@ -344,11 +432,30 @@ INDEX_HTML = r"""<!doctype html>
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
       display: inline-block;
+      vertical-align: middle;
     }
     .spinner-white {
       border-color: rgba(255,255,255,0.2);
       border-top-color: #fff;
     }
+    /* Music Equalizer Loading */
+    .eq-loader { display: inline-flex; align-items: center; gap: 3px; height: 20px; }
+    .eq-loader span { width: 4px; background: var(--accent); border-radius: 2px; animation: eq1 0.8s ease-in-out infinite; }
+    .eq-loader span:nth-child(1) { animation-name: eq1; }
+    .eq-loader span:nth-child(2) { animation-name: eq2; animation-delay: 0.1s; }
+    .eq-loader span:nth-child(3) { animation-name: eq3; animation-delay: 0.2s; }
+    .eq-loader span:nth-child(4) { animation-name: eq4; animation-delay: 0.3s; }
+    .eq-loader span:nth-child(5) { animation-name: eq2; animation-delay: 0.15s; }
+    /* Pulsing dots loading */
+    .loading-dots { display: inline-flex; gap: 4px; align-items: center; }
+    .loading-dots span { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: loading-dots 1.4s ease-in-out infinite; }
+    .loading-dots span:nth-child(1) { animation-delay: 0s; }
+    .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+    /* Morphing loader */
+    .morph-loader { width: 24px; height: 24px; background: var(--accent); animation: morph 1.2s ease-in-out infinite; display: inline-block; }
+    /* Gradient animated loader */
+    .gradient-loader { width: 24px; height: 24px; background: linear-gradient(135deg, var(--accent), var(--accent-hover), var(--accent)); background-size: 200% 200%; animation: gradient-shift 1.5s ease infinite; border-radius: 6px; display: inline-block; }
 
     /* Sound toggle */
     .sound-toggle { position: relative; }
@@ -488,6 +595,25 @@ INDEX_HTML = r"""<!doctype html>
                 <span class="advanced-toggle-icon">▼</span>
               </div>
               <div class="advanced-panel" id="advancedPanel">
+                <!-- Reference Audio -->
+                <div class="ref-audio-section" id="refAudioSection">
+                  <h4 data-i18n="refAudioTitle">Reference Audio (Audio-to-Audio)</h4>
+                  <div class="ref-audio-dropzone" id="refAudioDropzone">
+                    <div class="icon">🎵</div>
+                    <p data-i18n="refAudioDrop">Drop audio file here or click to upload (MP3, WAV, 6s-6min)</p>
+                  </div>
+                  <input type="file" id="refAudioFile" accept="audio/*" style="display:none;">
+                  <div id="refAudioInfo" class="ref-audio-info" style="display:none;">
+                    <audio id="refAudioPreview" controls style="flex:1;height:36px;"></audio>
+                    <button id="refAudioRemove" class="btn-secondary" type="button" data-i18n="refAudioRemove">Remove</button>
+                  </div>
+                  <div class="ref-audio-mode" id="refAudioMode" style="display:none;">
+                    <label><input type="radio" name="refMode" value="style" checked><span data-i18n="refModeStyle">Style Transfer</span></label>
+                    <label><input type="radio" name="refMode" value="keep_vocals"><span data-i18n="refModeKeepVocals">Keep Vocals</span></label>
+                    <label><input type="radio" name="refMode" value="remix"><span data-i18n="refModeRemix">Remix</span></label>
+                  </div>
+                  <div class="form-hint" data-i18n="refAudioHint">Upload reference audio to generate music with similar style. Style Transfer uses the reference as style inspiration.</div>
+                </div>
                 <div class="param-grid">
                   <div class="param-field"><label data-i18n="genre">Genre</label><input id="genre" data-i18n-placeholder="genrePlaceholder" placeholder="pop, reggae, jazz"></div>
                   <div class="param-field"><label data-i18n="mood">Mood</label><input id="mood" data-i18n-placeholder="moodPlaceholder" placeholder="warm, bright, intense"></div>
@@ -499,6 +625,15 @@ INDEX_HTML = r"""<!doctype html>
                   <div class="param-field" style="grid-column:1/-1;"><label data-i18n="structure">Song Structure</label><input id="structure" data-i18n-placeholder="structurePlaceholder" placeholder="verse-chorus-verse-bridge-chorus"></div>
                   <div class="param-field" style="grid-column:1/-1;"><label data-i18n="references">References</label><input id="references" data-i18n-placeholder="referencesPlaceholder" placeholder="similar to..."></div>
                   <div class="param-field" style="grid-column:1/-1;"><label data-i18n="avoid">Avoid</label><input id="avoid" data-i18n-placeholder="avoidPlaceholder" placeholder="explicit content, auto-tune"></div>
+                  <div class="param-field"><label data-i18n="duration">Duration</label><select id="duration" class="form-input">
+                    <option value="30" data-i18n="duration30s">30 seconds (default)</option>
+                    <option value="60" data-i18n="duration1m">1 minute</option>
+                    <option value="120" data-i18n="duration2m">2 minutes</option>
+                    <option value="180" data-i18n="duration3m">3 minutes</option>
+                    <option value="300" data-i18n="duration5m">5 minutes</option>
+                    <option value="600" data-i18n="duration10m">10 minutes</option>
+                  </select></div>
+                  <div class="param-field" style="grid-column:1/-1;"><div class="form-hint" data-i18n="durationHint">MiniMax generates ~30s per call. Longer durations require multiple generations and will take more time.</div></div>
                 </div>
               </div>
             </div>
@@ -697,6 +832,11 @@ INDEX_HTML = r"""<!doctype html>
         templates: "Prompt Templates",
         advanced: "More Parameters", genre: "Genre", mood: "Mood", instruments: "Instruments", tempo: "Tempo Feel", bpm: "BPM", key: "Musical Key",
         vocals: "Vocal Style", structure: "Song Structure", references: "References", avoid: "Avoid", useCase: "Use Case", extra: "Extra Details",
+        refAudioTitle: "Reference Audio (Audio-to-Audio)", refAudioDrop: "Drop audio file here or click to upload (MP3, WAV, 6s-6min)",
+        refAudioRemove: "Remove", refAudioHint: "Upload reference audio to generate music with similar style. Style Transfer uses the reference as style inspiration.",
+        refModeStyle: "Style Transfer", refModeKeepVocals: "Keep Vocals", refModeRemix: "Remix",
+        duration: "Duration", durationHint: "MiniMax generates ~30s per call. Longer durations require multiple generations and will take more time.",
+        duration30s: "30 seconds (default)", duration1m: "1 minute", duration2m: "2 minutes", duration3m: "3 minutes", duration5m: "5 minutes", duration10m: "10 minutes",
         genrePlaceholder: "pop, reggae, jazz", moodPlaceholder: "warm, bright, intense", instrumentsPlaceholder: "piano, guitar, drums",
         tempoPlaceholder: "fast, slow, moderate", bpmPlaceholder: "85", keyPlaceholder: "C major, A minor",
         vocalsPlaceholder: "warm male vocal, bright female vocal, duet", structurePlaceholder: "verse-chorus-verse-bridge-chorus",
@@ -709,7 +849,11 @@ INDEX_HTML = r"""<!doctype html>
         download: "Download MP3", delete: "Delete", sent: "Sent to", instrumentalMode: "Instrumental", vocalMode: "Vocal", deleteConfirm: "Delete this job?", deleteFailed: "Delete failed",
         navCreate: "Create", navLibrary: "Library", navFavorites: "Favorites", navHistory: "History", navPlaylists: "Playlists", playlistAll: "All Songs", playlistRecent: "Recently Played",
         libraryDesc: "All your generated songs in one place.", favoritesDesc: "Your liked and saved songs.", historyDesc: "Recently generated songs.",
-        toastMusicStarted: "Music generation started!", toastMusicReady: "Music ready: ", toastLyricsSuccess: "Lyrics generated successfully!", toastLyricsError: "Lyrics generation failed.", toastVoiceCloneSuccess: "Voice cloned successfully!", toastVoiceCloneError: "Voice clone failed."
+        toastMusicStarted: "Music generation started!", toastMusicReady: "Music ready: ", toastLyricsSuccess: "Lyrics generated successfully!", toastLyricsError: "Lyrics generation failed.", toastVoiceCloneSuccess: "Voice cloned successfully!", toastVoiceCloneError: "Voice clone failed.",
+        stemSplit: "Split Audio", stemSplitting: "Splitting...", stemDone: "Split Complete", stemError: "Split Failed",
+        stemDrums: "Drums", stemBass: "Bass", stemVocals: "Vocals", stemOther: "Instrumental",
+        stemDownload: "Download", stemModalTitle: "Split Audio Stems", stemModalDesc: "Download individual tracks from your song.",
+        notificationsEnabled: "Notifications enabled", notificationsDisabled: "Notifications disabled", songReadyNotification: "Your song \"{title}\" is ready!"
       },
       zh: {
         subtitle: "当语言无法抵达时，让音乐替你表达。给你的内心世界一种属于自己的声音。",
@@ -735,6 +879,11 @@ INDEX_HTML = r"""<!doctype html>
         templates: "风格模板",
         advanced: "更多参数", genre: "流派", mood: "情绪", instruments: "乐器", tempo: "节奏感", bpm: "BPM", key: "调性",
         vocals: "人声风格", structure: "歌曲结构", references: "参考对象", avoid: "避免元素", useCase: "使用场景", extra: "其他细节",
+        refAudioTitle: "参考音频（Audio-to-Audio）", refAudioDrop: "拖拽音频文件到此处或点击上传（MP3、WAV，6秒-6分钟）",
+        refAudioRemove: "移除", refAudioHint: "上传参考音频以生成相似风格的音乐。风格迁移会将参考音频作为风格灵感。",
+        refModeStyle: "风格迁移", refModeKeepVocals: "保留人声", refModeRemix: "混音",
+        duration: "时长", durationHint: "MiniMax 每次生成约30秒。更长时长需要多次生成，耗时更久。",
+        duration30s: "30秒（默认）", duration1m: "1分钟", duration2m: "2分钟", duration3m: "3分钟", duration5m: "5分钟", duration10m: "10分钟",
         genrePlaceholder: "流行、雷鬼、爵士", moodPlaceholder: "温暖、明亮、强烈", instrumentsPlaceholder: "钢琴、吉他、鼓",
         tempoPlaceholder: "快、中速、慢", bpmPlaceholder: "85", keyPlaceholder: "C 大调、A 小调",
         vocalsPlaceholder: "温暖男声、明亮女声、男女对唱", structurePlaceholder: "主歌-副歌-主歌-桥段-副歌",
@@ -747,7 +896,10 @@ INDEX_HTML = r"""<!doctype html>
         download: "下载 MP3", delete: "删除", sent: "已发送到", instrumentalMode: "纯音乐", vocalMode: "有人声", deleteConfirm: "删除此任务？", deleteFailed: "删除失败",
         navCreate: "创建", navLibrary: "曲库", navFavorites: "收藏", navHistory: "历史", navPlaylists: "播放列表", playlistAll: "全部歌曲", playlistRecent: "最近播放",
         libraryDesc: "你生成的所有歌曲。", favoritesDesc: "你喜欢的歌曲。", historyDesc: "最近生成的歌曲。",
-        toastMusicStarted: "音乐生成已开始！", toastMusicReady: "音乐完成：", toastLyricsSuccess: "歌词生成成功！", toastLyricsError: "歌词生成失败。", toastVoiceCloneSuccess: "声音复刻成功！", toastVoiceCloneError: "声音复刻失败。"
+        toastMusicStarted: "音乐生成已开始！", toastMusicReady: "音乐完成：", toastLyricsSuccess: "歌词生成成功！", toastLyricsError: "歌词生成失败。", toastVoiceCloneSuccess: "声音复刻成功！", toastVoiceCloneError: "声音复刻失败。",
+        stemSplit: "分离音轨", stemSplitting: "分离中...", stemDone: "分离完成", stemError: "分离失败",
+        stemDrums: "鼓", stemBass: "贝斯", stemVocals: "人声", stemOther: "器乐",
+        stemDownload: "下载", stemModalTitle: "分离音频音轨", stemModalDesc: "下载歌曲的各个音轨。"
       }
     };
 
@@ -789,6 +941,7 @@ INDEX_HTML = r"""<!doctype html>
     const voicePreviewAudio = document.getElementById("voicePreviewAudio");
     let clonedVoiceId = localStorage.getItem("terry_music_voice_id") || "";
     let voiceCloneExpires = localStorage.getItem("terry_music_voice_expires") || "";
+    let refAudioFile = null;
     const clientId = (() => {
       const key = "terry_music_client_id";
       let id = localStorage.getItem(key);
@@ -908,6 +1061,7 @@ INDEX_HTML = r"""<!doctype html>
         is_instrumental: instrumental.checked, lyrics_optimizer: lyricsOptimizer.checked,
         genre: get("genre"), mood: get("mood"), instruments: get("instruments"), tempo: get("tempo"), bpm: get("bpm"), key: get("key"),
         vocals: get("vocals"), structure: get("structure"), references: get("references"), avoid: get("avoid"), use_case: get("useCase"), extra: get("extra"),
+        duration: get("duration"),
         voice_id: clonedVoiceId,
       };
     }
@@ -1240,7 +1394,15 @@ INDEX_HTML = r"""<!doctype html>
       submitBtn.classList.add("animate-pulse");
       submitBtn.innerHTML = '<span class="spinner"></span> Generating... 0s';
       const payload = collectPayload();
-      const endpoint = clonedVoiceId ? "/api/jobs/voice" : "/api/jobs";
+      if (parseInt(payload.duration || "30") > 30) {
+        showToast(lang === "en" ? "Extended duration selected — generation will take longer than usual." : "已选择延长时长 — 生成时间会比平时更长。", "info", 5000);
+      }
+      let endpoint = clonedVoiceId ? "/api/jobs/voice" : "/api/jobs";
+      let useFormData = false;
+      if (refAudioFile) {
+        endpoint = "/api/jobs/audio-to-audio";
+        useFormData = true;
+      }
       let currentJobId = null;
       // Progress updater: update button text with elapsed time and poll job status
       const progressTimer = setInterval(async () => {
@@ -1275,7 +1437,17 @@ INDEX_HTML = r"""<!doctype html>
         }
       }, 2000);
       try {
-        const res = await fetch(endpoint, {method: "POST", headers: headers({"Content-Type": "application/json"}), body: JSON.stringify(payload)});
+        let res;
+        if (useFormData) {
+          const fd = new FormData();
+          fd.append("audio", refAudioFile, refAudioFile.name);
+          const refModeInput = document.querySelector("input[name='refMode']:checked");
+          fd.append("ref_mode", refModeInput ? refModeInput.value : "style");
+          fd.append("payload", JSON.stringify(payload));
+          res = await fetch(endpoint, {method: "POST", headers: headers(), body: fd});
+        } else {
+          res = await fetch(endpoint, {method: "POST", headers: headers({"Content-Type": "application/json"}), body: JSON.stringify(payload)});
+        }
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           clearInterval(progressTimer);
@@ -1644,6 +1816,52 @@ INDEX_HTML = r"""<!doctype html>
         openVoiceRecorder();
       }
     });
+
+    // Reference Audio handling
+    const refAudioDropzone = document.getElementById("refAudioDropzone");
+    const refAudioFileInput = document.getElementById("refAudioFile");
+    const refAudioInfo = document.getElementById("refAudioInfo");
+    const refAudioPreview = document.getElementById("refAudioPreview");
+    const refAudioRemove = document.getElementById("refAudioRemove");
+    const refAudioMode = document.getElementById("refAudioMode");
+
+    function handleRefAudioFile(file) {
+      if (!file || !file.type.startsWith("audio/")) {
+        showToast(lang === "en" ? "Please select an audio file." : "请选择一个音频文件。", "error");
+        return;
+      }
+      refAudioFile = file;
+      const url = URL.createObjectURL(file);
+      refAudioPreview.src = url;
+      refAudioDropzone.style.display = "none";
+      refAudioInfo.style.display = "flex";
+      refAudioMode.style.display = "flex";
+    }
+
+    refAudioDropzone.addEventListener("click", () => refAudioFileInput.click());
+    refAudioDropzone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      refAudioDropzone.classList.add("dragover");
+    });
+    refAudioDropzone.addEventListener("dragleave", () => refAudioDropzone.classList.remove("dragover"));
+    refAudioDropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      refAudioDropzone.classList.remove("dragover");
+      const file = e.dataTransfer.files[0];
+      handleRefAudioFile(file);
+    });
+    refAudioFileInput.addEventListener("change", () => {
+      const file = refAudioFileInput.files[0];
+      handleRefAudioFile(file);
+    });
+    refAudioRemove.addEventListener("click", () => {
+      refAudioFile = null;
+      refAudioFileInput.value = "";
+      refAudioPreview.src = "";
+      refAudioDropzone.style.display = "block";
+      refAudioInfo.style.display = "none";
+      refAudioMode.style.display = "none";
+    });
   </script>
 </body>
 </html>
@@ -1815,7 +2033,7 @@ def load_jobs() -> None:
 def save_jobs_locked() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     tmp = JOBS_DB.with_suffix(".tmp")
-    tmp.write_text(json.dumps(JOBS, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.write_text(json.dumps(JOBS, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     tmp.replace(JOBS_DB)
 
 
@@ -1835,7 +2053,7 @@ def load_drafts() -> None:
 def save_drafts_locked() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     tmp = DRAFTS_DB.with_suffix(".tmp")
-    tmp.write_text(json.dumps(DRAFTS, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.write_text(json.dumps(DRAFTS, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     tmp.replace(DRAFTS_DB)
 
 
@@ -1866,9 +2084,31 @@ def clean_draft_payload(form: dict[str, Any]) -> dict[str, Any]:
 
 
 def public_job(job: dict[str, Any]) -> dict[str, Any]:
-    result = {key: job.get(key) for key in ("id", "status", "created_at", "updated_at", "prompt", "song_title", "generated_title", "title_error", "email", "is_instrumental", "lyrics_optimizer", "file_name", "error", "email_sent")}
+    result = {key: job.get(key) for key in ("id", "status", "created_at", "updated_at", "prompt", "song_title", "generated_title", "title_error", "email", "is_instrumental", "lyrics_optimizer", "file_name", "error", "email_sent", "favorite")}
     if job.get("status") == "completed" and job.get("file_path"):
         result["download_url"] = f"/download/{urllib.parse.quote(str(job['id']))}"
+        # duration in seconds
+        started = job.get("started_at")
+        ended = job.get("completed_at")
+        if started and ended:
+            result["duration"] = round(ended - started, 1)
+        # file size
+        fp = job.get("file_path")
+        if fp and isinstance(fp, str):
+            try:
+                result["file_size"] = pathlib.Path(fp).stat().st_size
+            except Exception:
+                pass
+        # params summary
+        params_keys = ("genre", "mood", "instruments", "tempo", "bpm", "key", "vocals", "structure", "duration_sec", "extra")
+        params = {k: job.get(k) for k in params_keys if job.get(k)}
+        if params:
+            result["params"] = params
+    if job.get("stems_status") in ("done", "error", "running"):
+        result["stems_status"] = job["stems_status"]
+        result["stems_dir"] = job.get("stems_dir")
+        if job.get("stems_error"):
+            result["stems_error"] = job["stems_error"]
     return result
 
 
@@ -2323,8 +2563,67 @@ def generate_music_with_voice(job_id: str) -> None:
         mark_job(job_id, status="error", error=str(exc))
 
 
+def generate_music_audio_to_audio(job_id: str) -> None:
+    """Generate music using a reference audio file for audio-to-audio cover."""
+    with JOBS_LOCK:
+        job = dict(JOBS[job_id])
+    mark_job(job_id, status="running", error=None)
+    audio_path = str(job.get("ref_audio_path", "")).strip()
+    if not audio_path or not Path(audio_path).exists():
+        mark_job(job_id, status="error", error="Reference audio file not found.")
+        return
+    try:
+        prompt = str(job["prompt"])
+        lyrics = str(job.get("lyrics", "")).strip()
+        lyrics_idea = str(job.get("lyrics_idea", "")).strip()
+        song_title = clean_song_title(str(job.get("song_title", "")).strip())
+        ref_mode = str(job.get("ref_mode", "style")).strip()
+        if not job.get("is_instrumental") and not lyrics and (lyrics_idea or job.get("lyrics_optimizer")):
+            lyrics = generate_lyrics_from_text_model(job)
+            mark_job(job_id, lyrics=lyrics, generated_lyrics=True)
+        if not song_title:
+            try:
+                song_title = generate_title_from_text_model(job, lyrics)
+                mark_job(job_id, song_title=song_title, generated_title=True, title_error=None)
+            except Exception as exc:
+                song_title = fallback_song_title(job, lyrics)
+                mark_job(job_id, song_title=song_title, generated_title=False, title_error=str(exc))
+        else:
+            mark_job(job_id, song_title=song_title, generated_title=False, title_error=None)
+        file_name = download_file_name(song_title)
+        stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+        out_path = OUTPUT_DIR / f"terry_music_{stamp}_{safe_name(song_title)}_{job_id[:8]}.mp3"
+        # Build the prompt based on ref_mode
+        enhanced_prompt = prompt
+        if ref_mode == "keep_vocals":
+            enhanced_prompt = f"Keep the vocals from the reference, {prompt}"
+        elif ref_mode == "remix":
+            enhanced_prompt = f"Remix style, blend with {prompt}"
+        # Use music cover with reference audio
+        args = ["music", "cover", "--prompt", enhanced_prompt, "--audio-file", audio_path, "--out", str(out_path), "--non-interactive"]
+        if lyrics:
+            args.extend(["--lyrics", lyrics])
+        option_map = {
+            "genre": "--genre", "mood": "--mood", "instruments": "--instruments", "tempo": "--tempo",
+            "bpm": "--bpm", "key": "--key", "vocals": "--vocals", "structure": "--structure",
+            "references": "--references", "avoid": "--avoid", "use_case": "--use-case", "extra": "--extra",
+        }
+        for key, flag in option_map.items():
+            value = str(job.get("extra", {}).get(key, "")).strip()
+            if value:
+                args.extend([flag, value])
+        run_mmx(args)
+        mark_job(job_id, status="completed", file_name=file_name, file_path=str(out_path))
+        if job.get("email") and out_path.exists():
+            ok = send_email(str(job["email"]), out_path, prompt)
+            mark_job(job_id, email_sent=ok)
+    except Exception as exc:
+        mark_job(job_id, status="error", error=str(exc))
+
+
 class MusicHandler(BaseHTTPRequestHandler):
     server_version = "MusicSpeaks/1.0"
+    STEM_STEMS = ("drums", "bass", "vocals", "other")
 
     def log_message(self, fmt: str, *args: Any) -> None:
         print(f"{self.log_date_time_string()} {self.address_string()} {fmt % args}")
@@ -2336,41 +2635,116 @@ class MusicHandler(BaseHTTPRequestHandler):
             key = key or (query.get("key") or query.get("admin_key") or [""])[0]
         return bool(ADMIN_KEY and key and hmac.compare_digest(key, ADMIN_KEY))
 
-    def send_json(self, payload: dict[str, Any], status: HTTPStatus = HTTPStatus.OK) -> None:
-        data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        self.send_response(status)
+    def rate_limit_check(self) -> bool:
+        """Check rate limit for client IP. Returns True if allowed, False if blocked."""
+        ip = _get_client_ip(self)
+        if not _rate_limit_ip(ip):
+            self.send_json({"error": "Too many requests. Please slow down."}, HTTPStatus.TOO_MANY_REQUESTS)
+            return False
+        return True
+
+    def send_security_headers(self) -> None:
+        """Add security headers to all responses."""
+        for name, value in _SECURITY_HEADERS.items():
+            self.send_header(name, value)
+
+    def add_cors_headers(self) -> None:
+        """Add CORS headers if configured."""
+        if not _ALLOWED_ORIGINS:
+            return
+        origin = self.headers.get("Origin", "")
+        if origin in _ALLOWED_ORIGINS:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Client-Id, X-Admin-Key")
+            self.send_header("Access-Control-Max-Age", "86400")
+
+    # Compress buffer for gzip responses (class-level to reuse across requests)
+    _gzip_buf: bytearray | None = None
+
+    def send_json(self, payload: dict[str, Any], status: HTTPStatus = HTTPStatus.OK, cacheable: bool = False) -> None:
+        data = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        accept_encoding = self.headers.get("Accept-Encoding", "")
+        if "gzip" in accept_encoding and len(data) > 512:
+            import gzip, io
+            buf = bytearray()
+            with gzip.GzipFile(fileobj=io.BytesIO(buf), mode="wb") as gz:
+                gz.write(data)
+            data = bytes(buf)
+            self.send_response(status)
+            self.send_header("Content-Encoding", "gzip")
+        else:
+            self.send_response(status)
+        self.send_security_headers()
+        self.add_cors_headers()
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
-        self.send_header("Cache-Control", "no-store")
+        if cacheable:
+            etag = hashlib.md5(data[:64]).hexdigest()
+            self.send_header("ETag", f'"{etag}"')
+            self.send_header("Cache-Control", "private, max-age=5")
+            if_none = self.headers.get("If-None-Match", "")
+            if if_none and hmac.compare_digest(if_none, f'"{etag}"'):
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                self.wfile.write(b"")
+                return
+        else:
+            self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(data)
 
     def send_text(self, text: str, status: HTTPStatus = HTTPStatus.OK) -> None:
         data = text.encode("utf-8")
         self.send_response(status)
+        self.send_security_headers()
+        self.add_cors_headers()
         self.send_header("Content-Type", "text/plain; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
 
+    def _etag_for(self, data: bytes) -> str:
+        return f'"{hashlib.md5(data[:64]).hexdigest()}"'
+
+    def _check_etag(self, etag: str) -> bool:
+        if_none = self.headers.get("If-None-Match", "")
+        return bool(if_none and hmac.compare_digest(if_none, etag))
+
     def do_GET(self) -> None:
+        if not self.rate_limit_check():
+            return
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         if path == "/":
             data = INDEX_HTML.encode("utf-8")
+            etag = self._etag_for(data)
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
-            self.send_header("Cache-Control", "no-store")
+            self.send_header("ETag", etag)
+            self.send_header("Cache-Control", "private, max-age=10")
+            if self._check_etag(etag):
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                self.wfile.write(b"")
+                return
             self.end_headers()
             self.wfile.write(data)
             return
         if path == "/admin":
             data = ADMIN_HTML.encode("utf-8")
+            etag = self._etag_for(data)
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
-            self.send_header("Cache-Control", "no-store")
+            self.send_header("ETag", etag)
+            self.send_header("Cache-Control", "private, max-age=10")
+            if self._check_etag(etag):
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                self.wfile.write(b"")
+                return
             self.end_headers()
             self.wfile.write(data)
             return
@@ -2384,7 +2758,7 @@ class MusicHandler(BaseHTTPRequestHandler):
                 "smtp_configured": bool(SMTP_USER and SMTP_PASSWORD),
                 "smtp_host": SMTP_HOST,
                 "smtp_port": SMTP_PORT,
-            })
+            }, cacheable=True)
             return
         if path == "/api/admin/jobs":
             if not self.is_admin_request(parsed):
@@ -2427,11 +2801,91 @@ class MusicHandler(BaseHTTPRequestHandler):
         if path.startswith("/download/"):
             self.handle_download(path.removeprefix("/download/"), parsed.query)
             return
+        if path.startswith("/api/stems/"):
+            self.handle_stems_download(path, parsed.query)
+            return
         if path == "/favicon.ico":
             self.send_response(HTTPStatus.NO_CONTENT)
             self.end_headers()
             return
         self.send_text("Not found", HTTPStatus.NOT_FOUND)
+
+
+    def handle_stems_request(self) -> None:
+        """POST /api/stems — start stem separation for a completed job."""
+        try:
+            form = self.read_json_body()
+        except ValueError as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            return
+        job_id = str(form.get("job_id", "")).strip()
+        if not job_id:
+            self.send_json({"error": "job_id is required"}, HTTPStatus.BAD_REQUEST)
+            return
+        client_id = normalize_client_id(self.headers.get("X-Client-Id"))
+        with JOBS_LOCK:
+            job = JOBS.get(job_id)
+            if not job or job.get("owner_id") != client_id:
+                self.send_json({"error": "Job not found"}, HTTPStatus.NOT_FOUND)
+                return
+            if job.get("status") != "completed" or not job.get("file_path"):
+                self.send_json({"error": "Job is not completed"}, HTTPStatus.BAD_REQUEST)
+                return
+            if job.get("is_instrumental"):
+                self.send_json({"error": "Instrumental tracks have no vocals to separate"}, HTTPStatus.BAD_REQUEST)
+                return
+            if job.get("stems_status") == "running":
+                self.send_json({"error": "Stem separation already in progress"}, HTTPStatus.CONFLICT)
+                return
+        mark_job(job_id, stems_status="running", stems_error=None)
+        threading.Thread(target=separate_stems, args=(job_id,), daemon=True).start()
+        self.send_json({"ok": True, "message": "Stem separation started"}, HTTPStatus.ACCEPTED)
+
+    def handle_stems_download(self, path: str, query_string: str) -> None:
+        """GET /api/stems/<job_id>/<stem> — download a separated stem."""
+        parts = path.removeprefix("/api/stems/").split("/", 1)
+        if len(parts) < 2:
+            self.send_text("Stem name required", HTTPStatus.BAD_REQUEST)
+            return
+        job_id = urllib.parse.unquote(parts[0])
+        stem_name = parts[1]
+        if stem_name not in self.STEM_STEMS:
+            self.send_text("Invalid stem name", HTTPStatus.BAD_REQUEST)
+            return
+        query = urllib.parse.parse_qs(query_string)
+        admin_key = (query.get("admin_key") or query.get("key") or [""])[0]
+        admin_ok = bool(ADMIN_KEY and admin_key and hmac.compare_digest(admin_key, ADMIN_KEY))
+        client_id = normalize_client_id(self.headers.get("X-Client-Id") or (query.get("client_id") or [""])[0])
+        with JOBS_LOCK:
+            job = JOBS.get(job_id)
+            if not job or (not admin_ok and job.get("owner_id") != client_id):
+                self.send_text("Job not found", HTTPStatus.NOT_FOUND)
+                return
+            if job.get("stems_status") != "done":
+                self.send_text("Stems not ready", HTTPStatus.BAD_REQUEST)
+                return
+            stems_dir = job.get("stems_dir")
+            if not stems_dir:
+                self.send_text("Stems directory not found", HTTPStatus.NOT_FOUND)
+                return
+            stem_path = Path(stems_dir) / f"{stem_name}.mp3"
+        try:
+            stem_path = stem_path.resolve(strict=True)
+        except OSError:
+            self.send_text("Stem file not found", HTTPStatus.NOT_FOUND)
+            return
+        content_type = "audio/mpeg"
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(stem_path.stat().st_size))
+        ascii_name = ascii_header_file_name(f"{stem_name}.mp3")
+        quoted = urllib.parse.quote(f"{stem_name}.mp3")
+        self.send_header("Content-Disposition", f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quoted}")
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        with stem_path.open("rb") as f:
+            while chunk := f.read(1024 * 256):
+                self.wfile.write(chunk)
 
     def read_json_body(self) -> dict[str, Any]:
         try:
@@ -2538,6 +2992,117 @@ class MusicHandler(BaseHTTPRequestHandler):
             JOBS[job_id] = job
             save_jobs_locked()
         threading.Thread(target=generate_music_with_voice, args=(job_id,), daemon=True).start()
+        self.send_json({"job": public_job(job)}, HTTPStatus.ACCEPTED)
+
+    def handle_jobs_audio_to_audio(self) -> None:
+        """Handle POST /api/jobs/audio-to-audio — create a music job that uses a reference audio file."""
+        try:
+            content_type = self.headers.get("Content-Type", "")
+            if "multipart/form-data" not in content_type:
+                raise ValueError("Content-Type must be multipart/form-data.")
+            length = int(self.headers.get("Content-Length") or "0")
+            if length <= 0 or length > 60 * 1024 * 1024:
+                raise ValueError("File too large or missing (max 50MB).")
+            body = self.rfile.read(length)
+            client_id = normalize_client_id(self.headers.get("X-Client-Id"))
+            boundary_match = re.search(r"boundary=(.+)", content_type)
+            if not boundary_match:
+                raise ValueError("Missing multipart boundary.")
+            boundary = boundary_match.group(1).strip('"').encode()
+            parts = {}
+            for chunk in body.split(b"--" + boundary):
+                chunk = chunk.strip()
+                if not chunk or chunk.startswith(b"--") or chunk.startswith(b"\r\n--"):
+                    continue
+                hdr_end = chunk.find(b"\r\n\r\n")
+                if hdr_end < 0:
+                    continue
+                hdr_block = chunk[:hdr_end].decode("latin-1")
+                body_data = chunk[hdr_end + 4:]
+                name_m = re.search(r'name="([^"]+)"', hdr_block)
+                if not name_m:
+                    continue
+                name = name_m.group(1)
+                fn_m = re.search(r'filename="([^"]+)"', hdr_block)
+                if fn_m:
+                    parts[name] = (fn_m.group(1), body_data.rstrip(b"\r\n"))
+                else:
+                    parts[name] = body_data.rstrip(b"\r\n").decode("utf-8", errors="replace")
+            audio_file = parts.get("audio")
+            ref_mode = parts.get("ref_mode", "style")
+            if isinstance(ref_mode, tuple):
+                ref_mode = ref_mode[1].decode("utf-8", errors="replace") if isinstance(ref_mode[1], bytes) else ref_mode[1]
+            payload_json = parts.get("payload")
+            if isinstance(payload_json, tuple):
+                payload_json = payload_json[1].decode("utf-8", errors="replace") if isinstance(payload_json[1], bytes) else payload_json[1]
+            if not audio_file:
+                raise ValueError("Audio file is required.")
+            if isinstance(audio_file, tuple):
+                filename, file_data = audio_file
+            else:
+                raise ValueError("Audio file is missing.")
+            # Save reference audio file
+            ref_audio_dir = OUTPUT_DIR / "ref_audio"
+            ref_audio_dir.mkdir(exist_ok=True)
+            safe_client_id = client_id[:16]
+            ref_audio_path = ref_audio_dir / f"ref_{safe_client_id}_{secrets.token_urlsafe(8)}_{filename}"
+            ref_audio_path.write_bytes(file_data)
+            # Parse payload
+            form = json.loads(payload_json) if payload_json else {}
+            prompt = str(form.get("prompt", "")).strip()
+            raw_song_title = str(form.get("song_title", "")).strip()
+            song_title = clean_song_title(raw_song_title)
+            email_addr = str(form.get("email", "")).strip()
+            lyrics = str(form.get("lyrics", "")).strip()
+            lyrics_idea = str(form.get("lyrics_idea", "")).strip()
+            is_instrumental = bool(form.get("is_instrumental"))
+            lyrics_optimizer = bool(form.get("lyrics_optimizer") or lyrics_idea) and not is_instrumental
+            if not prompt:
+                raise ValueError("Prompt is required.")
+            if len(prompt) > 2000:
+                raise ValueError("Prompt must be 2000 characters or fewer.")
+            if len(raw_song_title) > 120:
+                raise ValueError("Song title must be 120 characters or fewer.")
+            if len(lyrics) > 3500:
+                raise ValueError("Lyrics must be 3500 characters or fewer.")
+            if len(lyrics_idea) > 2500:
+                raise ValueError("Lyrics brief must be 2500 characters or fewer.")
+            extra = {key: str(form.get(key, "")).strip() for key in ("genre", "mood", "instruments", "tempo", "bpm", "key", "vocals", "structure", "references", "avoid", "use_case", "extra")}
+        except ValueError as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            return
+        except Exception as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
+            return
+        job_id = secrets.token_urlsafe(12)
+        job = {
+            "id": job_id,
+            "owner_id": client_id,
+            "status": "queued",
+            "created_at": now_iso(),
+            "updated_at": now_iso(),
+            "prompt": prompt,
+            "song_title": song_title,
+            "generated_title": False,
+            "title_error": None,
+            "email": email_addr,
+            "lyrics": lyrics,
+            "lyrics_idea": lyrics_idea,
+            "is_instrumental": is_instrumental,
+            "lyrics_optimizer": lyrics_optimizer,
+            "generated_lyrics": False,
+            "file_name": None,
+            "file_path": None,
+            "error": None,
+            "email_sent": False,
+            "ref_mode": ref_mode,
+            "ref_audio_path": str(ref_audio_path),
+            "extra": extra,
+        }
+        with JOBS_LOCK:
+            JOBS[job_id] = job
+            save_jobs_locked()
+        threading.Thread(target=generate_music_audio_to_audio, args=(job_id,), daemon=True).start()
         self.send_json({"job": public_job(job)}, HTTPStatus.ACCEPTED)
 
     def handle_get_voices(self) -> None:
@@ -2687,6 +3252,8 @@ class MusicHandler(BaseHTTPRequestHandler):
         self.send_json({"ok": True})
 
     def do_POST(self) -> None:
+        if not self.rate_limit_check():
+            return
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/api/lyrics":
             self.handle_lyrics_request()
@@ -2700,8 +3267,14 @@ class MusicHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/voice/sing":
             self.handle_voice_sing()
             return
+        if parsed.path == "/api/jobs/audio-to-audio":
+            self.handle_jobs_audio_to_audio()
+            return
         if parsed.path == "/api/jobs/voice":
             self.handle_jobs_voice()
+            return
+        if parsed.path == "/api/stems":
+            self.handle_stems_request()
             return
         if parsed.path != "/api/jobs":
             self.send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
@@ -2762,6 +3335,8 @@ class MusicHandler(BaseHTTPRequestHandler):
         self.send_json({"job": public_job(job)}, HTTPStatus.ACCEPTED)
 
     def do_DELETE(self) -> None:
+        if not self.rate_limit_check():
+            return
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path.startswith("/api/drafts/"):
             self.handle_delete_draft(parsed.path.removeprefix("/api/drafts/"))
@@ -2817,6 +3392,62 @@ class MusicHandler(BaseHTTPRequestHandler):
         with file_path.open("rb") as file_obj:
             while chunk := file_obj.read(1024 * 256):
                 self.wfile.write(chunk)
+
+
+def separate_stems(job_id: str) -> None:
+    """Run Demucs to separate a completed job's audio into stems."""
+    with JOBS_LOCK:
+        job = dict(JOBS.get(job_id, {}))
+    if not job:
+        return
+    audio_path = job.get("file_path")
+    if not audio_path:
+        mark_job(job_id, stems_status="error", stems_error="Audio file path not found")
+        return
+    audio_path = Path(audio_path)
+    if not audio_path.exists():
+        mark_job(job_id, stems_status="error", stems_error="Audio file not found on disk")
+        return
+
+    # Demucs creates: <audio_parent>/htdemucs/<track_name>/*.mp3
+    demucs_out = audio_path.parent.resolve()
+    track_name = audio_path.stem
+
+    try:
+        import torch
+        import demucs.pretrained
+        import demucs.separate
+    except ImportError:
+        mark_job(job_id, stems_status="error", stems_error="Demucs is not installed")
+        return
+
+    try:
+        sys_args = ["-n", "htdemucs", "-o", str(demucs_out), "--mp3", "--quiet", str(audio_path.resolve())]
+        demucs.separate.main(sys_args)
+    except Exception as exc:
+        mark_job(job_id, stems_status="error", stems_error=str(exc))
+        return
+
+    stems_base = demucs_out / "htdemucs" / track_name
+    found_any = False
+    for stem in ("drums", "bass", "vocals", "other"):
+        stem_file = stems_base / f"{stem}.mp3"
+        if stem_file.exists():
+            found_any = True
+
+    if not found_any:
+        for stem in ("drums", "bass", "vocals", "other"):
+            stem_file = stems_base / f"{stem}.flac"
+            if stem_file.exists():
+                found_any = True
+                break
+
+    if not found_any:
+        mark_job(job_id, stems_status="error", stems_error=f"No stem files found in {stems_base}")
+        return
+
+    mark_job(job_id, stems_status="done", stems_dir=str(stems_base))
+
 
 
 def main() -> None:
