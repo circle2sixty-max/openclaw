@@ -3349,6 +3349,8 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
     prompt = str(job.get("prompt", "")).strip()
     lyrics_idea = str(job.get("lyrics_idea", "")).strip()
     extra = job.get("extra", {}) if isinstance(job.get("extra"), dict) else {}
+    voice_id = str(job.get("voice_id", "")).strip()
+    voice_lang = _detect_lang_from_voice_id(voice_id) if voice_id else ""
     context = {
         "music_style_prompt": prompt,
         "lyrics_brief": lyrics_idea or "No separate lyrics brief was provided. Infer a complete lyric concept from the music style prompt.",
@@ -3360,14 +3362,69 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
         "use_case": extra.get("use_case", ""),
         "extra_details": extra.get("extra", ""),
     }
-    system = (
-        "You are a professional songwriter. Write complete, singable lyrics only. "
-        "Output only the lyrics, with no explanation, no markdown fences, and no notes. "
-        "Use structure tags such as [Verse], [Pre-Chorus], [Chorus], [Bridge], and [Outro] where natural. "
-        "Write in the same language as the lyrics brief unless the user explicitly requests another language. "
-        "Generate enough lyrics to support a full 3-4 minute song, even when the brief is short. "
-        "Respect the requested story, feelings, fragments, mood, and imagery. Avoid unsafe or explicit content if requested."
-    )
+    if voice_lang == "Cantonese":
+        system = (
+            "You are a professional Cantonese songwriter. Write COMPLETE, SINGABLE Cantonese song lyrics ONLY. "
+            "Output only the lyrics, with no explanation, no markdown fences, and no notes. "
+            "Use structure tags such as [Verse], [Pre-Chorus], [Chorus], [Bridge], and [Outro] where natural. "
+            "IMPORTANT: Write ONLY in Cantonese using Cantonese vocabulary. "
+            "Use authentic Cantonese expressions like: 你知唔知 / 我唔知 / 佢话 / 今日 / 晏昼 / 收工 / 唔该 / 多谢 / 邊個 / 點解 / 幾時 / 幾多 / 為乜 / 我好中意你 / 你知唔知我鐘意你 "
+            "AVOID Mandarin words like: 你知道 / 我不知道 / 他说 / 今天 / 下午 / 下班 / 谢谢 / 为什么 / 什么时候 / 多少钱 / 为什么 / 我很喜欢你 "
+            "Generate enough lyrics to support a full 3-4 minute song, even when the brief is short. "
+            "Respect the requested story, feelings, fragments, mood, and imagery. Avoid unsafe or explicit content if requested."
+        )
+    elif voice_lang == "Chinese (Mandarin)":
+        system = (
+            "You are a professional Mandarin Chinese songwriter. Write complete, singable Mandarin lyrics ONLY. "
+            "Output only the lyrics, with no explanation, no markdown fences, and no notes. "
+            "Use structure tags such as [Verse], [Pre-Chorus], [Chorus], [Bridge], and [Outro] where natural. "
+            "Write in simplified Chinese. Generate enough lyrics to support a full 3-4 minute song, even when the brief is short. "
+            "Respect the requested story, feelings, fragments, mood, and imagery. Avoid unsafe or explicit content if requested."
+        )
+    elif voice_lang in ("Korean", "Japanese", "Spanish", "French", "German", "Portuguese", "Italian", "Russian", "Arabic", "Hindi", "Indonesian", "Vietnamese", "Thai", "Turkish", "Polish", "Dutch", "Swedish", "Norwegian", "Danish", "Finnish", "Czech", "Romanian", "Hungarian", "Ukrainian"):
+        lang_map = {
+            "Korean": "Korean (한국어)",
+            "Japanese": "Japanese (日本語)",
+            "Spanish": "Spanish (Español)",
+            "French": "French (Français)",
+            "German": "German (Deutsch)",
+            "Portuguese": "Portuguese (Português)",
+            "Italian": "Italian (Italiano)",
+            "Russian": "Russian (Русский)",
+            "Arabic": "Arabic (العربية)",
+            "Hindi": "Hindi (हिन्दी)",
+            "Indonesian": "Indonesian (Bahasa Indonesia)",
+            "Vietnamese": "Vietnamese (Tiếng Việt)",
+            "Thai": "Thai (ไทย)",
+            "Turkish": "Turkish (Türkçe)",
+            "Polish": "Polish (Polski)",
+            "Dutch": "Dutch (Nederlands)",
+            "Swedish": "Swedish (Svenska)",
+            "Norwegian": "Norwegian (Norsk)",
+            "Danish": "Danish (Dansk)",
+            "Finnish": "Finnish (Suomi)",
+            "Czech": "Czech (Čeština)",
+            "Romanian": "Romanian (Română)",
+            "Hungarian": "Hungarian (Magyar)",
+            "Ukrainian": "Ukrainian (Українська)",
+        }
+        lang_label = lang_map.get(voice_lang, voice_lang)
+        system = (
+            f"You are a professional {lang_label} songwriter. Write complete, singable lyrics in {lang_label} ONLY. "
+            "Output only the lyrics, with no explanation, no markdown fences, and no notes. "
+            "Use structure tags such as [Verse], [Pre-Chorus], [Chorus], [Bridge], and [Outro] where natural. "
+            "Generate enough lyrics to support a full 3-4 minute song, even when the brief is short. "
+            "Respect the requested story, feelings, fragments, mood, and imagery. Avoid unsafe or explicit content if requested."
+        )
+    else:
+        system = (
+            "You are a professional songwriter. Write complete, singable lyrics only. "
+            "Output only the lyrics, with no explanation, no markdown fences, and no notes. "
+            "Use structure tags such as [Verse], [Pre-Chorus], [Chorus], [Bridge], and [Outro] where natural. "
+            "Write in the same language as the lyrics brief unless the user explicitly requests another language. "
+            "Generate enough lyrics to support a full 3-4 minute song, even when the brief is short. "
+            "Respect the requested story, feelings, fragments, mood, and imagery. Avoid unsafe or explicit content if requested."
+        )
     message = (
         "Create finished song lyrics for MiniMax music generation.\n\n"
         f"{json.dumps(context, ensure_ascii=False, indent=2)}\n\n"
@@ -3396,15 +3453,64 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
     return lyrics
 
 
-def fallback_generated_lyrics(prompt: str, lyrics_idea: str, extra: dict[str, Any] | None = None) -> str:
+def fallback_generated_lyrics(prompt: str, lyrics_idea: str, extra: dict[str, Any] | None = None, voice_id: str = "") -> str:
     """Fast local fallback so the UI remains usable when live lyrics generation is slow."""
     extra = extra or {}
     seed = (lyrics_idea or prompt or "Music speaks").strip()
     seed = re.sub(r"\s+", " ", seed)[:120] or "Music speaks"
+    voice_lang = _detect_lang_from_voice_id(voice_id) if voice_id else ""
     is_chinese = bool(re.search(r"[\u4e00-\u9fff]", seed))
     mood = str(extra.get("mood", "")).strip()
     genre = str(extra.get("genre", "")).strip()
-    if is_chinese:
+    # Cantonese lyrics - use Cantonese vocabulary
+    if voice_lang == "Cantonese":
+        theme = seed.rstrip("。！？")
+        mood_cn = f"，帶著{mood}" if mood else ""
+        style_cn = f"，似{genre}風格" if genre else ""
+        sections = [
+            "[Verse 1]",
+            f"{theme}喺心裏慢慢發光{mood_cn}",
+            f"每一步都聽到回響{style_cn}",
+            "城市嘅風將沉默吹亮",
+            "我把冇話出口嘅願望收藏",
+            "沿住夜色找到新嘅方向",
+            "讓旋律替我抵達遠方",
+            "",
+            "[Pre-Chorus]",
+            "如果眼淚都有節拍",
+            "就讓佢跌成温柔嘅海",
+            "如果聽日仲喺等待",
+            "我會把勇氣重新唱出嚟",
+            "",
+            "[Chorus]",
+            f"{theme}，請為我歌唱",
+            "穿過黑夜，落在晨光",
+            "你知唔知我幾中意你",
+            "呢份感覺一路陪住我",
+            "",
+            "[Verse 2]",
+            "時光匆匆走過廣場",
+            "記憶地圖逐漸發黃",
+            "但你把歌放喺我心上",
+            "每一個音符閃閃發光",
+            "",
+            "[Bridge]",
+            "如果可以再揀一次",
+            "我都會揀你呢個方向",
+            "世界太大你太遠",
+            "但你把歌聲留低在我耳邊",
+            "",
+            "[Chorus]",
+            f"{theme}，請為我歌唱",
+            "穿過黑夜，落在晨光",
+            "你知唔知我幾中意你",
+            "呢份感覺一路陪住我",
+            "",
+            "[Outro]",
+            "...",
+        ]
+        return "\n".join(sections)
+    elif voice_lang == "Chinese (Mandarin)" or is_chinese:
         theme = seed.rstrip("。！？")
         color = f"，带着{mood}" if mood else ""
         style = f"，像{genre}一样" if genre else ""
@@ -3921,7 +4027,8 @@ class MusicHandler(BaseHTTPRequestHandler):
             if len(lyrics_idea) > 2500:
                 raise ValueError("Lyrics brief must be 2500 characters or fewer.")
             extra = {key: str(form.get(key, "")).strip() for key in ("genre", "mood", "instruments", "tempo", "bpm", "key", "vocals", "structure", "references", "avoid", "use_case", "extra")}
-            lyrics = generate_lyrics_from_text_model({"prompt": prompt, "lyrics_idea": lyrics_idea, "extra": extra}, timeout=LYRICS_REQUEST_TIMEOUT)
+            voice_id = str(form.get("voice_id", "")).strip()
+            lyrics = generate_lyrics_from_text_model({"prompt": prompt, "lyrics_idea": lyrics_idea, "extra": extra, "voice_id": voice_id}, timeout=LYRICS_REQUEST_TIMEOUT)
         except ValueError as exc:
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
             return
@@ -3930,6 +4037,7 @@ class MusicHandler(BaseHTTPRequestHandler):
                 prompt if "prompt" in locals() else "",
                 lyrics_idea if "lyrics_idea" in locals() else "",
                 extra if "extra" in locals() else {},
+                voice_id if "voice_id" in locals() else "",
             )
             self.send_json({"lyrics": fallback, "fallback": True, "warning": "Live lyrics generation timed out or failed; using local fallback."}, HTTPStatus.ACCEPTED)
             return
