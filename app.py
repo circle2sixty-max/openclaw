@@ -216,9 +216,12 @@ INDEX_HTML = r"""<!doctype html>
     .app { display: flex; flex-direction: column; height: 100vh; }
     .app-header { display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 64px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); flex-shrink: 0; }
     .logo { display: flex; align-items: center; gap: 10px; font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: var(--text-primary); text-decoration: none; }
-    .logo-icon { width: 36px; height: 36px; background: var(--gradient-green); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; animation: glow 3s ease-in-out infinite; }
+    .ui-icon { width: 1.1em; height: 1.1em; display: inline-block; fill: currentColor; flex: 0 0 auto; }
+    .logo-icon { width: 36px; height: 36px; background: var(--gradient-green); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #06100b; animation: glow 3s ease-in-out infinite; }
+    .logo-icon .ui-icon { width: 20px; height: 20px; }
     .header-actions { display: flex; gap: 8px; align-items: center; }
     .header-btn { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: none; border-radius: 50%; background: var(--bg-tertiary); color: var(--text-secondary); cursor: pointer; font-size: 18px; transition: var(--transition); }
+    .header-btn .ui-icon { width: 18px; height: 18px; }
     .header-btn:hover { background: var(--bg-elevated); color: var(--text-primary); transform: scale(1.05); }
     .lang-toggle { width: auto; padding: 0 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
     /* Main Layout */
@@ -229,10 +232,13 @@ INDEX_HTML = r"""<!doctype html>
     .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: var(--radius-md); color: var(--text-secondary); text-decoration: none; font-weight: 500; cursor: pointer; transition: var(--transition); }
     .nav-item:hover { background: var(--bg-tertiary); color: var(--text-primary); }
     .nav-item.active { background: var(--accent-dim); color: var(--accent); }
-    .nav-icon { font-size: 20px; width: 24px; text-align: center; }
+    .nav-icon { width: 24px; display: inline-flex; align-items: center; justify-content: center; color: currentColor; }
+    .nav-icon .ui-icon { width: 19px; height: 19px; }
     .sidebar-section { padding: 8px 12px; }
     .sidebar-section-title { padding: 8px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
     .playlist-item { display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-radius: var(--radius-sm); color: var(--text-secondary); cursor: pointer; transition: var(--transition); }
+    .playlist-icon { width: 18px; display: inline-flex; align-items: center; justify-content: center; }
+    .playlist-icon .ui-icon { width: 17px; height: 17px; }
     .playlist-item:hover { color: var(--text-primary); background: var(--bg-tertiary); }
     .playlist-item:hover { color: var(--text-primary); }
     /* Main Content */
@@ -252,7 +258,8 @@ INDEX_HTML = r"""<!doctype html>
     textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.6; }
     /* Template Grid */
     .template-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
-    .template-btn { padding: 14px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-secondary); font-size: 13px; font-weight: 500; cursor: pointer; transition: var(--transition); text-align: center; }
+    .template-btn { padding: 14px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-secondary); font-size: 13px; font-weight: 500; cursor: pointer; transition: var(--transition); text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .template-btn .ui-icon { width: 16px; height: 16px; }
     .template-btn:hover { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); transform: translateY(-1px); }
     .template-btn.active { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
     /* Checkboxes */
@@ -290,7 +297,8 @@ INDEX_HTML = r"""<!doctype html>
     .voice-lang-count { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 18px; padding: 0 6px; border-radius: 999px; background: var(--bg-elevated); color: var(--text-muted); font-size: 10px; font-weight: 700; }
     .voice-lang-btn.active .voice-lang-count { background: rgba(29,185,84,0.2); color: var(--accent); }
     .voice-custom-row { margin-top: auto; padding-top: 6px; border-top: 1px solid var(--border); }
-    .voice-custom-btn { width: 100%; min-height: 34px; padding: 8px 9px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; font-size: 11px; font-weight: 700; color: var(--text-primary); cursor: pointer; transition: var(--transition); text-align: left; }
+    .voice-custom-btn { width: 100%; min-height: 34px; padding: 8px 9px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; font-size: 11px; font-weight: 700; color: var(--text-primary); cursor: pointer; transition: var(--transition); text-align: left; display: inline-flex; align-items: center; gap: 7px; }
+    .voice-custom-btn .ui-icon { width: 14px; height: 14px; }
     .voice-custom-btn:hover { border-color: var(--accent); color: var(--accent); }
     .voice-custom-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
     .voice-custom-label { display: block; margin-top: 5px; font-size: 10px; line-height: 1.3; color: var(--text-muted); }
@@ -304,6 +312,7 @@ INDEX_HTML = r"""<!doctype html>
     .voice-pill.selected { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); box-shadow: inset 0 0 0 1px rgba(29,185,84,0.16); }
     .voice-pill.playing { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); animation: pulse 1s ease-in-out infinite; }
     .voice-pill .play-icon { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--bg-elevated); color: var(--accent); font-size: 9px; }
+    .voice-pill .play-icon svg { width: 11px; height: 11px; fill: currentColor; }
     .voice-pill .voice-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .voice-empty { padding: 18px; text-align: center; color: var(--text-muted); font-size: 12px; }
     /* Advanced Parameters */
@@ -326,6 +335,7 @@ INDEX_HTML = r"""<!doctype html>
     .btn-secondary { padding: 14px 20px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-primary); font-size: 13px; font-weight: 600; cursor: pointer; transition: var(--transition); }
     .btn-secondary:hover { background: var(--bg-elevated); border-color: var(--border-light); }
     .btn-voice { padding: 12px 16px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-primary); font-size: 13px; font-weight: 600; cursor: pointer; transition: var(--transition); display: flex; align-items: center; gap: 8px; }
+    .btn-voice .ui-icon { width: 16px; height: 16px; }
     .btn-voice:hover { border-color: var(--accent); color: var(--accent); }
     .error-text { color: var(--danger); font-size: 13px; min-height: 20px; margin-top: 12px; }
     /* Jobs Panel */
@@ -357,7 +367,7 @@ INDEX_HTML = r"""<!doctype html>
     .progress-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
     .progress-fill { height: 100%; background: var(--accent); transition: width 0.3s; }
     /* Bottom Player */
-    .player { position: fixed; bottom: 0; left: 0; right: 0; min-height: 104px; background: linear-gradient(135deg, rgba(25,20,20,0.98), rgba(18,22,20,0.97) 48%, rgba(29,185,84,0.26)); border-top: 1px solid rgba(255,255,255,0.08); box-shadow: 0 -18px 60px rgba(0,0,0,0.42); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); display: flex; align-items: center; padding: 16px 24px; gap: 20px; z-index: 100; overflow: visible; }
+    .player { position: fixed; bottom: 0; left: 0; right: 0; min-height: 104px; background: linear-gradient(135deg, rgba(25,20,20,0.98), rgba(18,22,20,0.97) 48%, rgba(29,185,84,0.26)); border-top: 1px solid rgba(255,255,255,0.18); box-shadow: 0 -18px 60px rgba(0,0,0,0.42); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); display: flex; align-items: center; padding: 16px 24px; gap: 20px; z-index: 100; overflow: visible; }
     .player::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(29,185,84,0.10), transparent 36%, rgba(255,255,255,0.04)); pointer-events: none; }
     .player > * { position: relative; z-index: 1; }
     .player-track { display: flex; align-items: center; gap: 14px; width: 300px; min-width: 0; flex-shrink: 0; }
@@ -412,6 +422,7 @@ INDEX_HTML = r"""<!doctype html>
     .modal-body { padding: 24px; }
     .rec-progress { margin-bottom: 20px; }
     .rec-step { font-size: 14px; font-weight: 700; color: var(--accent); margin-bottom: 10px; }
+    .rec-step .ui-icon { width: 14px; height: 14px; vertical-align: -2px; margin-left: 4px; }
     .rec-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
     .rec-bar-fill { height: 100%; background: var(--accent); transition: width 0.4s ease; }
     .rec-script { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; margin: 16px 0; text-align: center; }
@@ -419,7 +430,8 @@ INDEX_HTML = r"""<!doctype html>
     .rec-countdown { font-size: 48px; font-weight: 800; color: var(--accent); text-align: center; margin: 20px 0; }
     .rec-instruction { font-size: 13px; color: var(--text-muted); text-align: center; margin-bottom: 16px; }
     .rec-controls { display: flex; gap: 12px; justify-content: center; }
-    .rec-btn { padding: 12px 24px; border: none; border-radius: var(--radius-md); font-size: 14px; font-weight: 600; cursor: pointer; transition: var(--transition); }
+    .rec-btn { padding: 12px 24px; border: none; border-radius: var(--radius-md); font-size: 14px; font-weight: 600; cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .rec-btn .ui-icon { width: 14px; height: 14px; }
     .rec-btn-record { background: var(--danger); color: #fff; }
     .rec-btn-record:hover { opacity: 0.9; }
     .rec-btn-stop { background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border); }
@@ -595,6 +607,32 @@ INDEX_HTML = r"""<!doctype html>
   </style>
 </head>
 <body>
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="icon-music" viewBox="0 0 24 24"><path d="M18 3v12.15A3.5 3.5 0 1 1 16 12V7.05L9 8.45v8.7A3.5 3.5 0 1 1 7 14V6.4L18 3Z"/></symbol>
+    <symbol id="icon-volume" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4Zm11.5-.7 1.4-1.4A7 7 0 0 1 19 12a7 7 0 0 1-2.1 5.1l-1.4-1.4A5 5 0 0 0 17 12a5 5 0 0 0-1.5-3.7Z"/></symbol>
+    <symbol id="icon-volume-off" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4Zm12.5.1L18.4 11l1.9-1.9 1.4 1.4-1.9 1.9 1.9 1.9-1.4 1.4-1.9-1.9-1.9 1.9-1.4-1.4 1.9-1.9-1.9-1.9 1.4-1.4Z"/></symbol>
+    <symbol id="icon-moon" viewBox="0 0 24 24"><path d="M20.3 15.6A8.4 8.4 0 0 1 8.4 3.7 8.9 8.9 0 1 0 20.3 15.6Z"/></symbol>
+    <symbol id="icon-sun" viewBox="0 0 24 24"><path d="M12 4.2 10.7 2h2.6L12 4.2Zm0 15.6 1.3 2.2h-2.6l1.3-2.2ZM4.2 12 2 13.3v-2.6L4.2 12Zm15.6 0 2.2-1.3v2.6L19.8 12ZM6.5 5.1 4 4l1.1 2.5 1.4-1.4Zm12.4 12.4L20 20l-2.5-1.1 1.4-1.4Zm0-12.4 1.1-2.5L17.5 4l1.4 1.1ZM5.1 17.5 4 20l2.5-1.1-1.4-1.4ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Z"/></symbol>
+    <symbol id="icon-sparkle" viewBox="0 0 24 24"><path d="m12 2 2.1 6.1L20 10l-5.9 1.9L12 18l-2.1-6.1L4 10l5.9-1.9L12 2Zm7 11 1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3ZM5 14l.8 2.2L8 17l-2.2.8L5 20l-.8-2.2L2 17l2.2-.8L5 14Z"/></symbol>
+    <symbol id="icon-library" viewBox="0 0 24 24"><path d="M5 4h3v16H5V4Zm5 0h3v16h-3V4Zm5.2.5 2.9-.8 4.2 15.5-2.9.8-4.2-15.5Z"/></symbol>
+    <symbol id="icon-heart" viewBox="0 0 24 24"><path d="M12 21s-7.5-4.5-9.6-9.1C.8 8.4 2.8 5 6.3 5c2 0 3.4 1 4.2 2.2C11.3 6 12.7 5 14.7 5c3.5 0 5.5 3.4 3.9 6.9C16.5 16.5 12 21 12 21Z"/></symbol>
+    <symbol id="icon-clock" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 .1 0H12Zm1 5v5.1l4 2.4-1 1.7-5-3V7h2Z"/></symbol>
+    <symbol id="icon-headphones" viewBox="0 0 24 24"><path d="M12 3a8 8 0 0 0-8 8v6a3 3 0 0 0 3 3h2v-8H6v-1a6 6 0 0 1 12 0v1h-3v8h2a3 3 0 0 0 3-3v-6a8 8 0 0 0-8-8Z"/></symbol>
+    <symbol id="icon-fire" viewBox="0 0 24 24"><path d="M13 2s1 3.4-1.7 6.2C9.2 10.4 7 12.2 7 15a5 5 0 0 0 10 0c0-2.2-1.1-3.6-2.4-5 .1 1.5-.6 2.7-1.7 3.6.4-2.7-.5-5.8-3.1-8.3C9.4 8.5 5 10.6 5 15a7 7 0 0 0 14 0c0-5.4-4.2-7.4-6-13Z"/></symbol>
+    <symbol id="icon-guitar" viewBox="0 0 24 24"><path d="M18.7 2.2 21.8 5l-2 2-1.1-1.1-3.8 3.8a4.8 4.8 0 0 1-.7 5.9 5 5 0 0 1-4.2 1.5 4.4 4.4 0 0 1-1.2 2.1 4 4 0 1 1-5.7-5.7A4.4 4.4 0 0 1 5.2 12a5 5 0 0 1 1.5-4.2 4.8 4.8 0 0 1 5.9-.7L16.4 3l-1.1-1.1 2-2 1.4 2.3ZM8.1 15.9a2 2 0 1 0-2.8 2.8 2 2 0 0 0 2.8-2.8Z"/></symbol>
+    <symbol id="icon-microphone" viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 1 0 6 0V6a3 3 0 0 0-3-3Zm6 8v1a6 6 0 0 1-5 5.9V21h3v2H8v-2h3v-3.1A6 6 0 0 1 6 12v-1h2v1a4 4 0 0 0 8 0v-1h2Z"/></symbol>
+    <symbol id="icon-film" viewBox="0 0 24 24"><path d="M4 4h16v16H4V4Zm3 2H6v2h1V6Zm0 5H6v2h1v-2Zm0 5H6v2h1v-2Zm11-10h-1v2h1V6Zm0 5h-1v2h1v-2Zm0 5h-1v2h1v-2ZM9 7v10h6V7H9Z"/></symbol>
+    <symbol id="icon-cup" viewBox="0 0 24 24"><path d="M5 5h12v5h1a3 3 0 0 1 0 6h-1.4A6 6 0 0 1 5 14V5Zm12 7v2h1a1 1 0 0 0 0-2h-1ZM4 20h14v2H4v-2Z"/></symbol>
+    <symbol id="icon-prev" viewBox="0 0 24 24"><path d="M7 6h2v12H7V6Zm3.5 6 8.5-6v12l-8.5-6Z"/></symbol>
+    <symbol id="icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7L8 5Z"/></symbol>
+    <symbol id="icon-pause" viewBox="0 0 24 24"><path d="M7 5h4v14H7V5Zm6 0h4v14h-4V5Z"/></symbol>
+    <symbol id="icon-next" viewBox="0 0 24 24"><path d="M15 6h2v12h-2V6ZM5 18V6l8.5 6L5 18Z"/></symbol>
+    <symbol id="icon-record" viewBox="0 0 24 24"><path d="M12 5a7 7 0 1 1 0 14 7 7 0 0 1 0-14Z"/></symbol>
+    <symbol id="icon-stop" viewBox="0 0 24 24"><path d="M7 7h10v10H7V7Z"/></symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24"><path d="m9.2 16.6-4.1-4.1 1.4-1.4 2.7 2.7 8.3-8.3 1.4 1.4-9.7 9.7Z"/></symbol>
+    <symbol id="icon-x" viewBox="0 0 24 24"><path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z"/></symbol>
+    <symbol id="icon-refresh" viewBox="0 0 24 24"><path d="M17.7 6.3A8 8 0 0 0 4.1 10H2l3.4 3.4L8.8 10H6.2A6 6 0 0 1 16.3 7.7l1.4-1.4ZM18.6 10 15.2 13.4H17.8a6 6 0 0 1-10.1 2.3l-1.4 1.4A8 8 0 0 0 19.9 14H22L18.6 10Z"/></symbol>
+  </svg>
   <!-- Splash Screen -->
   <div id="splash">
     <div class="orb orb-1"></div>
@@ -622,12 +660,12 @@ INDEX_HTML = r"""<!doctype html>
   <div class="app">
     <header class="app-header">
       <a href="/" class="logo">
-        <div class="logo-icon">🎵</div>
+        <div class="logo-icon" aria-hidden="true"><svg class="ui-icon"><use href="#icon-music"></use></svg></div>
         <span>Music Speaks</span>
       </a>
       <div class="header-actions">
-        <button id="soundBtn" class="header-btn sound-toggle on" title="Toggle sound" onclick="toggleSound()">🔊</button>
-        <button id="themeBtn" class="header-btn" title="Toggle theme">🌙</button>
+        <button id="soundBtn" class="header-btn sound-toggle on" title="Toggle sound" aria-label="Mute sounds" onclick="toggleSound()"><svg class="ui-icon"><use href="#icon-volume"></use></svg></button>
+        <button id="themeBtn" class="header-btn" title="Toggle theme" aria-label="Switch to light theme"><svg class="ui-icon"><use href="#icon-moon"></use></svg></button>
         <button id="langBtn" class="header-btn lang-toggle">中文</button>
       </div>
     </header>
@@ -635,26 +673,26 @@ INDEX_HTML = r"""<!doctype html>
       <aside class="sidebar">
         <nav class="sidebar-nav">
           <a class="nav-item active" data-view="create">
-            <span class="nav-icon">✨</span>
+            <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#icon-sparkle"></use></svg></span>
             <span data-i18n="navCreate">Create</span>
           </a>
           <a class="nav-item" data-view="library">
-            <span class="nav-icon">📚</span>
+            <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#icon-library"></use></svg></span>
             <span data-i18n="navLibrary">Library</span>
           </a>
           <a class="nav-item" data-view="favorites">
-            <span class="nav-icon">❤️</span>
+            <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#icon-heart"></use></svg></span>
             <span data-i18n="navFavorites">Favorites</span>
           </a>
           <a class="nav-item" data-view="history">
-            <span class="nav-icon">🕐</span>
+            <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#icon-clock"></use></svg></span>
             <span data-i18n="navHistory">History</span>
           </a>
         </nav>
         <div class="sidebar-section">
           <div class="sidebar-section-title" data-i18n="navPlaylists">Playlists</div>
-          <div class="playlist-item"><span>🎧</span><span data-i18n="playlistAll">All Songs</span></div>
-          <div class="playlist-item"><span>🔥</span><span data-i18n="playlistRecent">Recently Played</span></div>
+          <div class="playlist-item"><span class="playlist-icon" aria-hidden="true"><svg class="ui-icon"><use href="#icon-headphones"></use></svg></span><span data-i18n="playlistAll">All Songs</span></div>
+          <div class="playlist-item"><span class="playlist-icon" aria-hidden="true"><svg class="ui-icon"><use href="#icon-fire"></use></svg></span><span data-i18n="playlistRecent">Recently Played</span></div>
         </div>
       </aside>
       <main class="main-content">
@@ -680,14 +718,14 @@ INDEX_HTML = r"""<!doctype html>
             <div class="form-section">
               <label class="form-label" data-i18n="templates">Prompt Templates</label>
               <div class="template-grid">
-                <button class="template-btn" type="button" data-template="upbeat_pop">🎵 Upbeat Pop</button>
-                <button class="template-btn" type="button" data-template="chill_ambient">🌙 Chill Ambient</button>
-                <button class="template-btn" type="button" data-template="rock_anthem">🎸 Rock Anthem</button>
-                <button class="template-btn" type="button" data-template="acoustic_story">🎸 Acoustic Story</button>
-                <button class="template-btn" type="button" data-template="electronic_dream">💫 Electronic Dream</button>
-                <button class="template-btn" type="button" data-template="hiphop_beats">🎤 Hip-Hop Beats</button>
-                <button class="template-btn" type="button" data-template="cinematic_epic">🎬 Cinematic Epic</button>
-                <button class="template-btn" type="button" data-template="lofi_chill">☕ Lo-Fi Chill</button>
+                <button class="template-btn" type="button" data-template="upbeat_pop"><svg class="ui-icon" aria-hidden="true"><use href="#icon-music"></use></svg><span>Upbeat Pop</span></button>
+                <button class="template-btn" type="button" data-template="chill_ambient"><svg class="ui-icon" aria-hidden="true"><use href="#icon-moon"></use></svg><span>Chill Ambient</span></button>
+                <button class="template-btn" type="button" data-template="rock_anthem"><svg class="ui-icon" aria-hidden="true"><use href="#icon-guitar"></use></svg><span>Rock Anthem</span></button>
+                <button class="template-btn" type="button" data-template="acoustic_story"><svg class="ui-icon" aria-hidden="true"><use href="#icon-guitar"></use></svg><span>Acoustic Story</span></button>
+                <button class="template-btn" type="button" data-template="electronic_dream"><svg class="ui-icon" aria-hidden="true"><use href="#icon-sparkle"></use></svg><span>Electronic Dream</span></button>
+                <button class="template-btn" type="button" data-template="hiphop_beats"><svg class="ui-icon" aria-hidden="true"><use href="#icon-microphone"></use></svg><span>Hip-Hop Beats</span></button>
+                <button class="template-btn" type="button" data-template="cinematic_epic"><svg class="ui-icon" aria-hidden="true"><use href="#icon-film"></use></svg><span>Cinematic Epic</span></button>
+                <button class="template-btn" type="button" data-template="lofi_chill"><svg class="ui-icon" aria-hidden="true"><use href="#icon-cup"></use></svg><span>Lo-Fi Chill</span></button>
               </div>
             </div>
             <!-- Lyrics Idea -->
@@ -725,7 +763,7 @@ INDEX_HTML = r"""<!doctype html>
               <div class="voice-section">
                 <div class="voice-top-row">
                   <button id="voiceRecordBtn" class="btn-voice" type="button">
-                    <span>🎤</span>
+                    <svg class="ui-icon" aria-hidden="true"><use href="#icon-microphone"></use></svg>
                     <span data-i18n="voiceRecordBtn">Record My Voice</span>
                   </button>
                   <span id="voiceStatus" class="voice-status"></span>
@@ -824,9 +862,7 @@ INDEX_HTML = r"""<!doctype html>
     <!-- Bottom Player -->
     <div class="player" id="player" style="display:none;">
       <div class="player-track">
-        <div class="player-art" aria-hidden="true">
-          <svg viewBox="0 0 24 24" role="img" aria-label="Music note"><path d="M18 3v12.15A3.5 3.5 0 1 1 16 12V7.05L9 8.45v8.7A3.5 3.5 0 1 1 7 14V6.4L18 3Z"/></svg>
-        </div>
+        <div class="player-art" aria-hidden="true"><svg class="ui-icon"><use href="#icon-music"></use></svg></div>
         <div class="player-info">
           <div class="player-title" id="playerTitle">Song Title</div>
           <div class="player-artist" id="playerArtist">Music Speaks</div>
@@ -834,9 +870,9 @@ INDEX_HTML = r"""<!doctype html>
       </div>
       <div class="player-controls">
         <div class="player-buttons">
-          <button class="player-btn" id="playerPrev" type="button" aria-label="Previous track"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 6h2v12H7V6Zm3.5 6 8.5-6v12l-8.5-6Z"/></svg></button>
-          <button class="player-btn play" id="playerPlay" type="button" aria-label="Play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg></button>
-          <button class="player-btn" id="playerNext" type="button" aria-label="Next track"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6h2v12h-2V6ZM5 18V6l8.5 6L5 18Z"/></svg></button>
+          <button class="player-btn" id="playerPrev" type="button" aria-label="Previous track"><svg class="ui-icon" aria-hidden="true"><use href="#icon-prev"></use></svg></button>
+          <button class="player-btn play" id="playerPlay" type="button" aria-label="Play"><svg class="ui-icon" aria-hidden="true"><use href="#icon-play"></use></svg></button>
+          <button class="player-btn" id="playerNext" type="button" aria-label="Next track"><svg class="ui-icon" aria-hidden="true"><use href="#icon-next"></use></svg></button>
         </div>
         <div class="player-progress">
           <span class="player-time" id="playerCurrentTime">0:00</span>
@@ -850,7 +886,7 @@ INDEX_HTML = r"""<!doctype html>
       <div class="player-extra">
         <button class="lyrics-toggle" id="playerLyricsToggle" type="button" aria-expanded="false" aria-controls="lyricsPanel">Lyrics</button>
         <div class="player-volume">
-          <span class="volume-icon" id="volumeIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4Zm11.5-.7 1.4-1.4A7 7 0 0 1 19 12a7 7 0 0 1-2.1 5.1l-1.4-1.4A5 5 0 0 0 17 12a5 5 0 0 0-1.5-3.7Z"/></svg></span>
+          <span class="volume-icon" id="volumeIcon" aria-hidden="true"><svg class="ui-icon"><use href="#icon-volume"></use></svg></span>
           <div class="volume-slider" id="volumeSlider"><div class="volume-fill" id="volumeFill"></div></div>
         </div>
       </div>
@@ -882,8 +918,8 @@ INDEX_HTML = r"""<!doctype html>
         <div class="rec-countdown" id="recCountdown" style="display:none;"></div>
         <div class="rec-instruction" id="recInstruction">Click Record to start recording this passage</div>
         <div class="rec-controls">
-          <button class="rec-btn rec-btn-record" id="recRecordBtn">⏺ Record</button>
-          <button class="rec-btn rec-btn-stop" id="recStopBtn" style="display:none;">⏹ Stop</button>
+          <button class="rec-btn rec-btn-record" id="recRecordBtn"><svg class="ui-icon" aria-hidden="true"><use href="#icon-record"></use></svg> Record</button>
+          <button class="rec-btn rec-btn-stop" id="recStopBtn" style="display:none;"><svg class="ui-icon" aria-hidden="true"><use href="#icon-stop"></use></svg> Stop</button>
           <button class="rec-btn rec-btn-next" id="recNextBtn" style="display:none;">Next →</button>
         </div>
       </div>
@@ -1008,7 +1044,7 @@ INDEX_HTML = r"""<!doctype html>
         voiceSingingMode: "Singing synthesis mode", voiceSingingModeHint: "Tries MiniMax voice_clone_singing first. If unavailable, falls back to voice cover.",
         voicePickerLabel: "Voice Style", voicePickerDefault: "Click to select — or record your own below", voicePickerLoading: "Loading voices...", voiceShowMore: "Show {count} more",
         voicePreviewSample: "Listen to this voice sample",
-        voiceCustomBtn: "🎤 My Voice", voiceCustomDesc: "Record and use your own voice",
+        voiceCustomBtn: "My Voice", voiceCustomDesc: "Record and use your own voice",
         recModalTitle: "Record Your Voice",
         templates: "Prompt Templates",
         advanced: "More Parameters", genre: "Genre", mood: "Mood", instruments: "Instruments", tempo: "Tempo Feel", bpm: "BPM", key: "Musical Key",
@@ -1050,7 +1086,7 @@ INDEX_HTML = r"""<!doctype html>
         voiceSingingMode: "声纹唱歌合成模式", voiceSingingModeHint: "优先尝试 MiniMax voice_clone_singing；不可用时自动降级为声音翻唱。",
         voicePickerLabel: "人声音色", voicePickerDefault: "点击选择，或在下方录制自己的声音", voicePickerLoading: "加载音色中...", voiceShowMore: "再显示 {count} 个",
         voicePreviewSample: "试听此音色",
-        voiceCustomBtn: "🎤 我的声音", voiceCustomDesc: "录制并使用自己的声音",
+        voiceCustomBtn: "我的声音", voiceCustomDesc: "录制并使用自己的声音",
         recModalTitle: "录制您的声音",
         templates: "风格模板",
         advanced: "更多参数", genre: "流派", mood: "情绪", instruments: "乐器", tempo: "节奏感", bpm: "BPM", key: "调性",
@@ -1143,14 +1179,22 @@ INDEX_HTML = r"""<!doctype html>
     function escapeHtml(value) {
       return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
+    function iconUse(name) {
+      return `<svg class="ui-icon" aria-hidden="true"><use href="#icon-${name}"></use></svg>`;
+    }
     const UI_ICONS = {
-      play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg>',
-      pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7V5Zm6 0h4v14h-4V5Z"/></svg>',
-      music: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 3v12.15A3.5 3.5 0 1 1 16 12V7.05L9 8.45v8.7A3.5 3.5 0 1 1 7 14V6.4L18 3Z"/></svg>',
-      check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.2 16.2 4.9 12l-1.4 1.4 5.7 5.7L21 7.3 19.6 6 9.2 16.2Z"/></svg>',
-      error: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v7h-2V7h2Zm0 9v2h-2v-2h2Z"/></svg>',
-      volume: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Zm11.5-.7 1.4-1.4A7 7 0 0 1 19 12a7 7 0 0 1-2.1 5.1l-1.4-1.4A5 5 0 0 0 17 12a5 5 0 0 0-1.5-3.7Z"/></svg>',
-      muted: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Zm13.6 3 2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4-2.7-2.7Z"/></svg>',
+      play: iconUse("play"),
+      pause: iconUse("pause"),
+      music: iconUse("music"),
+      check: iconUse("check"),
+      error: iconUse("x"),
+      volume: iconUse("volume"),
+      muted: iconUse("volume-off"),
+      moon: iconUse("moon"),
+      sun: iconUse("sun"),
+      microphone: iconUse("microphone"),
+      mic: iconUse("microphone"),
+      refresh: iconUse("refresh"),
     };
     function statusIcon(status) {
       if (status === "completed") return UI_ICONS.check;
@@ -1443,7 +1487,8 @@ INDEX_HTML = r"""<!doctype html>
     function setTheme(theme) {
       document.documentElement.setAttribute("data-theme", theme);
       localStorage.setItem("terry_music_theme", theme);
-      themeBtn.textContent = theme === "light" ? "☀️" : "🌙";
+      themeBtn.innerHTML = theme === "light" ? '<svg class="ui-icon"><use href="#icon-sun"></use></svg>' : '<svg class="ui-icon"><use href="#icon-moon"></use></svg>';
+      themeBtn.setAttribute("aria-label", theme === "light" ? "Switch to dark theme" : "Switch to light theme");
     }
     const savedTheme = localStorage.getItem("terry_music_theme");
     if (savedTheme) setTheme(savedTheme);
@@ -1455,8 +1500,10 @@ INDEX_HTML = r"""<!doctype html>
     // Sound toggle
     function toggleSound() {
       const enabled = SoundSystem.toggle();
-      document.getElementById("soundBtn").textContent = enabled ? "🔊" : "🔇";
-      document.getElementById("soundBtn").className = "header-btn sound-toggle " + (enabled ? "on" : "off");
+      const soundBtn = document.getElementById("soundBtn");
+      soundBtn.innerHTML = enabled ? '<svg class="ui-icon"><use href="#icon-volume"></use></svg>' : '<svg class="ui-icon"><use href="#icon-volume-off"></use></svg>';
+      soundBtn.setAttribute("aria-label", enabled ? "Mute sounds" : "Unmute sounds");
+      soundBtn.className = "header-btn sound-toggle " + (enabled ? "on" : "off");
     }
     // Advanced panel toggle
     const advancedToggle = document.getElementById("advancedToggle");
@@ -1906,7 +1953,7 @@ INDEX_HTML = r"""<!doctype html>
         html += '</button>';
       }
       html += '<div class="voice-custom-row">';
-      html += '<button type="button" class="voice-custom-btn' + (_selectedVoiceId === "__custom__" ? " active" : "") + '" id="voicePickerCustomBtn">' + escapeHtml(_t("voiceCustomBtn")) + "</button>";
+      html += '<button type="button" class="voice-custom-btn' + (_selectedVoiceId === "__custom__" ? " active" : "") + '" id="voicePickerCustomBtn">' + UI_ICONS.microphone + escapeHtml(_t("voiceCustomBtn")) + "</button>";
       html += '<span class="voice-custom-label">' + escapeHtml(_t("voiceCustomDesc")) + "</span>";
       html += "</div>";
       html += "</div>";
@@ -1918,7 +1965,7 @@ INDEX_HTML = r"""<!doctype html>
         const isSelected = voice === _selectedVoiceId ? " selected" : "";
         html += '<button type="button" class="voice-pill' + isSelected + '" data-voice="' + escapeHtml(voice) + '">';
         html += '<span class="voice-name">' + escapeHtml(displayName) + '</span>';
-        html += '<span class="play-icon" aria-hidden="true">▶</span>';
+        html += '<span class="play-icon" aria-hidden="true">' + UI_ICONS.play + '</span>';
         html += '</button>';
       }
       html += "</div>";
@@ -2256,7 +2303,7 @@ INDEX_HTML = r"""<!doctype html>
       const body = document.getElementById("recModalBody");
       body.innerHTML = `
         <div class="rec-progress">
-          <div class="rec-step">${lang === "en" ? "Segment" : "段落"} ${idx + 1} / ${segs.length} — ${seg.label} ✓</div>
+          <div class="rec-step">${lang === "en" ? "Segment" : "段落"} ${idx + 1} / ${segs.length} — ${seg.label} ${UI_ICONS.check}</div>
           <div class="rec-bar"><div class="rec-bar-fill" style="width:${((idx + 1) / segs.length) * 100}%"></div></div>
         </div>
         <div class="rec-script-box">
@@ -2265,7 +2312,7 @@ INDEX_HTML = r"""<!doctype html>
         </div>
         <div class="rec-review-audio"><audio src="${url}" controls style="height:40px; width:100%;"></audio></div>
         <div class="rec-controls-row">
-          <button id="recRerecord" class="ghost" type="button">${lang === "en" ? "🔄 Re-record" : "🔄 重新录制"}</button>
+          <button id="recRerecord" class="ghost" type="button"><svg class="ui-icon" aria-hidden="true"><use href="#icon-refresh"></use></svg> ${lang === "en" ? "Re-record" : "重新录制"}</button>
           <button id="recNext" class="secondary-btn" type="button">${lang === "en" ? "Next →" : "下一个 →"}</button>
         </div>
       `;
