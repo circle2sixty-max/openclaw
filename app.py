@@ -2360,6 +2360,8 @@ INDEX_HTML = r"""<!doctype html>
 
     async function playVoicePreview(voiceId) {
       const playId = voiceId;
+      // Set pending BEFORE stopping — prevents race condition from slow fetches
+      _voicePlayPending = playId;
       stopVoicePreview();
       document.querySelectorAll(".voice-pill").forEach(function(p) {
         p.classList.remove("playing");
@@ -2382,7 +2384,6 @@ INDEX_HTML = r"""<!doctype html>
           URL.revokeObjectURL(url);
           document.querySelectorAll(".voice-pill").forEach(function(p) { p.classList.remove("playing"); });
         });
-        _voicePlayPending = playId;
         await _voiceAudio.play();
       } catch (err) {
         stopVoicePreview();
@@ -2392,6 +2393,7 @@ INDEX_HTML = r"""<!doctype html>
     }
 
     function stopVoicePreview() {
+      _voicePlayPending = null;  // Invalidate any in-flight fetch
       if (_voiceAudio) {
         const src = _voiceAudio.src;
         _voiceAudio.pause();
