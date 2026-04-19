@@ -2768,9 +2768,9 @@ INDEX_HTML = r"""<!doctype html>
       </div>
       <div class="lfm-footer">
         <div class="lfm-controls">
-          <button class="lfm-btn" id="lfmPrev" aria-label="Previous">◀</button>
-          <button class="lfm-btn lfm-play" id="lfmPlay" aria-label="Play/Pause">▶</button>
-          <button class="lfm-btn" id="lfmNext" aria-label="Next">▶</button>
+          <button class="lfm-btn" id="lfmPrev" aria-label="Previous"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M19 4H9l-7 8 7 8h10V4z"/></svg></button>
+          <button class="lfm-btn lfm-play" id="lfmPlay" aria-label="Play/Pause"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path class="play-path" d="M8 5v14l11-7L8 5Z"/></svg></button>
+          <button class="lfm-btn" id="lfmNext" aria-label="Next"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 4l10 8-10 8V4z"/><rect x="17" y="4" width="2" height="16"/></svg></button>
         </div>
         <div class="lfm-progress-row">
           <span class="lfm-time" id="lfmCurrentTime">0:00</span>
@@ -2807,7 +2807,9 @@ INDEX_HTML = r"""<!doctype html>
         return '<div class="' + cls + '" data-idx="' + row.index + '">' + escapeHtml(row.text) + '</div>';
       }).join("");
       document.getElementById("lfmDuration").textContent = formatTime(audioPlayer.duration);
-      document.getElementById("lfmPlay").textContent = audioPlayer.paused ? "▶" : "⏸";
+      document.getElementById("lfmPlay").innerHTML = audioPlayer.paused
+        ? '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg>'
+        : '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 5h3.5v14H7V5Zm6.5 0H17v14h-3.5V5Z"/></svg>';
     }
     function _updateLfmProgress() {
       const rows = getLyricRows();
@@ -2821,7 +2823,9 @@ INDEX_HTML = r"""<!doctype html>
       document.getElementById("lfmCurrentLine").textContent = currentText;
       document.getElementById("lfmCurrentTime").textContent = formatTime(audioPlayer.currentTime);
       document.getElementById("lfmBarFill").style.width = ((audioPlayer.currentTime / audioPlayer.duration) * 100) + "%";
-      document.getElementById("lfmPlay").textContent = audioPlayer.paused ? "▶" : "⏸";
+      document.getElementById("lfmPlay").innerHTML = audioPlayer.paused
+        ? '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg>'
+        : '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 5h3.5v14H7V5Zm6.5 0H17v14h-3.5V5Z"/></svg>';
       if (activeIndex !== _lfmLastIndex) {
         _lfmLastIndex = activeIndex;
         document.querySelectorAll(".lfm-line").forEach(el => {
@@ -2872,9 +2876,9 @@ INDEX_HTML = r"""<!doctype html>
       _updateLfmProgress();
     });
     audioPlayer.addEventListener("timeupdate", _updateLfmProgress);
-    audioPlayer.addEventListener("play", () => { document.getElementById("lfmPlay").textContent = "⏸"; });
-    audioPlayer.addEventListener("pause", () => { document.getElementById("lfmPlay").textContent = "▶"; });
-    audioPlayer.addEventListener("ended", () => { document.getElementById("lfmPlay").textContent = "▶"; _lfmLastIndex = -1; });
+    audioPlayer.addEventListener("play", () => { document.getElementById("lfmPlay").innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 5h3.5v14H7V5Zm6.5 0H17v14h-3.5V5Z"/></svg>'; });
+    audioPlayer.addEventListener("pause", () => { document.getElementById("lfmPlay").innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg>'; });
+    audioPlayer.addEventListener("ended", () => { document.getElementById("lfmPlay").innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg>'; _lfmLastIndex = -1; });
     audioPlayer.addEventListener("loadedmetadata", () => {
       if (lyricsModal.classList.contains("open")) document.getElementById("lfmDuration").textContent = formatTime(audioPlayer.duration);
     });
@@ -3934,27 +3938,18 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
         context_lines.append(f"AVOID: {extra['avoid']}")
     context_str = "\n".join(context_lines) if context_lines else "(No specific brief provided — create freely)"
 
-    message = f"""You are a professional songwriter. A user has provided the creative brief below. Your job is to write a COMPLETE, ORIGINAL, SINGABLE song that honors this brief.
+    # Minimal message — system prompt already encodes all language/songwriting rules.
+    # The brief is the ONLY creative input. No brand, no platform, no meta-commentary.
+    message = f"""Write a complete, original, singable song based on the brief below.
 
---- CREATIVE BRIEF ---
+CREATIVE BRIEF:
 {context_str}
---- END BRIEF ---
 
-SONGWRITING RULES (follow strictly):
-1. Do NOT copy the user's words or phrases from the brief. Treat the brief as inspiration only.
-2. Every image, emotion, story beat, and moment in the brief must be INTERPRETED and REIMAGINED through your own artistry — never pasted verbatim into a lyric line.
-3. The song must have a clear emotional journey: set the scene (Verse 1) → build tension (Pre-Chorus) → emotional peak (Chorus) → new angle (Verse 2) → contrast/turn (Bridge) → resolution (Final Chorus / Outro).
-4. Each lyric line must be original. Do not use generic phrases like "music speaks from the heart", "let music be your voice", "express love through music", "find hope in melody" — these are clichés and strictly forbidden.
-5. Use section tags: [Intro], [Verse], [Pre-Chorus], [Chorus], [Drop], [Bridge], [Outro].
-6. VERSE 1: Introduce characters, scenes, or emotions suggested by the brief. Create fresh imagery — do not copy the brief's own words.
-7. PRE-CHORUS: Build toward the chorus. Increase emotional intensity.
-8. CHORUS: The most powerful moment. If the user shared a specific hook or phrase, build a complete chorus around its theme — but write all new lines.
-9. VERSE 2: Take the story somewhere new. Deepen or complicate the emotion from verse 1.
-10. BRIDGE: Offer a shift in perspective, a moment of contrast, or the emotional peak.
-11. FINAL CHORUS / OUTRO: Maximum emotional impact. Resolve the journey.
-12. Target 400-600 words to support a full 3-4 minute song.
-13. Keep under 6,000 characters total.
-14. Output ONLY the lyrics — no explanations, no notes, no markdown fences, no quotes around the output."""
+REQUIREMENTS:
+- Write exclusively in {voice_lang} — no mixed languages, no English ad-libs unless brief demands it.
+- Total length must fill a 3–4 minute song (aim for 400–600 words).
+- Use section markers: [Verse], [Pre-Chorus], [Chorus], [Bridge], [Outro].
+- Output ONLY the lyrics — no explanation, no notes, no markdown fences, no quotes."""
 
     output = run_mmx([
         "text", "chat",
