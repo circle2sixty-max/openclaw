@@ -49,7 +49,7 @@ VOICE_CLONE_SINGING_ENDPOINT = os.getenv("MINIMAX_VOICE_CLONE_SINGING_ENDPOINT",
 VOICE_CLONE_SINGING_MODEL = os.getenv("MINIMAX_VOICE_CLONE_SINGING_MODEL", "music-2.6")
 LYRICS_REQUEST_TIMEOUT = float(os.getenv("LYRICS_REQUEST_TIMEOUT", "4"))
 VOICE_LIST_TIMEOUT = float(os.getenv("VOICE_LIST_TIMEOUT", "15"))
-JOB_TIMEOUT_SECONDS = int(os.getenv("JOB_TIMEOUT_SECONDS", "3600"))
+JOB_TIMEOUT_SECONDS = int(os.getenv("JOB_TIMEOUT_SECONDS", "900"))
 JOB_RETENTION_SECONDS = int(os.getenv("JOB_RETENTION_SECONDS", "604800"))
 
 DEFAULT_SYSTEM_VOICES = [
@@ -1575,7 +1575,6 @@ INDEX_HTML = r"""<!doctype html>
       // Add all interface languages first
       const allLangs = ["en", "zh", "yue", "ko", "ja", "es", "fr", "de", "pt", "it", "ru", "ar", "hi", "id", "vi", "th", "tr", "pl", "nl", "sv", "no", "da", "fi", "cs", "ro", "hu", "uk"];
       for (const l of allLangs) {
-        if (l === "yue") continue; // Cantonese is a lyrics voice, not an interface language
         const label = LANG_LABELS[l] || l;
         const isActive = l === current ? " active" : "";
         const check = l === current ? '<span class="lang-check">✓</span>' : "";
@@ -2002,23 +2001,23 @@ INDEX_HTML = r"""<!doctype html>
     let _activeVoiceLang = "Chinese (Mandarin)";
 
     const VOICE_LANG_GROUPS = [
-      { lang: "Chinese (Mandarin)", label: "Chinese (Mandarin)", voices: [] },
-      { lang: "Cantonese", label: "Cantonese", voices: [] },
+      { lang: "Chinese (Mandarin)", label: "普通话", voices: [] },
+      { lang: "Cantonese", label: "粤语", voices: [] },
       { lang: "English", label: "English", voices: [] },
-      { lang: "Korean", label: "Korean", voices: [] },
-      { lang: "Japanese", label: "Japanese", voices: [] },
-      { lang: "Spanish", label: "Spanish", voices: [] },
-      { lang: "Portuguese", label: "Portuguese", voices: [] },
-      { lang: "French", label: "French", voices: [] },
-      { lang: "German", label: "German", voices: [] },
-      { lang: "Indonesian", label: "Indonesian", voices: [] },
-      { lang: "Russian", label: "Russian", voices: [] },
-      { lang: "Italian", label: "Italian", voices: [] },
-      { lang: "Arabic", label: "Arabic", voices: [] },
-      { lang: "Turkish", label: "Turkish", voices: [] },
-      { lang: "Ukrainian", label: "Ukrainian", voices: [] },
-      { lang: "Dutch", label: "Dutch", voices: [] },
-      { lang: "Vietnamese", label: "Vietnamese", voices: [] },
+      { lang: "Korean", label: "한국어", voices: [] },
+      { lang: "Japanese", label: "日本語", voices: [] },
+      { lang: "Spanish", label: "Español", voices: [] },
+      { lang: "Portuguese", label: "Português", voices: [] },
+      { lang: "French", label: "Français", voices: [] },
+      { lang: "German", label: "Deutsch", voices: [] },
+      { lang: "Indonesian", label: "Bahasa Indonesia", voices: [] },
+      { lang: "Russian", label: "Русский", voices: [] },
+      { lang: "Italian", label: "Italiano", voices: [] },
+      { lang: "Arabic", label: "العربية", voices: [] },
+      { lang: "Turkish", label: "Türkçe", voices: [] },
+      { lang: "Ukrainian", label: "Українська", voices: [] },
+      { lang: "Dutch", label: "Nederlands", voices: [] },
+      { lang: "Vietnamese", label: "Tiếng Việt", voices: [] },
     ];
 
     const VOICE_NAME_ZH = {
@@ -2043,6 +2042,78 @@ INDEX_HTML = r"""<!doctype html>
       "Friendly Man": "友好男声",
       "Reliable Man": "可靠男声",
       "Calm Woman": "沉稳女声",
+    };
+
+    const VOICE_NAME_YUE = {
+      "Reliable Executive": "可靠高管",
+      "News Anchor": "新聞主播",
+      "Mature Woman": "成熟女性",
+      "Sweet Lady": "甜美女士",
+      "Lyrical Voice": "抒情聲音",
+      "Professional Host Female": "專業主持女聲",
+      "Gentle Lady": "溫柔女士",
+      "Trustworthy Man": "可信男士",
+      "Graceful Lady": "優雅女士",
+      "Whispering Girl": "低語女孩",
+      "Kind Lady": "親切女士",
+      "Calm Lady": "沉穩女士",
+      "Sweet Girl": "甜美女孩",
+      "Serene Woman": "寧靜女性",
+      "Narrator": "旁白",
+      "Sentimental Lady": "感性女士",
+      "Female News Anchor": "女新聞主播",
+      "Male Narrator": "男旁白",
+      "Friendly Man": "友好男士",
+      "Reliable Man": "可靠男士",
+      "Calm Woman": "沉穩女性",
+    };
+
+    const VOICE_NAME_KO = {
+      "Reliable Executive": "믿음직한 임원",
+      "News Anchor": "뉴스 앵커",
+      "Mature Woman": "성숙한 여성",
+      "Sweet Lady": "달콤한 숙녀",
+      "Lyrical Voice": "서정적 목소리",
+      "Professional Host Female": "프로 진행자 여성",
+      "Gentle Lady": "부드러운 숙녀",
+      "Trustworthy Man": "신뢰할 수 있는 남성",
+      "Graceful Lady": "우아한 숙녀",
+      "Whispering Girl": "속삭이는 소녀",
+      "Kind Lady": "친절한 숙녀",
+      "Calm Lady": "차분한 숙녀",
+      "Sweet Girl": "달콤한 소녀",
+      "Serene Woman": "평온한 여성",
+      "Narrator": "내레이터",
+      "Sentimental Lady": "감성적 숙녀",
+      "Female News Anchor": "여성 뉴스 앵커",
+      "Male Narrator": "남자 내레이터",
+      "Friendly Man": "친근한 남성",
+      "Reliable Man": "신뢰할 수 있는 남성",
+      "Calm Woman": "차분한 여성",
+    };
+
+    const VOICE_NAME_JA = {
+      "Reliable Executive": "信頼できる経営幹部",
+      "News Anchor": "ニュースアンカー",
+      "Mature Woman": "成熟した女性",
+      "Sweet Lady": "甘いLady",
+      "Lyrical Voice": "叙情的な声",
+      "Professional Host Female": "プロ司会者女性",
+      "Gentle Lady": "優しいLady",
+      "Trustworthy Man": "信頼できる男性",
+      "Graceful Lady": "優雅なLady",
+      "Whispering Girl": "囁く少女",
+      "Kind Lady": "親切なLady",
+      "Calm Lady": "穏やかなLady",
+      "Sweet Girl": "甘い少女",
+      "Serene Woman": "穏やかな女性",
+      "Narrator": "ナレーター",
+      "Sentimental Lady": "感傷的なLady",
+      "Female News Anchor": "女性ニュースアンカー",
+      "Male Narrator": "男性ナレーター",
+      "Friendly Man": "フレンドリーな男性",
+      "Reliable Man": "信頼できる男性",
+      "Calm Woman": "穏やかな女性",
     };
 
     function _t(key) { return t(key); }
@@ -2093,8 +2164,20 @@ INDEX_HTML = r"""<!doctype html>
         .replace(/\s+/g, " ")
         .trim();
       name = name.replace(/\b[a-z]/g, function(ch) { return ch.toUpperCase(); });
-      const zhName = VOICE_NAME_ZH[name];
-      if (zhName) return name + "（" + zhName + "）";
+      // Translate voice name based on UI language; English shows as-is
+      if (lang === "zh") {
+        const zhName = VOICE_NAME_ZH[name];
+        if (zhName) return zhName;
+      } else if (lang === "yue") {
+        const yueName = VOICE_NAME_YUE[name];
+        if (yueName) return yueName;
+      } else if (lang === "ko") {
+        const koName = VOICE_NAME_KO[name];
+        if (koName) return koName;
+      } else if (lang === "ja") {
+        const jaName = VOICE_NAME_JA[name];
+        if (jaName) return jaName;
+      }
       return name || String(voice || "").replace(/_/g, " ");
     }
 
@@ -3767,36 +3850,58 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
             "Generate enough lyrics to support a full 3-4 minute song, even when the brief is short. "
             "Respect the requested story, feelings, fragments, mood, and imagery. Avoid unsafe or explicit content if requested."
         )
-    message = (
-        "You are a professional songwriter. A user has provided you with a creative brief below — "
-        "it may be a personal story, emotional fragments, spoken words, imagery, a feeling, or rough ideas. "
-        "Your job is to transform this into a complete, polished, singable song. "
-        "Do NOT just copy the user's words into sections. Do NOT treat their input as a template to fill. "
-        "Instead, use it as your creative foundation and write an original, artistically crafted song.\n\n"
-        f"{json.dumps(context, ensure_ascii=False, indent=2)}\n\n"
-        "PROFESSIONAL SONGWRITER INSTRUCTIONS:\n"
-        "- Treat [lyrics_brief] as your creative spark — read it deeply, feel it, then create something that honors and elevates it.\n"
-        "- Every image, emotion, person, and moment mentioned in [lyrics_brief] must feel alive in the song — but interpreted through your artistry, not copied verbatim.\n"
-        "- The song should have a clear emotional journey — beginning, development, climax, resolution.\n"
-        "- Use section tags: [Intro], [Verse], [Pre-Chorus], [Chorus], [Drop], [Bridge], [Outro].\n"
-        "- VERSE 1: Set the scene using the user's material. Introduce characters, emotions, or imagery from [lyrics_brief] in a fresh, evocative way.\n"
-        "- PRE-CHORUS: Build tension and emotional energy toward the chorus.\n"
-        "- CHORUS: The emotional heart of the song. If the user shared a chorus idea, develop it into something powerful. If not, create a compelling hook from the themes in [lyrics_brief].\n"
-        "- VERSE 2: Continue the narrative from a new angle — deepen the story or emotion from [lyrics_brief]. Do not repeat verse 1.\n"
-        "- BRIDGE: Shift perspective, offer a moment of contrast, or bring the emotion to its peak.\n"
-        "- FINAL CHORUS / OUTRO: Bring it home with maximum emotional impact.\n"
-        "- Avoid clichés and generic phrases. Make every line earn its place.\n"
-        "- Target 500+ words to support a full 3-4 minute song.\n"
-        "- Keep under 6,000 characters.\n"
-        "- Output ONLY the lyrics — no explanations, no notes, no markdown fences, no quotes around the output."
-    )
+    # Build a flat, plain-English message — no JSON nesting, so the model
+    # cannot confuse the brief with lyrics to be copied verbatim.
+    music_style = prompt.strip()
+    lyrics_brief_raw = lyrics_idea.strip()
+
+    # Plain-language creative context (no JSON that might confuse the model)
+    context_lines = []
+    if music_style:
+        context_lines.append(f"MUSIC STYLE: {music_style}")
+    if lyrics_brief_raw:
+        context_lines.append(f"LYRICS BRIEF (ideas, feelings, imagery, story fragments — NOT lyrics to copy):\n{lyrics_brief_raw}")
+    if extra.get("mood"):
+        context_lines.append(f"MOOD: {extra['mood']}")
+    if extra.get("genre"):
+        context_lines.append(f"GENRE: {extra['genre']}")
+    if extra.get("vocals"):
+        context_lines.append(f"VOCAL STYLE: {extra['vocals']}")
+    if extra.get("structure"):
+        context_lines.append(f"PREFERRED STRUCTURE: {extra['structure']}")
+    if extra.get("avoid"):
+        context_lines.append(f"AVOID: {extra['avoid']}")
+    context_str = "\n".join(context_lines) if context_lines else "(No specific brief provided — create freely)"
+
+    message = f"""You are a professional songwriter. A user has provided the creative brief below. Your job is to write a COMPLETE, ORIGINAL, SINGABLE song that honors this brief.
+
+--- CREATIVE BRIEF ---
+{context_str}
+--- END BRIEF ---
+
+SONGWRITING RULES (follow strictly):
+1. Do NOT copy the user's words or phrases from the brief. Treat the brief as inspiration only.
+2. Every image, emotion, story beat, and moment in the brief must be INTERPRETED and REIMAGINED through your own artistry — never pasted verbatim into a lyric line.
+3. The song must have a clear emotional journey: set the scene (Verse 1) → build tension (Pre-Chorus) → emotional peak (Chorus) → new angle (Verse 2) → contrast/turn (Bridge) → resolution (Final Chorus / Outro).
+4. Each lyric line must be original. Do not use generic phrases like "music speaks from the heart", "let music be your voice", "express love through music", "find hope in melody" — these are clichés and strictly forbidden.
+5. Use section tags: [Intro], [Verse], [Pre-Chorus], [Chorus], [Drop], [Bridge], [Outro].
+6. VERSE 1: Introduce characters, scenes, or emotions suggested by the brief. Create fresh imagery — do not copy the brief's own words.
+7. PRE-CHORUS: Build toward the chorus. Increase emotional intensity.
+8. CHORUS: The most powerful moment. If the user shared a specific hook or phrase, build a complete chorus around its theme — but write all new lines.
+9. VERSE 2: Take the story somewhere new. Deepen or complicate the emotion from verse 1.
+10. BRIDGE: Offer a shift in perspective, a moment of contrast, or the emotional peak.
+11. FINAL CHORUS / OUTRO: Maximum emotional impact. Resolve the journey.
+12. Target 400-600 words to support a full 3-4 minute song.
+13. Keep under 6,000 characters total.
+14. Output ONLY the lyrics — no explanations, no notes, no markdown fences, no quotes around the output."""
+
     output = run_mmx([
         "text", "chat",
-        "--model", "lyrics_generation",
+        "--model", "auto",
         "--system", system,
         "--message", message,
         "--max-tokens", "3200",
-        "--temperature", "0.75",
+        "--temperature", "0.8",
         "--non-interactive",
         "--quiet",
         "--output", "text",
@@ -4827,10 +4932,25 @@ class MusicHandler(BaseHTTPRequestHandler):
                 self.wfile.write(chunk)
 
 
+def _job_cleanup_loop() -> None:
+    """Background daemon: periodically clean up stuck/expired jobs."""
+    while True:
+        time.sleep(60)
+        try:
+            with JOBS_LOCK:
+                if sweep_jobs_locked():
+                    save_jobs_locked()
+        except Exception:
+            pass  # Never crash the cleanup thread
+
+
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     load_jobs()
     load_drafts()
+    # Start background cleanup thread (runs even when no traffic)
+    cleanup_thread = threading.Thread(target=_job_cleanup_loop, daemon=True)
+    cleanup_thread.start()
     server = ThreadingHTTPServer((HOST, PORT), MusicHandler)
     print(f"Music Speaks running at http://{HOST}:{PORT}")
     print(f"Output directory: {OUTPUT_DIR}")
