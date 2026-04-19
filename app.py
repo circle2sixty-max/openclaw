@@ -44,6 +44,7 @@ OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", str(Path.home() / "terry_music_outputs
 JOBS_DB = OUTPUT_DIR / "jobs.json"
 DRAFTS_DB = OUTPUT_DIR / "drafts.json"
 MAX_BODY_BYTES = 1024 * 1024
+LYRICS_CHAR_LIMIT = 6000
 VOICE_CLONE_SINGING_ENDPOINT = os.getenv("MINIMAX_VOICE_CLONE_SINGING_ENDPOINT", "/v1/voice_clone_singing")
 VOICE_CLONE_SINGING_MODEL = os.getenv("MINIMAX_VOICE_CLONE_SINGING_MODEL", "music-2.6")
 LYRICS_REQUEST_TIMEOUT = float(os.getenv("LYRICS_REQUEST_TIMEOUT", "4"))
@@ -76,6 +77,41 @@ DEFAULT_SYSTEM_VOICES = [
     "Italian_Narrator",
     "Arabic_CalmWoman",
 ]
+
+VOICE_PREVIEW_TEXTS = {
+    "Chinese (Mandarin)": "你好，这是一段音色试听样本。Music Speaks 把你的文字变成歌曲。",
+    "Cantonese": "你好，呢段係音色試聽樣本。Music Speaks 將你嘅文字變成歌曲。",
+    "English": "Hello, this is a sample of this voice. Music Speaks turns your words into songs.",
+    "Korean": "안녕하세요, 이것은 음성 샘플입니다. Music Speaks가 당신의 말을 노래로 만듭니다.",
+    "Japanese": "こんにちは、これは音声サンプルです。Music Speaks が言葉を歌に変えます。",
+    "Spanish": "Hola, esta es una muestra de voz. Music Speaks convierte tus palabras en canciones.",
+    "Portuguese": "Ola, esta e uma amostra de voz. Music Speaks transforma suas palavras em cancoes.",
+    "French": "Bonjour, ceci est un exemple de voix. Music Speaks transforme vos mots en chansons.",
+    "German": "Hallo, dies ist eine Stimmprobe. Music Speaks verwandelt Ihre Worte in Lieder.",
+    "Indonesian": "Halo, ini adalah contoh suara. Music Speaks mengubah kata-katamu menjadi lagu.",
+    "Russian": "Привет, это образец голоса. Music Speaks превращает ваши слова в песни.",
+    "Italian": "Ciao, questo e un campione vocale. Music Speaks trasforma le tue parole in canzoni.",
+    "Arabic": "مرحبا، هذه عينة صوتية. Music Speaks يحول كلماتك إلى أغان.",
+    "Turkish": "Merhaba, bu bir ses ornegidir. Music Speaks sozlerinizi sarkilara donusturur.",
+    "Ukrainian": "Привіт, це зразок голосу. Music Speaks перетворює ваші слова на пісні.",
+    "Dutch": "Hallo, dit is een stemvoorbeeld. Music Speaks verandert je woorden in liedjes.",
+    "Vietnamese": "Xin chao, day la mau giong noi. Music Speaks bien loi cua ban thanh bai hat.",
+}
+VOICE_PREVIEW_LANGUAGES = tuple(sorted(VOICE_PREVIEW_TEXTS, key=len, reverse=True))
+VOICE_ID_SAFE_RE = re.compile(r"^[A-Za-z0-9_()./\- （）]+$")
+
+
+def _detect_lang_from_voice_id(voice_id: str) -> str:
+    value = str(voice_id or "").strip()
+    for lang in VOICE_PREVIEW_LANGUAGES:
+        if value == lang or value.startswith(f"{lang}_") or value.startswith(f"{lang} "):
+            return lang
+    return "English"
+
+
+def _is_safe_voice_id(voice_id: str) -> bool:
+    value = str(voice_id or "").strip()
+    return 1 <= len(value) <= 160 and ".." not in value and bool(VOICE_ID_SAFE_RE.fullmatch(value))
 
 
 def legacy_local_config(name: str) -> str:
@@ -301,6 +337,7 @@ INDEX_HTML = r"""<!doctype html>
     .job-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow-md); }
     .job-art { width: 56px; height: 56px; background: var(--gradient-green); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; transition: var(--transition); }
     .job-card:hover .job-art { transform: scale(1.05); }
+    .job-art svg { width: 26px; height: 26px; fill: currentColor; color: #fff; }
     .job-info { flex: 1; min-width: 0; }
     .job-title { font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
     .job-meta { display: flex; gap: 8px; font-size: 12px; color: var(--text-muted); }
@@ -310,7 +347,8 @@ INDEX_HTML = r"""<!doctype html>
     .job-badge.completed { background: var(--accent-dim); color: var(--accent); }
     .job-badge.error { background: rgba(255, 82, 82, 0.15); color: var(--danger); }
     .job-actions { display: flex; gap: 8px; }
-    .job-action-btn { padding: 8px 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer; transition: var(--transition); }
+    .job-action-btn { padding: 8px 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+    .job-action-btn svg { width: 13px; height: 13px; fill: currentColor; }
     .job-action-btn:hover { border-color: var(--accent); color: var(--accent); }
     .job-action-btn.download { background: var(--accent); color: #000; border: none; }
     .job-action-btn.download:hover { background: var(--accent-hover); }
@@ -319,30 +357,51 @@ INDEX_HTML = r"""<!doctype html>
     .progress-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
     .progress-fill { height: 100%; background: var(--accent); transition: width 0.3s; }
     /* Bottom Player */
-    .player { position: fixed; bottom: 0; left: 0; right: 0; height: 90px; background: var(--bg-secondary); border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 20px; z-index: 100; }
-    .player-track { display: flex; align-items: center; gap: 14px; width: 280px; flex-shrink: 0; }
-    .player-art { width: 56px; height: 56px; background: var(--gradient-green); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 24px; }
+    .player { position: fixed; bottom: 0; left: 0; right: 0; min-height: 104px; background: linear-gradient(135deg, rgba(25,20,20,0.98), rgba(18,22,20,0.97) 48%, rgba(29,185,84,0.26)); border-top: 1px solid rgba(255,255,255,0.08); box-shadow: 0 -18px 60px rgba(0,0,0,0.42); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); display: flex; align-items: center; padding: 16px 24px; gap: 20px; z-index: 100; overflow: visible; }
+    .player::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(29,185,84,0.10), transparent 36%, rgba(255,255,255,0.04)); pointer-events: none; }
+    .player > * { position: relative; z-index: 1; }
+    .player-track { display: flex; align-items: center; gap: 14px; width: 300px; min-width: 0; flex-shrink: 0; }
+    .player-art { width: 62px; height: 62px; background: linear-gradient(135deg, #1DB954 0%, #34d399 48%, #0f766e 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; box-shadow: 0 14px 34px rgba(29,185,84,0.24), inset 0 1px 0 rgba(255,255,255,0.24); }
+    .player-art svg { width: 32px; height: 32px; fill: currentColor; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.28)); }
     .player-info { min-width: 0; }
-    .player-title { font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .player-artist { font-size: 12px; color: var(--text-muted); }
-    .player-controls { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-    .player-buttons { display: flex; align-items: center; gap: 16px; }
-    .player-btn { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 20px; padding: 8px; transition: var(--transition); }
-    .player-btn:hover { color: var(--text-primary); }
-    .player-btn.play { width: 40px; height: 40px; background: var(--text-primary); color: var(--bg-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; }
-    .player-btn.play:hover { transform: scale(1.05); }
-    .player-progress { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 600px; }
-    .player-time { font-size: 11px; color: var(--text-muted); min-width: 40px; text-align: center; }
-    .player-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; cursor: pointer; position: relative; }
-    .player-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; transition: width 0.1s; }
-    .player-bar:hover .player-bar-fill { background: var(--accent-hover); }
-    .player-volume { display: flex; align-items: center; gap: 8px; width: 140px; flex-shrink: 0; }
-    .volume-icon { color: var(--text-muted); font-size: 18px; cursor: pointer; }
-    .volume-slider { flex: 1; height: 4px; background: var(--border); border-radius: 2px; cursor: pointer; }
-    .volume-fill { height: 100%; background: var(--text-muted); border-radius: 2px; width: 70%; }
-    .player-lyrics { flex: 1; max-width: 500px; overflow: hidden; text-align: center; padding: 0 20px; }
-    .lyrics-text { font-size: 14px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.3s; }
+    .player-title { font-size: 14px; font-weight: 800; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.01em; }
+    .player-artist { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+    .player-controls { flex: 1; min-width: 220px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .player-buttons { display: flex; align-items: center; gap: 12px; }
+    .player-btn { width: 38px; height: 38px; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; background: rgba(255,255,255,0.05); color: var(--text-secondary); cursor: pointer; padding: 0; display: inline-flex; align-items: center; justify-content: center; transition: var(--transition); }
+    .player-btn svg { width: 17px; height: 17px; fill: currentColor; }
+    .player-btn:hover { color: var(--text-primary); background: rgba(255,255,255,0.1); transform: translateY(-1px); }
+    .player-btn.play { width: 50px; height: 50px; background: #f7fff9; color: #07130c; border-color: transparent; border-radius: 8px; box-shadow: 0 12px 28px rgba(29,185,84,0.24); }
+    .player-btn.play svg { width: 21px; height: 21px; }
+    .player-btn.play:hover { transform: scale(1.05); background: #ffffff; }
+    .player-progress { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 620px; }
+    .player-time { font-size: 11px; color: var(--text-muted); min-width: 40px; text-align: center; font-variant-numeric: tabular-nums; }
+    .player-bar { flex: 1; height: 6px; background: rgba(255,255,255,0.1); border-radius: 6px; cursor: pointer; position: relative; overflow: hidden; }
+    .player-bar-fill { height: 100%; background: linear-gradient(90deg, #1DB954, #34d399); border-radius: 6px; width: 0%; transition: width 0.1s; box-shadow: 0 0 18px rgba(29,185,84,0.45); }
+    .player-bar:hover .player-bar-fill { background: linear-gradient(90deg, #1ed760, #67e8f9); }
+    .player-extra { display: flex; align-items: center; justify-content: flex-end; gap: 14px; width: 300px; flex-shrink: 0; }
+    .player-volume { display: flex; align-items: center; gap: 8px; width: 130px; flex-shrink: 0; }
+    .volume-icon { width: 18px; height: 18px; color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center; }
+    .volume-icon svg { width: 18px; height: 18px; fill: currentColor; }
+    .volume-slider { flex: 1; height: 5px; background: rgba(255,255,255,0.1); border-radius: 5px; cursor: pointer; overflow: hidden; }
+    .volume-fill { height: 100%; background: rgba(255,255,255,0.58); border-radius: 5px; width: 70%; }
+    .player-lyrics { flex: 1; max-width: 380px; overflow: hidden; text-align: center; padding: 0 12px; }
+    .lyrics-text { font-size: 13px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.3s; }
     .lyrics-text.playing { color: var(--accent); }
+    .lyrics-toggle { min-width: 78px; height: 36px; padding: 0 14px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; background: rgba(255,255,255,0.06); color: var(--text-secondary); font-size: 12px; font-weight: 800; letter-spacing: 0.01em; cursor: pointer; transition: var(--transition); }
+    .lyrics-toggle:hover:not(:disabled), .lyrics-toggle.active { background: rgba(29,185,84,0.18); border-color: rgba(29,185,84,0.52); color: var(--accent); }
+    .lyrics-toggle:disabled { opacity: 0.45; cursor: not-allowed; }
+    .lyrics-panel { position: fixed; right: 24px; bottom: 122px; width: min(460px, calc(100vw - 48px)); max-height: min(56vh, 540px); display: none; z-index: 101; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; background: linear-gradient(145deg, rgba(18,18,26,0.96), rgba(6,10,9,0.96)); box-shadow: 0 24px 80px rgba(0,0,0,0.48); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); overflow: hidden; }
+    .lyrics-panel.open { display: block; animation: slide-up 0.24s ease-out forwards; }
+    .lyrics-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .lyrics-panel-title { font-size: 13px; font-weight: 900; color: var(--text-primary); letter-spacing: 0.08em; text-transform: uppercase; }
+    .lyrics-panel-close { border: 0; background: transparent; color: var(--text-muted); font-size: 12px; font-weight: 800; cursor: pointer; padding: 6px 0; }
+    .lyrics-panel-close:hover { color: var(--accent); }
+    .lyrics-lines { max-height: calc(min(56vh, 540px) - 58px); overflow-y: auto; padding: 18px 20px 24px; scroll-behavior: smooth; }
+    .lyrics-line { color: var(--text-secondary); font-size: 15px; line-height: 1.7; padding: 6px 10px; border-radius: 8px; transition: var(--transition); }
+    .lyrics-line.section { margin-top: 8px; color: var(--text-muted); font-size: 11px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; }
+    .lyrics-line.active { color: #06100b; background: linear-gradient(90deg, #1DB954, #9af7be); box-shadow: 0 10px 28px rgba(29,185,84,0.18); transform: translateX(4px); font-weight: 800; }
+    .lyrics-empty { color: var(--text-muted); font-size: 13px; line-height: 1.6; padding: 14px 10px; }
     /* Recording Modal */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; }
     .modal-content { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-lg); width: min(520px, 95vw); max-height: 90vh; overflow-y: auto; }
@@ -376,10 +435,15 @@ INDEX_HTML = r"""<!doctype html>
     }
     @media (max-width: 768px) {
       .sidebar { display: none; }
-      .main-content { padding: 20px 16px 100px; }
-      .player { padding: 0 16px; gap: 12px; }
-      .player-track { width: auto; }
+      .main-content { padding: 20px 16px 142px; }
+      .player { min-height: 126px; padding: 12px 16px; gap: 10px; flex-wrap: wrap; }
+      .player-track { width: calc(100% - 96px); flex: 1 1 220px; }
+      .player-art { width: 52px; height: 52px; border-radius: 8px; }
+      .player-controls { order: 3; flex: 1 1 100%; min-width: 0; }
+      .player-extra { width: auto; margin-left: auto; }
       .player-volume { display: none; }
+      .player-lyrics { max-width: 160px; padding: 0 4px; }
+      .lyrics-panel { left: 16px; right: 16px; bottom: 142px; width: auto; max-height: 48vh; }
       .voice-picker-label { align-items: flex-start; gap: 8px; flex-direction: column; }
       .voice-picker-selected { max-width: 100%; }
       .voice-picker-scroll { height: auto; min-height: 360px; }
@@ -639,7 +703,7 @@ INDEX_HTML = r"""<!doctype html>
             <!-- Finished Lyrics -->
             <div class="form-section">
               <label class="form-label" data-i18n="lyricsLabel">Finished Lyrics (optional)</label>
-              <textarea id="lyrics" maxlength="3500" class="form-input" data-i18n-placeholder="lyricsPlaceholder" placeholder="[Verse]&#10;Your lyrics here...&#10;[Hook]&#10;Your chorus..."></textarea>
+              <textarea id="lyrics" maxlength="6000" class="form-input" data-i18n-placeholder="lyricsPlaceholder" placeholder="[Verse]&#10;Your lyrics here...&#10;[Hook]&#10;Your chorus..."></textarea>
               <div class="form-hint" data-i18n="lyricsHint">Paste exact lyrics here if you already have them. Exact lyrics take priority.</div>
             </div>
             <!-- Options -->
@@ -760,7 +824,9 @@ INDEX_HTML = r"""<!doctype html>
     <!-- Bottom Player -->
     <div class="player" id="player" style="display:none;">
       <div class="player-track">
-        <div class="player-art">🎵</div>
+        <div class="player-art" aria-hidden="true">
+          <svg viewBox="0 0 24 24" role="img" aria-label="Music note"><path d="M18 3v12.15A3.5 3.5 0 1 1 16 12V7.05L9 8.45v8.7A3.5 3.5 0 1 1 7 14V6.4L18 3Z"/></svg>
+        </div>
         <div class="player-info">
           <div class="player-title" id="playerTitle">Song Title</div>
           <div class="player-artist" id="playerArtist">Music Speaks</div>
@@ -768,9 +834,9 @@ INDEX_HTML = r"""<!doctype html>
       </div>
       <div class="player-controls">
         <div class="player-buttons">
-          <button class="player-btn" id="playerPrev">⏮</button>
-          <button class="player-btn play" id="playerPlay">▶</button>
-          <button class="player-btn" id="playerNext">⏭</button>
+          <button class="player-btn" id="playerPrev" type="button" aria-label="Previous track"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 6h2v12H7V6Zm3.5 6 8.5-6v12l-8.5-6Z"/></svg></button>
+          <button class="player-btn play" id="playerPlay" type="button" aria-label="Play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg></button>
+          <button class="player-btn" id="playerNext" type="button" aria-label="Next track"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6h2v12h-2V6ZM5 18V6l8.5 6L5 18Z"/></svg></button>
         </div>
         <div class="player-progress">
           <span class="player-time" id="playerCurrentTime">0:00</span>
@@ -779,11 +845,23 @@ INDEX_HTML = r"""<!doctype html>
         </div>
       </div>
       <div class="player-lyrics" id="playerLyrics">
-        <div class="lyrics-text" id="lyricsText">♪ Lyrics ♪</div>
+        <div class="lyrics-text" id="lyricsText">Lyrics ready</div>
       </div>
-      <div class="player-volume">
-        <span class="volume-icon" id="volumeIcon">🔊</span>
-        <div class="volume-slider" id="volumeSlider"><div class="volume-fill" id="volumeFill"></div></div>
+      <div class="player-extra">
+        <button class="lyrics-toggle" id="playerLyricsToggle" type="button" aria-expanded="false" aria-controls="lyricsPanel">Lyrics</button>
+        <div class="player-volume">
+          <span class="volume-icon" id="volumeIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4Zm11.5-.7 1.4-1.4A7 7 0 0 1 19 12a7 7 0 0 1-2.1 5.1l-1.4-1.4A5 5 0 0 0 17 12a5 5 0 0 0-1.5-3.7Z"/></svg></span>
+          <div class="volume-slider" id="volumeSlider"><div class="volume-fill" id="volumeFill"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="lyrics-panel" id="lyricsPanel" aria-live="polite">
+      <div class="lyrics-panel-header">
+        <span class="lyrics-panel-title" id="lyricsPanelTitle">Lyrics</span>
+        <button class="lyrics-panel-close" id="lyricsPanelClose" type="button">Close</button>
+      </div>
+      <div class="lyrics-lines" id="lyricsLines">
+        <div class="lyrics-empty">No lyrics available for this track.</div>
       </div>
     </div>
   </div>
@@ -1065,6 +1143,20 @@ INDEX_HTML = r"""<!doctype html>
     function escapeHtml(value) {
       return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
+    const UI_ICONS = {
+      play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg>',
+      pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7V5Zm6 0h4v14h-4V5Z"/></svg>',
+      music: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 3v12.15A3.5 3.5 0 1 1 16 12V7.05L9 8.45v8.7A3.5 3.5 0 1 1 7 14V6.4L18 3Z"/></svg>',
+      check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.2 16.2 4.9 12l-1.4 1.4 5.7 5.7L21 7.3 19.6 6 9.2 16.2Z"/></svg>',
+      error: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v7h-2V7h2Zm0 9v2h-2v-2h2Z"/></svg>',
+      volume: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Zm11.5-.7 1.4-1.4A7 7 0 0 1 19 12a7 7 0 0 1-2.1 5.1l-1.4-1.4A5 5 0 0 0 17 12a5 5 0 0 0-1.5-3.7Z"/></svg>',
+      muted: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Zm13.6 3 2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4-2.7-2.7Z"/></svg>',
+    };
+    function statusIcon(status) {
+      if (status === "completed") return UI_ICONS.check;
+      if (status === "error") return UI_ICONS.error;
+      return UI_ICONS.music;
+    }
     function applyLang() {
       document.documentElement.lang = lang;
       document.getElementById("langBtn").textContent = lang === "en" ? "中文" : "EN";
@@ -1096,10 +1188,10 @@ INDEX_HTML = r"""<!doctype html>
         const isRunning = job.status === "running" || job.status === "queued";
         const completedClass = job.status === "completed" ? "animate-bounce-in" : "";
         const actions = job.status === "completed" && job.download_url
-          ? `<button class="job-action-btn download" onclick="playJob('${escapeHtml(job.id)}')">▶ Play</button><a class="job-action-btn download" href="${downloadUrl}" download="${fileName}">${t("download")}</a>`
+          ? `<button class="job-action-btn download" onclick="playJob('${escapeHtml(job.id)}')">${UI_ICONS.play}<span>Play</span></button><a class="job-action-btn download" href="${downloadUrl}" download="${fileName}">${t("download")}</a>`
           : isRunning ? `<span style="font-size:12px;color:var(--text-muted);"><span class="spinner" style="width:12px;height:12px;border-width:1.5px;"></span> ${statusLabel(status)}...</span>` : "";
         return `<div class="job-card ${completedClass}" data-job-id="${escapeHtml(job.id)}" style="animation-delay:${idx * 50}ms">
-          <div class="job-art">${job.status === "completed" ? "✅" : job.status === "error" ? "❌" : "🎵"}</div>
+          <div class="job-art">${statusIcon(job.status)}</div>
           <div class="job-info">
             <div class="job-title">${title}</div>
             <div class="job-meta"><span class="job-badge ${status}">${statusLabel(status)}</span><span>${mode}</span><span>${formatDate(job.created_at)}</span></div>
@@ -1402,14 +1494,93 @@ INDEX_HTML = r"""<!doctype html>
     const playerDuration = document.getElementById("playerDuration");
     const volumeFill = document.getElementById("volumeFill");
     const lyricsText = document.getElementById("lyricsText");
+    const lyricsToggle = document.getElementById("playerLyricsToggle");
+    const lyricsPanel = document.getElementById("lyricsPanel");
+    const lyricsPanelClose = document.getElementById("lyricsPanelClose");
+    const lyricsLines = document.getElementById("lyricsLines");
+    const ICON_PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg>';
+    const ICON_PAUSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7V5Zm6.5 0H17v14h-3.5V5Z"/></svg>';
+    let lastActiveLyricIndex = -1;
+
+    function setPlayerPlayIcon() {
+      const isPaused = audioPlayer.paused;
+      playerPlay.innerHTML = isPaused ? ICON_PLAY : ICON_PAUSE;
+      playerPlay.setAttribute("aria-label", isPaused ? "Play" : "Pause");
+    }
+    function parseLyrics(rawLyrics) {
+      return String(rawLyrics || "")
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .map((line, index) => {
+          const isSection = /^\[[^\]]+\]$/.test(line);
+          const text = isSection ? line : (line.replace(/^\[[^\]]+\]\s*/, "").trim() || line);
+          return { index, text, isSection };
+        });
+    }
+    function getLyricRows() {
+      if (!currentTrack) return [];
+      const source = currentTrack.lyrics || "";
+      if (currentTrack._lyricsSource !== source) {
+        currentTrack._lyricsSource = source;
+        currentTrack._lyricsRows = parseLyrics(source);
+      }
+      return currentTrack._lyricsRows || [];
+    }
+    function closeLyricsPanel() {
+      lyricsPanel.classList.remove("open");
+      lyricsToggle.classList.remove("active");
+      lyricsToggle.setAttribute("aria-expanded", "false");
+    }
+    function renderLyricsPanel() {
+      const rows = getLyricRows();
+      lastActiveLyricIndex = -1;
+      if (!rows.length) {
+        lyricsLines.innerHTML = '<div class="lyrics-empty">No lyrics available for this track.</div>';
+        lyricsToggle.disabled = true;
+        closeLyricsPanel();
+        lyricsText.textContent = "No lyrics";
+        lyricsText.className = "lyrics-text";
+        return;
+      }
+      lyricsToggle.disabled = false;
+      lyricsLines.innerHTML = rows.map(row => {
+        const className = row.isSection ? "lyrics-line section" : "lyrics-line";
+        return '<div class="' + className + '" data-lyric-index="' + row.index + '">' + escapeHtml(row.text) + '</div>';
+      }).join("");
+      updateLyricsProgress(true);
+    }
+    function currentLyricRowIndex(rows) {
+      const playableRows = rows.filter(row => !row.isSection && row.text);
+      if (!playableRows.length) return rows[0] ? rows[0].index : -1;
+      if (!audioPlayer.duration || Number.isNaN(audioPlayer.duration)) return playableRows[0].index;
+      const lineIndex = Math.floor((audioPlayer.currentTime / audioPlayer.duration) * playableRows.length);
+      const safeIndex = Math.max(0, Math.min(lineIndex, playableRows.length - 1));
+      return playableRows[safeIndex].index;
+    }
+    function updateLyricsProgress(forceScroll = false) {
+      const rows = getLyricRows();
+      if (!rows.length) return;
+      const activeIndex = currentLyricRowIndex(rows);
+      const activeRow = rows.find(row => row.index === activeIndex);
+      lyricsText.textContent = activeRow ? activeRow.text : "Lyrics";
+      lyricsText.className = audioPlayer.paused ? "lyrics-text" : "lyrics-text playing";
+      lyricsLines.querySelectorAll(".lyrics-line").forEach(line => {
+        line.classList.toggle("active", line.getAttribute("data-lyric-index") === String(activeIndex));
+      });
+      if ((forceScroll || activeIndex !== lastActiveLyricIndex) && lyricsPanel.classList.contains("open")) {
+        const activeEl = lyricsLines.querySelector('[data-lyric-index="' + activeIndex + '"]');
+        if (activeEl) activeEl.scrollIntoView({ block: "center", behavior: forceScroll ? "auto" : "smooth" });
+      }
+      lastActiveLyricIndex = activeIndex;
+    }
     function updatePlayerUI() {
       if (!currentTrack) { player.style.display = "none"; return; }
       player.style.display = "flex";
       playerTitle.textContent = currentTrack.title;
       playerArtist.textContent = "Music Speaks";
-      playerPlay.textContent = audioPlayer.paused ? "▶" : "⏸";
-      lyricsText.textContent = currentTrack.lyrics ? "♪ " + currentTrack.lyrics.split("\n")[0] + " ♪" : "♪ Lyrics ♪";
-      lyricsText.className = audioPlayer.paused ? "lyrics-text" : "lyrics-text playing";
+      setPlayerPlayIcon();
+      renderLyricsPanel();
     }
     audioPlayer.addEventListener("timeupdate", () => {
       if (!audioPlayer.duration) return;
@@ -1417,26 +1588,30 @@ INDEX_HTML = r"""<!doctype html>
       playerBarFill.style.width = pct + "%";
       playerCurrentTime.textContent = formatTime(audioPlayer.currentTime);
       playerDuration.textContent = formatTime(audioPlayer.duration);
-      // Update lyrics based on progress
-      if (currentTrack && currentTrack.lyrics) {
-        const lines = currentTrack.lyrics.split("\n");
-        const lineIndex = Math.floor((audioPlayer.currentTime / audioPlayer.duration) * lines.length);
-        const safeIndex = Math.max(0, Math.min(lineIndex, lines.length - 1));
-        const line = lines[safeIndex].replace(/\[.*?\]/g, "").trim() || "♪ " + lines[safeIndex] + " ♪";
-        lyricsText.textContent = line;
-      }
+      updateLyricsProgress();
     });
-    audioPlayer.addEventListener("ended", () => { playerPlay.textContent = "▶"; lyricsText.className = "lyrics-text"; });
+    audioPlayer.addEventListener("play", () => { setPlayerPlayIcon(); lyricsText.className = "lyrics-text playing"; });
+    audioPlayer.addEventListener("pause", () => { setPlayerPlayIcon(); lyricsText.className = "lyrics-text"; });
+    audioPlayer.addEventListener("ended", () => { setPlayerPlayIcon(); lyricsText.className = "lyrics-text"; });
     playerPlay.addEventListener("click", () => {
       if (audioPlayer.paused) audioPlayer.play(); else audioPlayer.pause();
-      playerPlay.textContent = audioPlayer.paused ? "▶" : "⏸";
-      lyricsText.className = audioPlayer.paused ? "lyrics-text" : "lyrics-text playing";
+      setPlayerPlayIcon();
+      updateLyricsProgress();
     });
+    lyricsToggle.addEventListener("click", () => {
+      if (lyricsToggle.disabled) return;
+      const isOpen = lyricsPanel.classList.toggle("open");
+      lyricsToggle.classList.toggle("active", isOpen);
+      lyricsToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      if (isOpen) updateLyricsProgress(true);
+    });
+    lyricsPanelClose.addEventListener("click", closeLyricsPanel);
     playerBar.addEventListener("click", (e) => {
       if (!audioPlayer.duration) return;
       const rect = playerBar.getBoundingClientRect();
       const pct = (e.clientX - rect.left) / rect.width;
       audioPlayer.currentTime = pct * audioPlayer.duration;
+      updateLyricsProgress(true);
     });
     volumeFill.style.width = "70%";
     audioPlayer.volume = 0.7;
@@ -1616,6 +1791,30 @@ INDEX_HTML = r"""<!doctype html>
       { lang: "Vietnamese", label: "Vietnamese", voices: [] },
     ];
 
+    const VOICE_NAME_ZH = {
+      "Reliable Executive": "可靠高管",
+      "News Anchor": "新闻主播",
+      "Mature Woman": "成熟女性",
+      "Sweet Lady": "甜美女声",
+      "Lyrical Voice": "抒情声音",
+      "Professional Host Female": "专业主持女声",
+      "Gentle Lady": "温柔女声",
+      "Trustworthy Man": "可信男声",
+      "Graceful Lady": "优雅女声",
+      "Whispering Girl": "低语女孩",
+      "Kind Lady": "亲切女声",
+      "Calm Lady": "沉稳女声",
+      "Sweet Girl": "甜美女孩",
+      "Serene Woman": "宁静女声",
+      "Narrator": "旁白",
+      "Sentimental Lady": "感性女声",
+      "Female News Anchor": "女新闻主播",
+      "Male Narrator": "男旁白",
+      "Friendly Man": "友好男声",
+      "Reliable Man": "可靠男声",
+      "Calm Woman": "沉稳女声",
+    };
+
     function _t(key) { return t(key); }
 
     function _voiceGroupsFromCache() {
@@ -1658,10 +1857,14 @@ INDEX_HTML = r"""<!doctype html>
       }
       name = name
         .replace(/_/g, " ")
+        .replace(/([a-z])([A-Z])/g, "$1 $2")
         .replace(/[（(]\s*F\s*[）)]/gi, " Female")
         .replace(/[（(]\s*M\s*[）)]/gi, " Male")
         .replace(/\s+/g, " ")
         .trim();
+      name = name.replace(/\b[a-z]/g, function(ch) { return ch.toUpperCase(); });
+      const zhName = VOICE_NAME_ZH[name];
+      if (zhName) return name + "（" + zhName + "）";
       return name || String(voice || "").replace(/_/g, " ");
     }
 
@@ -1689,8 +1892,6 @@ INDEX_HTML = r"""<!doctype html>
         return;
       }
       const groups = _voiceGroupsFromCache();
-      const selectedGroup = _voiceGroupForId(_selectedVoiceId, groups);
-      if (selectedGroup) _activeVoiceLang = selectedGroup.lang;
       if (!groups.some(function(group) { return group.lang === _activeVoiceLang; })) {
         _activeVoiceLang = groups[0] ? groups[0].lang : "";
       }
@@ -2422,7 +2623,7 @@ def clean_draft_payload(form: dict[str, Any]) -> dict[str, Any]:
         "email": 320,
         "song_title": 120,
         "prompt": 2000,
-        "lyrics": 3500,
+        "lyrics": LYRICS_CHAR_LIMIT,
         "lyrics_idea": 2500,
         "genre": 200,
         "mood": 200,
@@ -2444,8 +2645,11 @@ def clean_draft_payload(form: dict[str, Any]) -> dict[str, Any]:
     return draft
 
 
-def public_job(job: dict[str, Any]) -> dict[str, Any]:
+def public_job(job: dict[str, Any], include_lyrics: bool = False) -> dict[str, Any]:
     result = {key: job.get(key) for key in ("id", "status", "created_at", "updated_at", "prompt", "song_title", "generated_title", "title_error", "email", "is_instrumental", "lyrics_optimizer", "file_name", "error", "email_sent", "voice_render_mode")}
+    if include_lyrics:
+        result["lyrics"] = job.get("lyrics", "")
+        result["generated_lyrics"] = bool(job.get("generated_lyrics"))
     if job.get("status") == "completed" and job.get("file_path"):
         result["download_url"] = f"/download/{urllib.parse.quote(str(job['id']))}"
     return result
@@ -2478,7 +2682,7 @@ def clean_generated_lyrics(text: str) -> str:
         if lower.startswith(prefix):
             cleaned = cleaned[len(prefix):].strip()
             break
-    return cleaned[:3500].strip()
+    return cleaned[:LYRICS_CHAR_LIMIT].strip()
 
 
 def _minimax_headers() -> dict[str, str]:
@@ -2673,7 +2877,7 @@ def synthesize_voice_clone_singing(lyrics: str, voice_id: str, output_path: Path
     payload = {
         "model": VOICE_CLONE_SINGING_MODEL,
         "voice_id": voice_id,
-        "lyrics": lyrics[:3500],
+        "lyrics": lyrics[:LYRICS_CHAR_LIMIT],
         "prompt": prompt[:2000],
         "stream": False,
         "output_format": "hex",
@@ -3114,6 +3318,7 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
         "Output only the lyrics, with no explanation, no markdown fences, and no notes. "
         "Use structure tags such as [Verse], [Pre-Chorus], [Chorus], [Bridge], and [Outro] where natural. "
         "Write in the same language as the lyrics brief unless the user explicitly requests another language. "
+        "Generate enough lyrics to support a full 3-4 minute song, even when the brief is short. "
         "Respect the requested story, feelings, fragments, mood, and imagery. Avoid unsafe or explicit content if requested."
     )
     message = (
@@ -3123,7 +3328,8 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
         "- Output only lyrics.\n"
         "- Include clear section tags.\n"
         "- Make the chorus memorable and repeatable.\n"
-        "- Keep the lyrics under 3,500 characters.\n"
+        "- 生成足够长的歌词以支撑3-4分钟歌曲; target at least 500 English words or comparable lyrical density in the requested language.\n"
+        "- Keep the lyrics under 6,000 characters.\n"
         "- Do not describe what you are doing."
     )
     output = run_mmx([
@@ -3131,7 +3337,7 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
         "--model", "lyrics_generation",
         "--system", system,
         "--message", message,
-        "--max-tokens", "1600",
+        "--max-tokens", "3200",
         "--temperature", "0.75",
         "--non-interactive",
         "--quiet",
@@ -3155,42 +3361,158 @@ def fallback_generated_lyrics(prompt: str, lyrics_idea: str, extra: dict[str, An
         theme = seed.rstrip("。！？")
         color = f"，带着{mood}" if mood else ""
         style = f"，像{genre}一样" if genre else ""
-        return (
-            "[Verse]\n"
-            f"{theme}在心里慢慢发光{color}\n"
-            f"每一个脚步都听见回响{style}\n"
-            "把没说出口的愿望收藏\n"
-            "让旋律替我去远方\n\n"
-            "[Chorus]\n"
-            f"{theme}，请为我歌唱\n"
-            "穿过黑夜，落在晨光\n"
-            "当语言找不到方向\n"
-            "让音乐替我把爱释放\n\n"
-            "[Bridge]\n"
-            "如果世界忽然安静\n"
-            "我仍跟着节拍前行\n\n"
-            "[Outro]\n"
-            "让音乐替我把爱释放"
-        )[:3500]
+        sections = [
+            "[Verse 1]",
+            f"{theme}在心里慢慢发光{color}",
+            f"每一个脚步都听见回响{style}",
+            "城市的风把沉默吹亮",
+            "我把没说出口的愿望收藏",
+            "沿着夜色找到新的方向",
+            "让旋律替我抵达远方",
+            "",
+            "[Pre-Chorus]",
+            "如果眼泪也有节拍",
+            "就让它落成温柔的海",
+            "如果明天还在等待",
+            "我会把勇气重新唱出来",
+            "",
+            "[Chorus]",
+            f"{theme}，请为我歌唱",
+            "穿过黑夜，落在晨光",
+            "当语言找不到方向",
+            "让音乐替我把爱释放",
+            f"{theme}，请陪我飞翔",
+            "越过人海，越过旧伤",
+            "把心跳交给这一段声浪",
+            "一直唱到天空发亮",
+            "",
+            "[Verse 2]",
+            "我曾在人群里面躲藏",
+            "怕自己的声音不够响亮",
+            "后来才懂真实的模样",
+            "是颤抖着也愿意绽放",
+            f"{theme}像一束光",
+            "照见我心里柔软的地方",
+            "每一次呼吸都在提醒我",
+            "还可以爱，还可以盼望",
+            "",
+            "[Chorus]",
+            f"{theme}，请为我歌唱",
+            "穿过黑夜，落在晨光",
+            "当语言找不到方向",
+            "让音乐替我把爱释放",
+            f"{theme}，请陪我飞翔",
+            "越过人海，越过旧伤",
+            "把心跳交给这一段声浪",
+            "一直唱到天空发亮",
+            "",
+            "[Bridge]",
+            "如果世界忽然安静",
+            "我仍跟着节拍前行",
+            "把遗憾写成和声",
+            "把孤单唱成星辰",
+            "就算风雨还会来临",
+            "我也不再低头逃避",
+            "",
+            "[Final Chorus]",
+            f"{theme}，请为我歌唱",
+            "用最明亮的声音回望",
+            "每段故事都有回响",
+            "每颗真心都值得被收藏",
+            f"{theme}，请陪我飞翔",
+            "越过人海，越过旧伤",
+            "把心跳交给这一段声浪",
+            "一直唱到天空发亮",
+            "",
+            "[Outro]",
+            "当语言找不到方向",
+            "让音乐替我把爱释放",
+        ]
+        return "\n".join(sections)[:LYRICS_CHAR_LIMIT].strip()
     descriptors = ", ".join(part for part in (mood, genre) if part)
     detail = f" with {descriptors}" if descriptors else ""
-    return (
-        "[Verse]\n"
-        f"I carry {seed} through the quiet night{detail}\n"
-        "A spark beneath the static, a signal turning bright\n"
-        "Every word I buried finds a rhythm of its own\n"
-        "And every little heartbeat starts leading me home\n\n"
-        "[Chorus]\n"
-        f"Let {seed} rise, let it ring\n"
-        "When words fall short, let the music sing\n"
-        "Through the dark into the morning light\n"
-        "Music speaks what I feel inside\n\n"
-        "[Bridge]\n"
-        "If the sky breaks open, I will not hide\n"
-        "I will put my truth on the melody line\n\n"
-        "[Outro]\n"
-        "Music speaks what I feel inside"
-    )[:3500]
+    sections = [
+        "[Verse 1]",
+        f"I carry {seed} through the quiet night{detail}",
+        "A spark beneath the static, a signal turning bright",
+        "Every word I buried finds a rhythm of its own",
+        "Every little heartbeat starts leading me home",
+        "I have been waiting in the space between the lines",
+        "Holding on to feelings that were never given time",
+        "Now the room is opening, the silence starts to move",
+        "And I can hear the melody telling me the truth",
+        "",
+        "[Pre-Chorus]",
+        "If I cannot say it, I can let it rise",
+        "Put it in the drumbeat, lift it to the sky",
+        "If my voice is shaking, let the chorus be my guide",
+        "I am still becoming, I am still alive",
+        "",
+        "[Chorus]",
+        f"Let {seed} rise, let it ring",
+        "When words fall short, let the music sing",
+        "Through the dark into the morning light",
+        "Music speaks what I feel inside",
+        f"Let {seed} move, let it fly",
+        "Over every doubt I used to hide",
+        "Turn the heartbeat into something wide",
+        "Music speaks what I feel inside",
+        "",
+        "[Verse 2]",
+        "I used to fold my dreams into a quiet paper plane",
+        "Send them through the window, watch them disappear in rain",
+        "Now I see the weather was a lesson in disguise",
+        "Every storm was teaching me to keep my fire alive",
+        "There is a road ahead of me I never walked before",
+        "There is a younger version of me waiting at the door",
+        "I take their hand and tell them we are not too late to try",
+        "We can turn the ache into a song that fills the sky",
+        "",
+        "[Pre-Chorus]",
+        "If I cannot say it, I can let it rise",
+        "Put it in the drumbeat, lift it to the sky",
+        "If my voice is shaking, let the chorus be my guide",
+        "I am still becoming, I am still alive",
+        "",
+        "[Chorus]",
+        f"Let {seed} rise, let it ring",
+        "When words fall short, let the music sing",
+        "Through the dark into the morning light",
+        "Music speaks what I feel inside",
+        f"Let {seed} move, let it fly",
+        "Over every doubt I used to hide",
+        "Turn the heartbeat into something wide",
+        "Music speaks what I feel inside",
+        "",
+        "[Bridge]",
+        "If the sky breaks open, I will not hide",
+        "I will put my truth on the melody line",
+        "All the pieces I could never understand",
+        "Start to fit together when the rhythm takes my hand",
+        "I am more than the fear that tried to keep me small",
+        "I am more than the echoes in an empty hall",
+        "Here I am, still breathing, still reaching for the sound",
+        "Here I am, still rising every time I hit the ground",
+        "",
+        "[Final Chorus]",
+        f"Let {seed} rise, let it ring",
+        "When words fall short, let the music sing",
+        "Through the dark into the morning light",
+        "Music speaks what I feel inside",
+        f"Let {seed} move, let it fly",
+        "Over every doubt I used to hide",
+        "Turn the heartbeat into something wide",
+        "Music speaks what I feel inside",
+        "Let it rise, let it ring",
+        "Let the whole world hear this hidden thing",
+        "Through the dark into the morning light",
+        "Music speaks what I feel inside",
+        "",
+        "[Outro]",
+        "When words fall short, let the music sing",
+        "Music speaks what I feel inside",
+    ]
+    return "\n".join(sections)[:LYRICS_CHAR_LIMIT].strip()
 
 
 def generate_title_from_text_model(job: dict[str, Any], lyrics: str, timeout: float = 180) -> str:
@@ -3490,7 +3812,7 @@ class MusicHandler(BaseHTTPRequestHandler):
             client_id = normalize_client_id(self.headers.get("X-Client-Id"))
             with JOBS_LOCK:
                 jobs = sorted(
-                    [public_job(job) for job in JOBS.values() if job.get("owner_id") == client_id],
+                    [public_job(job, include_lyrics=True) for job in JOBS.values() if job.get("owner_id") == client_id],
                     key=lambda item: str(item.get("created_at", "")),
                     reverse=True,
                 )
@@ -3505,7 +3827,7 @@ class MusicHandler(BaseHTTPRequestHandler):
                 if not job or job.get("owner_id") != client_id:
                     self.send_json({"error": "Job not found"}, HTTPStatus.NOT_FOUND)
                     return
-                self.send_json(public_job(job))
+                self.send_json(public_job(job, include_lyrics=True))
             return
         if path.startswith("/api/drafts/"):
             self.handle_get_draft(path.removeprefix("/api/drafts/"))
@@ -3592,8 +3914,8 @@ class MusicHandler(BaseHTTPRequestHandler):
                 raise ValueError("Prompt must be 2000 characters or fewer.")
             if len(raw_song_title) > 120:
                 raise ValueError("Song title must be 120 characters or fewer.")
-            if len(lyrics) > 3500:
-                raise ValueError("Lyrics must be 3500 characters or fewer.")
+            if len(lyrics) > LYRICS_CHAR_LIMIT:
+                raise ValueError(f"Lyrics must be {LYRICS_CHAR_LIMIT} characters or fewer.")
             if len(lyrics_idea) > 2500:
                 raise ValueError("Lyrics brief must be 2500 characters or fewer.")
             if not is_instrumental and not lyrics and not lyrics_optimizer:
@@ -3641,8 +3963,7 @@ class MusicHandler(BaseHTTPRequestHandler):
             sweep_jobs_locked()
             JOBS[job_id] = job
             save_jobs_locked()
-        response_job = public_job(job)
-        response_job["lyrics"] = lyrics
+        response_job = public_job(job, include_lyrics=True)
         threading.Thread(target=generate_music_with_voice, args=(job_id,), daemon=True).start()
         self.send_json({"job": response_job}, HTTPStatus.ACCEPTED)
 
@@ -3669,12 +3990,14 @@ class MusicHandler(BaseHTTPRequestHandler):
         if not voice_id:
             self.send_json({"error": "voice_id is required"}, HTTPStatus.BAD_REQUEST)
             return
-        # Clean voice_id to prevent path injection
-        safe_voice_id = re.sub(r"[^a-zA-Z0-9_()/\- ]", "", voice_id)
+        if not _is_safe_voice_id(voice_id):
+            self.send_json({"error": "voice_id contains invalid characters"}, HTTPStatus.BAD_REQUEST)
+            return
         try:
-            preview_text = "Hello, this is a sample of this voice. Music Speaks turns your words into songs."
+            preview_lang = _detect_lang_from_voice_id(voice_id)
+            preview_text = VOICE_PREVIEW_TEXTS.get(preview_lang, VOICE_PREVIEW_TEXTS["English"])
             tmp_path = OUTPUT_DIR / f"voice_preview_{secrets.token_hex(8)}.mp3"
-            synthesize_speech(preview_text, safe_voice_id, tmp_path)
+            synthesize_speech(preview_text, voice_id, tmp_path)
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "audio/mpeg")
             self.send_header("Content-Length", str(tmp_path.stat().st_size))
@@ -3880,8 +4203,8 @@ class MusicHandler(BaseHTTPRequestHandler):
                 raise ValueError("Prompt must be 2000 characters or fewer.")
             if len(raw_song_title) > 120:
                 raise ValueError("Song title must be 120 characters or fewer.")
-            if len(lyrics) > 3500:
-                raise ValueError("Lyrics must be 3500 characters or fewer.")
+            if len(lyrics) > LYRICS_CHAR_LIMIT:
+                raise ValueError(f"Lyrics must be {LYRICS_CHAR_LIMIT} characters or fewer.")
             if len(lyrics_idea) > 2500:
                 raise ValueError("Lyrics brief must be 2500 characters or fewer.")
             if not is_instrumental and not lyrics and not lyrics_optimizer:
@@ -3917,8 +4240,7 @@ class MusicHandler(BaseHTTPRequestHandler):
             sweep_jobs_locked()
             JOBS[job_id] = job
             save_jobs_locked()
-        response_job = public_job(job)
-        response_job["lyrics"] = lyrics
+        response_job = public_job(job, include_lyrics=True)
         threading.Thread(target=generate_music, args=(job_id,), daemon=True).start()
         self.send_json({"job": response_job}, HTTPStatus.ACCEPTED)
 
