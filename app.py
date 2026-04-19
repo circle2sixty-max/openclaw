@@ -1779,13 +1779,59 @@ INDEX_HTML = r"""<!doctype html>
       }).join("");
       updateLyricsProgress(true);
     }
+    // ── Time-indexed lyrics sync (weighted by text length for non-timestamp lyrics) ──
+    let _lyricTimeIndex = [];  // [{start, end, index}, ...]
+    let _lyricTimeIndexKey = "";
+
+    function _buildLyricTimeIndex(rows, duration) {
+      const playableRows = rows.filter(row => !row.isSection && row.text);
+      if (!playableRows.length || !duration) return;
+      const totalChars = playableRows.reduce((s, r) => s + r.text.length, 0) || 1;
+      let accumulated = 0;
+      _lyricTimeIndex = playableRows.map((row, i) => {
+        const weight = row.text.length / totalChars;
+        const start = accumulated;
+        accumulated += weight;
+        return { start: start * duration, end: (i === playableRows.length - 1) ? duration : (start + weight) * duration, index: row.index };
+      });
+    }
+
     function currentLyricRowIndex(rows) {
       const playableRows = rows.filter(row => !row.isSection && row.text);
       if (!playableRows.length) return rows[0] ? rows[0].index : -1;
       if (!audioPlayer.duration || Number.isNaN(audioPlayer.duration)) return playableRows[0].index;
-      const lineIndex = Math.floor((audioPlayer.currentTime / audioPlayer.duration) * playableRows.length);
-      const safeIndex = Math.max(0, Math.min(lineIndex, playableRows.length - 1));
-      return playableRows[safeIndex].index;
+
+      // Use timestamp-based sync if available (2+ timestamps)
+      const tsData = _parseTimestamps(currentTrack ? currentTrack.lyrics || "" : "");
+      if (tsData.length >= 2) {
+        const t = audioPlayer.currentTime;
+        for (let i = tsData.length - 1; i >= 0; i--) {
+          if (t >= tsData[i].time) {
+            const text = tsData[i].text;
+            const found = rows.find(r => r.text === text);
+            if (found) return found.index;
+          }
+        }
+        return playableRows[0].index;
+      }
+
+      // Rebuild time index if track or rows changed
+      const rowsKey = playableRows.map(r => r.index + ":" + r.text.length).join("|");
+      const cacheKey = (currentTrack ? currentTrack.src : "") + "::" + rowsKey;
+      if (cacheKey !== _lyricTimeIndexKey) {
+        _lyricTimeIndexKey = cacheKey;
+        _buildLyricTimeIndex(rows, audioPlayer.duration);
+      }
+
+      // Binary search for current time slot
+      const t = audioPlayer.currentTime;
+      let lo = 0, hi = _lyricTimeIndex.length - 1, result = playableRows[0].index;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (_lyricTimeIndex[mid].start <= t) { result = _lyricTimeIndex[mid].index; lo = mid + 1; }
+        else hi = mid - 1;
+      }
+      return result;
     }
     function updateLyricsProgress(forceScroll = false) {
       const rows = getLyricRows();
@@ -2766,10 +2812,10 @@ INDEX_HTML = r"""<!doctype html>
       if (!rows.length) return;
       const playableRows = rows.filter(r => !r.isSection && r.text);
       if (!playableRows.length || !audioPlayer.duration) return;
-      const lineIdx = Math.floor((audioPlayer.currentTime / audioPlayer.duration) * playableRows.length);
-      const safeIdx = Math.max(0, Math.min(lineIdx, playableRows.length - 1));
-      const activeIndex = playableRows[safeIdx].index;
-      const currentText = playableRows[safeIdx] ? playableRows[safeIdx].text : "";
+      // Use improved currentLyricRowIndex with weighted time distribution and timestamp support
+      const activeIndex = currentLyricRowIndex(rows);
+      const activeRow = rows.find(r => r.index === activeIndex);
+      const currentText = activeRow ? activeRow.text : "";
       document.getElementById("lfmCurrentLine").textContent = currentText;
       document.getElementById("lfmCurrentTime").textContent = formatTime(audioPlayer.currentTime);
       document.getElementById("lfmBarFill").style.width = ((audioPlayer.currentTime / audioPlayer.duration) * 100) + "%";
@@ -2784,16 +2830,38 @@ INDEX_HTML = r"""<!doctype html>
       }
     }
 
+    let _lfmTimeUpdateHandler = null;
     document.getElementById("lyricsFullscreenBtn").addEventListener("click", () => {
       if (lyricsModal.classList.contains("open")) { _closeLyricsModal(); return; }
       _openLyricsModal();
       _syncLfmFromPlayer();
       _updateLfmProgress();
+      // Attach continuous timeupdate when modal is open
+      _lfmTimeUpdateHandler = () => _updateLfmProgress();
+      audioPlayer.addEventListener("timeupdate", _lfmTimeUpdateHandler);
     });
+    function _closeLyricsModal() {
+      lyricsModal.classList.remove("open");
+      document.body.style.overflow = "";
+      if (_lfmTimeUpdateHandler) {
+        audioPlayer.removeEventListener("timeupdate", _lfmTimeUpdateHandler);
+        _lfmTimeUpdateHandler = null;
+      }
+    }
     document.getElementById("lfmClose").addEventListener("click", _closeLyricsModal);
     document.querySelector(".lfm-bg").addEventListener("click", _closeLyricsModal);
     document.getElementById("lfmPlay").addEventListener("click", () => {
       if (audioPlayer.paused) audioPlayer.play(); else audioPlayer.pause();
+    });
+    document.getElementById("lfmPrev").addEventListener("click", () => {
+      if (!currentTrack) return;
+      audioPlayer.currentTime = 0;
+      _updateLfmProgress();
+    });
+    document.getElementById("lfmNext").addEventListener("click", () => {
+      if (!currentTrack) return;
+      audioPlayer.currentTime = 0;
+      _updateLfmProgress();
     });
     document.getElementById("lfmBar").addEventListener("click", e => {
       if (!audioPlayer.duration) return;
@@ -2829,22 +2897,6 @@ INDEX_HTML = r"""<!doctype html>
       _timestampCache.set(lyricsText, results);
       return results;
     }
-    // Override currentLyricRowIndex to use timestamps when available
-    const _origCurrentLyricRowIndex = currentLyricRowIndex;
-    currentLyricRowIndex = function(rows) {
-      const tsData = _parseTimestamps(currentTrack ? currentTrack.lyrics || "" : "");
-      if (tsData.length >= 2) {
-        const t = audioPlayer.currentTime;
-        for (let i = tsData.length - 1; i >= 0; i--) {
-          if (t >= tsData[i].time) {
-            const text = tsData[i].text;
-            const found = rows.find(r => r.text === text);
-            if (found) return found.index;
-          }
-        }
-      }
-      return _origCurrentLyricRowIndex(rows);
-    };
   </script>
 </body>
 </html>
