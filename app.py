@@ -224,6 +224,10 @@ INDEX_HTML = r"""<!doctype html>
     .header-btn .ui-icon { width: 18px; height: 18px; }
     .header-btn:hover { background: var(--bg-elevated); color: var(--text-primary); transform: scale(1.05); }
     .lang-toggle { width: auto; padding: 0 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+    .lang-menu-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; cursor: pointer; font-size: 14px; color: var(--text-secondary); transition: var(--transition); }
+    .lang-menu-item:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+    .lang-menu-item.active { color: var(--accent); font-weight: 600; }
+    .lang-menu-item .lang-check { font-size: 12px; }
     /* Main Layout */
     .app-body { display: flex; flex: 1; overflow: hidden; }
     /* Sidebar */
@@ -665,8 +669,12 @@ INDEX_HTML = r"""<!doctype html>
       </a>
       <div class="header-actions">
         <button id="soundBtn" class="header-btn sound-toggle on" title="Toggle sound" aria-label="Mute sounds" onclick="toggleSound()"><svg class="ui-icon"><use href="#icon-volume"></use></svg></button>
-        <button id="themeBtn" class="header-btn" title="Toggle theme" aria-label="Switch to light theme"><svg class="ui-icon"><use href="#icon-moon"></use></svg></button>
-        <button id="langBtn" class="header-btn lang-toggle">中文</button>
+        <button id="themeBtn" class="header-btn" title="Switch to theme" aria-label="Switch to light theme"><svg class="ui-icon"><use href="#icon-moon"></use></svg></button>
+        <div id="langBtnDropdown" style="position:relative;">
+          <button id="langBtn" class="header-btn lang-toggle" aria-haspopup="listbox" aria-expanded="false">EN ▾</button>
+          <div id="langMenu" class="lang-menu" role="listbox" style="display:none;position:absolute;top:100%;right:0;min-width:160px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 0;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.15);">
+          </div>
+        </div>
       </div>
     </header>
     <div class="app-body">
@@ -1062,7 +1070,8 @@ INDEX_HTML = r"""<!doctype html>
         download: "Download MP3", delete: "Delete", sent: "Sent to", instrumentalMode: "Instrumental", vocalMode: "Vocal", deleteConfirm: "Delete this job?", deleteFailed: "Delete failed",
         navCreate: "Create", navLibrary: "Library", navFavorites: "Favorites", navHistory: "History", navPlaylists: "Playlists", playlistAll: "All Songs", playlistRecent: "Recently Played",
         libraryDesc: "All your generated songs in one place.", favoritesDesc: "Your liked and saved songs.", historyDesc: "Recently generated songs.",
-        toastMusicStarted: "Music generation started!", toastMusicReady: "Music ready: ", toastLyricsSuccess: "Lyrics generated successfully!", toastLyricsError: "Lyrics generation failed.", toastVoiceCloneSuccess: "Voice cloned successfully!", toastVoiceCloneError: "Voice clone failed."
+        toastMusicStarted: "Music generation started!", toastMusicReady: "Music ready: ", toastLyricsSuccess: "Lyrics generated successfully!", toastLyricsError: "Lyrics generation failed.", toastVoiceCloneSuccess: "Voice cloned successfully!", toastVoiceCloneError: "Voice clone failed.",
+        langMenuLabel: "Interface Language", langMismatchWarn: "⚠️ Lyrics language does not match the selected voice language. The lyrics may not sound right with this voice.", langMismatchTitle: "Language Mismatch"
       },
       zh: {
         subtitle: "当语言无法抵达时，让音乐替你表达。给你的内心世界一种属于自己的声音。",
@@ -1104,7 +1113,8 @@ INDEX_HTML = r"""<!doctype html>
         download: "下载 MP3", delete: "删除", sent: "已发送到", instrumentalMode: "纯音乐", vocalMode: "有人声", deleteConfirm: "删除此任务？", deleteFailed: "删除失败",
         navCreate: "创建", navLibrary: "曲库", navFavorites: "收藏", navHistory: "历史", navPlaylists: "播放列表", playlistAll: "全部歌曲", playlistRecent: "最近播放",
         libraryDesc: "你生成的所有歌曲。", favoritesDesc: "你喜欢的歌曲。", historyDesc: "最近生成的歌曲。",
-        toastMusicStarted: "音乐生成已开始！", toastMusicReady: "音乐完成：", toastLyricsSuccess: "歌词生成成功！", toastLyricsError: "歌词生成失败。", toastVoiceCloneSuccess: "声音复刻成功！", toastVoiceCloneError: "声音复刻失败。"
+        toastMusicStarted: "音乐生成已开始！", toastMusicReady: "音乐完成：", toastLyricsSuccess: "歌词生成成功！", toastLyricsError: "歌词生成失败。", toastVoiceCloneSuccess: "声音复刻成功！", toastVoiceCloneError: "声音复刻失败。",
+        langMenuLabel: "界面语言", langMismatchWarn: "⚠️ 歌词语言与所选音色不匹配，歌词可能与这个音色不协调。", langMismatchTitle: "语言不匹配"
       }
     };
 
@@ -1120,6 +1130,7 @@ INDEX_HTML = r"""<!doctype html>
     };
 
     let lang = "en";
+    let _lyricsLanguage = "auto"; // "auto" = match voice language, or an explicit IETF language tag
     let lastJobs = [];
     // Set default prompt value if empty
     const promptEl = document.getElementById("prompt");
@@ -1204,7 +1215,8 @@ INDEX_HTML = r"""<!doctype html>
     }
     function applyLang() {
       document.documentElement.lang = lang;
-      document.getElementById("langBtn").textContent = lang === "en" ? "中文" : "EN";
+      const label = LANG_LABELS[lang] || lang;
+      document.getElementById("langBtn").textContent = label + " ▾";
       document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
       document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
       submitBtnOriginalText = submitBtn.textContent; // Update original text when language changes
@@ -1290,6 +1302,7 @@ INDEX_HTML = r"""<!doctype html>
         genre: get("genre"), mood: get("mood"), instruments: get("instruments"), tempo: get("tempo"), bpm: get("bpm"), key: get("key"),
         vocals: get("vocals"), structure: get("structure"), references: get("references"), avoid: get("avoid"), use_case: get("useCase"), extra: get("extra"),
         voice_id: clonedVoiceId || _selectedVoiceId || "",
+        lyrics_language: _lyricsLanguage || "auto",
       };
     }
     function restorePayload(payload = {}) {
@@ -1480,10 +1493,138 @@ INDEX_HTML = r"""<!doctype html>
       voiceStatus.textContent = t("voiceReady");
       voiceStatus.style.color = "var(--accent)";
     }
-    document.getElementById("langBtn").addEventListener("click", () => {
-      lang = lang === "en" ? "zh" : "en";
-      applyLang();
+    // ── Language menu (dropdown) ──────────────────────────────────────
+    const LANG_LABELS = {
+      "en": "English", "zh": "中文", "yue": "粤语", "ko": "한국어",
+      "ja": "日本語", "es": "Español", "fr": "Français", "de": "Deutsch",
+      "pt": "Português", "it": "Italiano", "ru": "Русский", "ar": "العربية",
+      "hi": "हिन्दी", "id": "Bahasa Indonesia", "vi": "Tiếng Việt",
+      "th": "ไทย", "tr": "Türkçe", "pl": "Polski", "nl": "Nederlands",
+      "sv": "Svenska", "no": "Norsk", "da": "Dansk", "fi": "Suomi",
+      "cs": "Čeština", "ro": "Română", "hu": "Magyar", "uk": "Українська"
+    };
+
+    // Map voice lang (from API) → IETF tag used in LANG_LABELS
+    const VOICE_LANG_TO_IETF = {
+      "English": "en", "Chinese (Mandarin)": "zh", "Cantonese": "yue",
+      "Korean": "ko", "Japanese": "ja", "Spanish": "es", "French": "fr",
+      "German": "de", "Portuguese": "pt", "Italian": "it", "Russian": "ru",
+      "Arabic": "ar", "Hindi": "hi", "Indonesian": "id", "Vietnamese": "vi",
+      "Thai": "th", "Turkish": "tr", "Polish": "pl", "Dutch": "nl",
+      "Swedish": "sv", "Norwegian": "no", "Danish": "da", "Finnish": "fi",
+      "Czech": "cs", "Romanian": "ro", "Hungarian": "hu", "Ukrainian": "uk"
+    };
+
+    function _getAvailableUIVoices() {
+      const groups = _voiceGroupsFromCache();
+      const langSet = new Set();
+      const uniqueLangs = [];
+      for (const g of groups) {
+        if (!langSet.has(g.lang)) { langSet.add(g.lang); uniqueLangs.push(g.lang); }
+      }
+      return uniqueLangs;
+    }
+
+    function _buildLangMenu() {
+      const menu = document.getElementById("langMenu");
+      if (!menu) return;
+      const voices = _getAvailableUIVoices();
+      const current = lang;
+      let html = '<div style="padding:8px 16px;font-size:11px;color:var(--text-muted);border-bottom:1px solid var(--border);">' + escapeHtml(t("langMenuLabel")) + '</div>';
+      // Add all interface languages first
+      const allLangs = ["en", "zh", "yue", "ko", "ja", "es", "fr", "de", "pt", "it", "ru", "ar", "hi", "id", "vi", "th", "tr", "pl", "nl", "sv", "no", "da", "fi", "cs", "ro", "hu", "uk"];
+      for (const l of allLangs) {
+        if (l === "yue") continue; // Cantonese is a lyrics voice, not an interface language
+        const label = LANG_LABELS[l] || l;
+        const isActive = l === current ? " active" : "";
+        const check = l === current ? '<span class="lang-check">✓</span>' : "";
+        html += '<div class="lang-menu-item' + isActive + '" data-lang="' + escapeHtml(l) + '" role="option">' + escapeHtml(label) + check + '</div>';
+      }
+      // If voice languages include something not in interface list, add a divider + section
+      const voiceOnlyLangs = voices.filter(v => !VOICE_LANG_TO_IETF[v] && !["en", "zh", "yue", "ko", "ja", "es", "fr", "de", "pt", "it", "ru", "ar", "hi", "id", "vi", "th", "tr", "pl", "nl", "sv", "no", "da", "fi", "cs", "ro", "hu", "uk"].includes(VOICE_LANG_TO_IETF[v] || ""));
+      if (voiceOnlyLangs.length > 0) {
+        html += '<div style="padding:8px 16px;font-size:11px;color:var(--text-muted);border-top:1px solid var(--border);margin-top:4px;">Voice Languages</div>';
+        for (const v of voiceOnlyLangs) {
+          html += '<div class="lang-menu-item" data-lang="voice:' + escapeHtml(v) + '" role="option">' + escapeHtml(v) + '</div>';
+        }
+      }
+      menu.innerHTML = html;
+      menu.querySelectorAll(".lang-menu-item").forEach(item => {
+        item.addEventListener("click", e => {
+          e.stopPropagation();
+          const val = item.getAttribute("data-lang");
+          if (val.startsWith("voice:")) {
+            // Switch to a voice-language-only mode — set UI to best match
+            const voiceLang = val.slice(6);
+            const ifaceLang = VOICE_LANG_TO_IETF[voiceLang] || "en";
+            lang = ifaceLang;
+            _lyricsLanguage = voiceLang;
+          } else {
+            lang = val;
+            _lyricsLanguage = "auto";
+          }
+          applyLang();
+          _closeLangMenu();
+        });
+      });
+    }
+
+    function _openLangMenu() {
+      _buildLangMenu();
+      const menu = document.getElementById("langMenu");
+      const btn = document.getElementById("langBtn");
+      if (menu && btn) { menu.style.display = "block"; btn.setAttribute("aria-expanded", "true"); }
+      // Close on outside click
+      setTimeout(() => {
+        document.addEventListener("click", _closeLangMenu, { once: true });
+      }, 0);
+    }
+
+    function _closeLangMenu() {
+      const menu = document.getElementById("langMenu");
+      const btn = document.getElementById("langBtn");
+      if (menu) menu.style.display = "none";
+      if (btn) btn.setAttribute("aria-expanded", "false");
+    }
+
+    document.getElementById("langBtn").addEventListener("click", e => {
+      e.stopPropagation();
+      const menu = document.getElementById("langMenu");
+      if (menu && menu.style.display === "block") { _closeLangMenu(); }
+      else { _openLangMenu(); }
     });
+
+    // ── Lyrics language mismatch check ───────────────────────────────
+    function _checkLyricsLanguageMismatch(voiceLang) {
+      const lyricsEl = document.getElementById("lyrics");
+      if (!lyricsEl || !lyricsEl.value.trim()) return; // No lyrics entered yet, no mismatch
+      const lyricsText = lyricsEl.value.trim();
+      const ifaceTag = lang; // Current UI language
+      // Quick heuristics: count characters that suggest a language
+      const hasCJK = /[\u4e00-\u9fff\u3400-\u4dbf]/.test(lyricsText); // CJK Unified Ideographs (Mandarin)
+      const hasTraditional = /[\u9fa5\u9fb4-\u9fbf\u20000-\u2a6df\u2a700-\u2b73f\u2b740-\u2b81f]/.test(lyricsText) || /[睇|喺|嚟|哋|唔|佢|咁|啲|噶|囖]/.test(lyricsText); // Traditional + Cantonese chars
+      const hasHangul = /[\uac00-\ud7af]/.test(lyricsText);
+      const hasHiraganaKatakana = /[\u3040-\u30ff]/.test(lyricsText);
+      // Determine detected lyrics language
+      let detected = "en";
+      if (hasHangul) detected = "ko";
+      else if (hasHiraganaKatakana) detected = "ja";
+      else if (hasTraditional) detected = "yue";
+      else if (hasCJK) detected = "zh";
+      // Compare with voice lang
+      const voiceIetf = VOICE_LANG_TO_IETF[voiceLang] || voiceLang;
+      const mismatch = detected !== voiceIetf && !(detected === "yue" && voiceLang === "Cantonese");
+      if (mismatch) {
+        showToast(t("langMismatchWarn"), "warning", 6000);
+      }
+    }
+
+    // ── Auto-set lyrics language when voice changes ─────────────────
+    // Hook into selectVoice — but we need to re-find the function. We'll
+    // patch selectVoice to call _checkLyricsLanguageMismatch.
+    // Since selectVoice is defined after this point, we intercept it via
+    // the existing click handler on voice pills. The real hook is in
+    // selectVoice itself. We add a small patch below after selectVoice is defined.
     const themeBtn = document.getElementById("themeBtn");
     function setTheme(theme) {
       document.documentElement.setAttribute("data-theme", theme);
@@ -2021,7 +2162,13 @@ INDEX_HTML = r"""<!doctype html>
       } else {
         stopVoicePreview();
         const group = _voiceGroupForId(voiceId);
-        if (group) _activeVoiceLang = group.lang;
+        if (group) {
+          _activeVoiceLang = group.lang;
+          // Auto-set lyrics language to match voice language
+          _lyricsLanguage = group.lang;
+          // Check if existing lyrics mismatch
+          _checkLyricsLanguageMismatch(group.lang);
+        }
         const label = _voiceDisplayName(voiceId, group ? group.lang : "");
         vocalsInput.value = label;
         if (selectedLabel) {
@@ -3351,7 +3498,14 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
     lyrics_idea = str(job.get("lyrics_idea", "")).strip()
     extra = job.get("extra", {}) if isinstance(job.get("extra"), dict) else {}
     voice_id = str(job.get("voice_id", "")).strip()
-    voice_lang = _detect_lang_from_voice_id(voice_id) if voice_id else ""
+    lyrics_language_override = str(job.get("lyrics_language", "auto")).strip()
+    # Priority: explicit override > voice_id detection > "auto" (English default)
+    if lyrics_language_override and lyrics_language_override != "auto":
+        voice_lang = lyrics_language_override
+    elif voice_id:
+        voice_lang = _detect_lang_from_voice_id(voice_id)
+    else:
+        voice_lang = "English"
     context = {
         "music_style_prompt": prompt,
         "lyrics_brief": lyrics_idea or "No separate lyrics brief was provided. Infer a complete lyric concept from the music style prompt.",
@@ -3469,12 +3623,18 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
     return lyrics
 
 
-def fallback_generated_lyrics(prompt: str, lyrics_idea: str, extra: dict[str, Any] | None = None, voice_id: str = "") -> str:
+def fallback_generated_lyrics(prompt: str, lyrics_idea: str, extra: dict[str, Any] | None = None, voice_id: str = "", lyrics_language: str = "auto") -> str:
     """Fast local fallback so the UI remains usable when live lyrics generation is slow."""
     extra = extra or {}
     seed = (lyrics_idea or prompt or "Music speaks").strip()
     seed = re.sub(r"\s+", " ", seed)[:120] or "Music speaks"
-    voice_lang = _detect_lang_from_voice_id(voice_id) if voice_id else ""
+    # Resolve effective language: explicit override > voice_id detection > English default
+    if lyrics_language and lyrics_language != "auto":
+        voice_lang = lyrics_language
+    elif voice_id:
+        voice_lang = _detect_lang_from_voice_id(voice_id)
+    else:
+        voice_lang = "English"
     is_chinese = bool(re.search(r"[\u4e00-\u9fff]", seed))
     mood = str(extra.get("mood", "")).strip()
     genre = str(extra.get("genre", "")).strip()
@@ -4044,7 +4204,14 @@ class MusicHandler(BaseHTTPRequestHandler):
                 raise ValueError("Lyrics brief must be 2500 characters or fewer.")
             extra = {key: str(form.get(key, "")).strip() for key in ("genre", "mood", "instruments", "tempo", "bpm", "key", "vocals", "structure", "references", "avoid", "use_case", "extra")}
             voice_id = str(form.get("voice_id", "")).strip()
-            lyrics = generate_lyrics_from_text_model({"prompt": prompt, "lyrics_idea": lyrics_idea, "extra": extra, "voice_id": voice_id}, timeout=LYRICS_REQUEST_TIMEOUT)
+            lyrics_language = str(form.get("lyrics_language", "auto")).strip()
+            lyrics = generate_lyrics_from_text_model({
+                "prompt": prompt,
+                "lyrics_idea": lyrics_idea,
+                "extra": extra,
+                "voice_id": voice_id,
+                "lyrics_language": lyrics_language,
+            }, timeout=LYRICS_REQUEST_TIMEOUT)
         except ValueError as exc:
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
             return
@@ -4054,6 +4221,7 @@ class MusicHandler(BaseHTTPRequestHandler):
                 lyrics_idea if "lyrics_idea" in locals() else "",
                 extra if "extra" in locals() else {},
                 voice_id if "voice_id" in locals() else "",
+                lyrics_language if "lyrics_language" in locals() else "auto",
             )
             self.send_json({"lyrics": fallback, "fallback": True, "warning": "Live lyrics generation timed out or failed; using local fallback."}, HTTPStatus.ACCEPTED)
             return
