@@ -728,6 +728,19 @@ INDEX_HTML = r"""<!doctype html>
                 <button class="template-btn" type="button" data-template="lofi_chill"><svg class="ui-icon" aria-hidden="true"><use href="#icon-cup"></use></svg><span>Lo-Fi Chill</span></button>
               </div>
             </div>
+            <!-- Voice Style (determines lyrics language) -->
+            <div class="form-section">
+              <div class="voice-picker-label">
+                <label class="form-label" data-i18n="voicePickerLabel">Voice Style</label>
+                <span id="voicePickerSelected" class="voice-picker-selected" data-i18n="voicePickerDefault">Click to select — this sets the lyrics language</span>
+              </div>
+              <div id="voicePickerScroll" class="voice-picker-scroll">
+                <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;" id="voicePickerLoading">
+                  <span data-i18n="voicePickerLoading">Loading voices...</span>
+                </div>
+              </div>
+              <input type="hidden" id="vocals" data-i18n-placeholder="vocalsPlaceholder" placeholder="warm male vocal, bright female vocal, duet">
+            </div>
             <!-- Lyrics Idea -->
             <div class="form-section">
               <label class="form-label" data-i18n="lyricsIdeaLabel">Lyrics Brief for AI (optional)</label>
@@ -793,18 +806,6 @@ INDEX_HTML = r"""<!doctype html>
                   <div class="param-field"><label data-i18n="tempo">Tempo</label><input id="tempo" data-i18n-placeholder="tempoPlaceholder" placeholder="fast, slow, moderate"></div>
                   <div class="param-field"><label data-i18n="bpm">BPM</label><input id="bpm" type="number" min="40" max="240" data-i18n-placeholder="bpmPlaceholder" placeholder="85"></div>
                   <div class="param-field"><label data-i18n="key">Key</label><input id="key" data-i18n-placeholder="keyPlaceholder" placeholder="C major, A minor"></div>
-                  <div class="param-field voice-picker-section" style="grid-column:1/-1;">
-                    <div class="voice-picker-label">
-                      <span data-i18n="voicePickerLabel">Voice Style</span>
-                      <span id="voicePickerSelected" class="voice-picker-selected" data-i18n="voicePickerDefault">Click to select a voice</span>
-                    </div>
-                    <div id="voicePickerScroll" class="voice-picker-scroll">
-                      <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;" id="voicePickerLoading">
-                        <span data-i18n="voicePickerLoading">Loading voices...</span>
-                      </div>
-                    </div>
-                    <input type="hidden" id="vocals" data-i18n-placeholder="vocalsPlaceholder" placeholder="warm male vocal, bright female vocal, duet">
-                  </div>
                   <div class="param-field" style="grid-column:1/-1;"><label data-i18n="structure">Song Structure</label><input id="structure" data-i18n-placeholder="structurePlaceholder" placeholder="verse-chorus-verse-bridge-chorus"></div>
                   <div class="param-field" style="grid-column:1/-1;"><label data-i18n="references">References</label><input id="references" data-i18n-placeholder="referencesPlaceholder" placeholder="similar to..."></div>
                   <div class="param-field" style="grid-column:1/-1;"><label data-i18n="avoid">Avoid</label><input id="avoid" data-i18n-placeholder="avoidPlaceholder" placeholder="explicit content, auto-tune"></div>
@@ -1042,7 +1043,7 @@ INDEX_HTML = r"""<!doctype html>
         voicePreviewBtn: "Preview Voice", voiceUploading: "Cloning your voice...", voiceReady: "Voice cloned! Use Preview to listen.",
         voiceError: "Voice clone failed.", voicePreviewGenerating: "Generating preview...", voicePreviewReady: "Preview ready.", voicePreviewError: "Preview failed.",
         voiceSingingMode: "Singing synthesis mode", voiceSingingModeHint: "Tries MiniMax voice_clone_singing first. If unavailable, falls back to voice cover.",
-        voicePickerLabel: "Voice Style", voicePickerDefault: "Click to select — or record your own below", voicePickerLoading: "Loading voices...", voiceShowMore: "Show {count} more",
+        voicePickerLabel: "Voice Style", voicePickerDefault: "Click to select — this sets the lyrics language", voicePickerLoading: "Loading voices...", voiceShowMore: "Show {count} more",
         voicePreviewSample: "Listen to this voice sample",
         voiceCustomBtn: "My Voice", voiceCustomDesc: "Record and use your own voice",
         recModalTitle: "Record Your Voice",
@@ -3429,26 +3430,27 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
             "Respect the requested story, feelings, fragments, mood, and imagery. Avoid unsafe or explicit content if requested."
         )
     message = (
-        "Create finished song lyrics for MiniMax music generation.\n\n"
+        "You are a professional songwriter. A user has provided you with a creative brief below — "
+        "it may be a personal story, emotional fragments, spoken words, imagery, a feeling, or rough ideas. "
+        "Your job is to transform this into a complete, polished, singable song. "
+        "Do NOT just copy the user's words into sections. Do NOT treat their input as a template to fill. "
+        "Instead, use it as your creative foundation and write an original, artistically crafted song.\n\n"
         f"{json.dumps(context, ensure_ascii=False, indent=2)}\n\n"
-        "CRITICAL INSTRUCTION — READ CAREFULLY:\n"
-        "The user's brief/topic [lyrics_brief] is the CENTRAL THEME of this entire song.\n"
-        "Your job is to weave this theme through EVERY SECTION of the song.\n"
-        "\n"
-        "REQUIREMENTS:\n"
-        "- Output only lyrics, no explanations, no notes, no markdown fences.\n"
-        "- Use section tags: [Verse], [Pre-Chorus], [Chorus], [Bridge], [Outro].\n"
-        "- VERSE 1: Introduce the theme from [lyrics_brief] — set the scene, tell the story, build emotion gradually. Do NOT just state the theme once and move on.\n"
-        "- PRE-CHORUS: Build tension — connect the opening to the emotional climax.\n"
-        "- CHORUS: The emotional peak. This is where the theme from [lyrics_brief] hits hardest and most memorably.\n"
-        "- VERSE 2: Continue developing the SAME theme from [lyrics_brief] — new angles, deeper layers, emotional progression. NOT a different topic.\n"
-        "- BRIDGE: Offer a new perspective on the SAME theme — do not introduce an unrelated story.\n"
-        "- FINAL CHORUS: The theme returns one last time with maximum impact.\n"
-        "- Every line in every section must feel connected to the user's brief [lyrics_brief].\n"
-        "- Avoid generic, bland lyrics. Make every verse feel personal and intentional.\n"
+        "PROFESSIONAL SONGWRITER INSTRUCTIONS:\n"
+        "- Treat [lyrics_brief] as your creative spark — read it deeply, feel it, then create something that honors and elevates it.\n"
+        "- Every image, emotion, person, and moment mentioned in [lyrics_brief] must feel alive in the song — but interpreted through your artistry, not copied verbatim.\n"
+        "- The song should have a clear emotional journey — beginning, development, climax, resolution.\n"
+        "- Use section tags: [Intro], [Verse], [Pre-Chorus], [Chorus], [Drop], [Bridge], [Outro].\n"
+        "- VERSE 1: Set the scene using the user's material. Introduce characters, emotions, or imagery from [lyrics_brief] in a fresh, evocative way.\n"
+        "- PRE-CHORUS: Build tension and emotional energy toward the chorus.\n"
+        "- CHORUS: The emotional heart of the song. If the user shared a chorus idea, develop it into something powerful. If not, create a compelling hook from the themes in [lyrics_brief].\n"
+        "- VERSE 2: Continue the narrative from a new angle — deepen the story or emotion from [lyrics_brief]. Do not repeat verse 1.\n"
+        "- BRIDGE: Shift perspective, offer a moment of contrast, or bring the emotion to its peak.\n"
+        "- FINAL CHORUS / OUTRO: Bring it home with maximum emotional impact.\n"
+        "- Avoid clichés and generic phrases. Make every line earn its place.\n"
         "- Target 500+ words to support a full 3-4 minute song.\n"
         "- Keep under 6,000 characters.\n"
-        "- Do not describe what you are doing — just output the lyrics."
+        "- Output ONLY the lyrics — no explanations, no notes, no markdown fences, no quotes around the output."
     )
     output = run_mmx([
         "text", "chat",
