@@ -712,7 +712,7 @@ INDEX_HTML = r"""<!doctype html>
         <button id="themeBtn" class="header-btn" title="Switch to theme" aria-label="Switch to light theme"><svg class="ui-icon"><use href="#icon-moon"></use></svg></button>
         <div id="langBtnDropdown" style="position:relative;">
           <button id="langBtn" class="header-btn lang-toggle" aria-haspopup="listbox" aria-expanded="false">EN ▾</button>
-          <div id="langMenu" class="lang-menu" role="listbox" style="display:none;position:absolute;top:100%;right:0;min-width:160px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 0;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.15);">
+          <div id="langMenu" class="lang-menu" role="listbox" style="display:none;position:absolute;top:100%;right:0;min-width:160px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:8px;padding:6px 0;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.15);">
           </div>
         </div>
       </div>
@@ -1227,7 +1227,7 @@ INDEX_HTML = r"""<!doctype html>
     let draftTimer = null;
     let restoringDraft = false;
 
-    function t(key) { return I18N[lang][key] || key; }
+    function t(key) { return (I18N[lang] && I18N[lang][key]) || (I18N.en && I18N.en[key]) || key; }
     function headers(extra = {}) { return {"X-Client-Id": clientId, ...extra}; }
     function escapeHtml(value) {
       return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
@@ -1919,7 +1919,7 @@ INDEX_HTML = r"""<!doctype html>
       submitBtn.classList.add("animate-pulse");
       submitBtn.innerHTML = '<span class="spinner"></span> Generating... 0s';
       const payload = collectPayload();
-      const endpoint = clonedVoiceId && !payload.is_instrumental ? "/api/jobs/voice" : "/api/jobs";
+        const endpoint = (payload.voice_mode === "voice_clone_singing") && !payload.is_instrumental ? "/api/jobs/voice" : "/api/jobs";
       let currentJobId = null;
       // Progress updater: update button text with elapsed time and poll job status
       const progressTimer = setInterval(async () => {
@@ -1997,6 +1997,7 @@ INDEX_HTML = r"""<!doctype html>
     // =============================================================
     let _cachedVoices = null;
     let _voiceAudio = null;
+    let _voicePlayPending = null;
     let _selectedVoiceId = "";
     let _activeVoiceLang = "Chinese (Mandarin)";
 
@@ -2312,6 +2313,7 @@ INDEX_HTML = r"""<!doctype html>
     }
 
     async function playVoicePreview(voiceId) {
+      const playId = voiceId;
       stopVoicePreview();
       document.querySelectorAll(".voice-pill").forEach(function(p) {
         p.classList.remove("playing");
@@ -2324,13 +2326,17 @@ INDEX_HTML = r"""<!doctype html>
           const errMsg = typeof data.error === "string" ? data.error : data.error?.message || t("voicePreviewError");
           throw new Error(errMsg);
         }
+        if (_voicePlayPending !== playId) return;
         const blob = await res.blob();
+        if (_voicePlayPending !== playId) return;
         const url = URL.createObjectURL(blob);
         _voiceAudio = new Audio(url);
         _voiceAudio.addEventListener("ended", function() {
+          _voicePlayPending = null;
           URL.revokeObjectURL(url);
           document.querySelectorAll(".voice-pill").forEach(function(p) { p.classList.remove("playing"); });
         });
+        _voicePlayPending = playId;
         await _voiceAudio.play();
       } catch (err) {
         stopVoicePreview();
@@ -2343,6 +2349,7 @@ INDEX_HTML = r"""<!doctype html>
       if (_voiceAudio) {
         const src = _voiceAudio.src;
         _voiceAudio.pause();
+        _voiceAudio.src = "";
         _voiceAudio = null;
         if (src && src.startsWith("blob:")) URL.revokeObjectURL(src);
       }
@@ -4512,7 +4519,7 @@ class MusicHandler(BaseHTTPRequestHandler):
                 voice_id if "voice_id" in locals() else "",
                 lyrics_language if "lyrics_language" in locals() else "auto",
             )
-            self.send_json({"lyrics": fallback, "fallback": True, "warning": "Live lyrics generation timed out or failed; using local fallback."}, HTTPStatus.ACCEPTED)
+            self.send_json({"lyrics": fallback, "fallback": True, "warning": "Live lyrics generation timed out or failed; using local fallback."})
             return
         self.send_json({"lyrics": lyrics})
 
