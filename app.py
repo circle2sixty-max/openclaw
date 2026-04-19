@@ -791,9 +791,9 @@ INDEX_HTML = r"""<!doctype html>
             </div>
             <!-- Lyrics Idea -->
             <div class="form-section">
-              <label class="form-label" data-i18n="lyricsIdeaLabel">Lyrics Brief for AI (optional)</label>
-              <textarea id="lyricsIdea" maxlength="2500" class="form-input" data-i18n-placeholder="lyricsIdeaPlaceholder" placeholder="Tell the story, feelings, images, language, chorus idea, or fragments you want in the lyrics."></textarea>
-              <div class="form-hint" data-i18n="lyricsIdeaHint">If finished lyrics are empty, Music Speaks will ask AI to write lyrics from this brief.</div>
+              <label class="form-label" data-i18n="lyricsIdeaLabel">Lyric Prompt / Instructions (optional)</label>
+              <textarea id="lyricsIdea" maxlength="2500" class="form-input" data-i18n-placeholder="lyricsIdeaPlaceholder" placeholder="Describe the story, feelings, images, or fragments you want. You can also write instructions like: 'Translate the above into Korean' or 'Rewrite as a Spanish love song.'"></textarea>
+              <div class="form-hint" data-i18n="lyricsIdeaHint">Describe what you want, or give AI a task like "translate into Korean". The selected voice language is used automatically.</div>
               <div style="margin-top:12px;display:flex;align-items:center;gap:12px;">
                 <button id="generateLyricsBtn" class="btn-secondary" type="button" data-i18n="generateLyrics">Generate Lyrics</button>
                 <span id="lyricsAssistMessage" style="font-size:13px;color:var(--text-muted);"></span>
@@ -1080,8 +1080,8 @@ INDEX_HTML = r"""<!doctype html>
         titlePlaceholder: "Leave empty and AI will name the song",
         promptLabel: "Music Style Prompt", promptHint: "Include style, mood, instruments, tempo, and any references.",
         promptPlaceholder: "Cinematic electronic pop, confident and bright, polished production, strong hook",
-        lyricsIdeaLabel: "Lyrics Brief for AI (optional)", lyricsIdeaHint: "If finished lyrics are empty, Music Speaks will ask AI to write lyrics from this brief.",
-        lyricsIdeaPlaceholder: "Tell the story, feelings, images, language, chorus idea, or fragments you want in the lyrics.",
+        lyricsIdeaLabel: "Lyric Prompt / Instructions (optional)", lyricsIdeaHint: "Describe what you want, or give AI a task like 'translate into Korean'. The selected voice language is used automatically.",
+        lyricsIdeaPlaceholder: "Describe the story, feelings, images, or fragments you want. You can also write instructions like: 'Translate the above into Korean' or 'Rewrite as a Spanish love song.'",
         generateLyrics: "Generate Lyrics", generatingLyrics: "Generating lyrics...", lyricsGenerated: "Lyrics added below. You can edit them before generating music.",
         lyricsAssistNeedBrief: "Add a lyrics brief or music style prompt first.", lyricsAssistFailed: "Lyrics generation failed.",
         lyricsLabel: "Finished Lyrics (optional)", lyricsHint: "Paste exact lyrics here if you already have them. Exact lyrics take priority over the lyrics brief.",
@@ -1123,8 +1123,8 @@ INDEX_HTML = r"""<!doctype html>
         titlePlaceholder: "留空时，AI 会自动起歌名",
         promptLabel: "音乐风格描述", promptHint: "写清风格、情绪、乐器、速度和参考对象。",
         promptPlaceholder: "例如：明亮自信的电子流行，制作精致，副歌有记忆点",
-        lyricsIdeaLabel: "歌词需求描述（可选）", lyricsIdeaHint: "如果没有填写完整歌词，Music Speaks 会让 AI 根据这里的故事、感受、片段或概念生成歌词。",
-        lyricsIdeaPlaceholder: "写下你想要的故事、情绪、画面、语言、某句副歌，或零散歌词片段。",
+        lyricsIdeaLabel: "歌词指令（可选）", lyricsIdeaHint: "描述你想要的内容，或给 AI 指令如'翻译成韩语'。所选音色的语种会自动应用。",
+        lyricsIdeaPlaceholder: "写下你想要的故事、情绪、画面或零散片段。你也可以写指令，如：'把上面的内容翻译成韩语'或'改写成西班牙语情歌'。",
         generateLyrics: "生成歌词", generatingLyrics: "正在生成歌词...", lyricsGenerated: "歌词已填入下方，你可以编辑后再生成音乐。",
         lyricsAssistNeedBrief: "请先填写歌词需求描述或音乐风格。", lyricsAssistFailed: "歌词生成失败。",
         lyricsLabel: "完整歌词（可选）", lyricsHint: "如果你已经有确定歌词，粘贴在这里。完整歌词会优先于歌词需求描述。",
@@ -1639,21 +1639,28 @@ INDEX_HTML = r"""<!doctype html>
       const lyricsEl = document.getElementById("lyrics");
       if (!lyricsEl || !lyricsEl.value.trim()) return; // No lyrics entered yet, no mismatch
       const lyricsText = lyricsEl.value.trim();
-      const ifaceTag = lang; // Current UI language
-      // Quick heuristics: count characters that suggest a language
-      const hasCJK = /[\u4e00-\u9fff\u3400-\u4dbf]/.test(lyricsText); // CJK Unified Ideographs (Mandarin)
-      const hasTraditional = /[\u9fa5\u9fb4-\u9fbf\u20000-\u2a6df\u2a700-\u2b73f\u2b740-\u2b81f]/.test(lyricsText) || /[睇|喺|嚟|哋|唔|佢|咁|啲|噶|囖]/.test(lyricsText); // Traditional + Cantonese chars
-      const hasHangul = /[\uac00-\ud7af]/.test(lyricsText);
-      const hasHiraganaKatakana = /[\u3040-\u30ff]/.test(lyricsText);
-      // Determine detected lyrics language
+
+      // Ignore very short texts — they're likely boilerplate, not real lyrics
+      if (lyricsText.length < 40) return;
+
+      // Count script-specific characters
+      const cjkChars = (lyricsText.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;
+      const hangulChars = (lyricsText.match(/[\uac00-\ud7af]/g) || []).length;
+      const kanaChars = (lyricsText.match(/[\u3040-\u30ff]/g) || []).length;
+      // Cantonese-specific characters
+      const cantoneseChars = (lyricsText.match(/[睇喺嚟哋唔佢咁啲噶囖]/g) || []).length;
+
+      // Determine detected lyrics language — require a meaningful count to avoid false positives
       let detected = "en";
-      if (hasHangul) detected = "ko";
-      else if (hasHiraganaKatakana) detected = "ja";
-      else if (hasTraditional) detected = "yue";
-      else if (hasCJK) detected = "zh";
+      if (cantoneseChars >= 2) detected = "yue";
+      else if (hangulChars >= 3) detected = "ko";
+      else if (kanaChars >= 3) detected = "ja";
+      else if (cjkChars >= 5) detected = "zh";
+
       // Compare with voice lang
       const voiceIetf = VOICE_LANG_TO_IETF[voiceLang] || voiceLang;
-      const mismatch = detected !== voiceIetf && !(detected === "yue" && voiceLang === "Cantonese");
+      // Special case: Cantonese voice + Mandarin lyrics is still a valid combination (both Chinese)
+      const mismatch = detected !== voiceIetf && !(detected === "zh" && voiceLang === "Cantonese");
       if (mismatch) {
         showToast(t("langMismatchWarn"), "warning", 6000);
       }
@@ -2369,14 +2376,24 @@ INDEX_HTML = r"""<!doctype html>
       });
       try {
         const res = await fetch("/api/voice/preview?voice_id=" + encodeURIComponent(voiceId), { headers: headers({"Accept": "audio/mpeg"}) });
+        // Silently ignore if cancelled by user switching voices
+        if (_voicePlayPending !== playId) return;
         if (!res.ok) {
+          // Try to parse error, but don't show toast for normal cancellation
           const data = await res.json().catch(() => ({}));
           const errMsg = typeof data.error === "string" ? data.error : data.error?.message || t("voicePreviewError");
-          throw new Error(errMsg);
+          if (_voicePlayPending === playId) {
+            showToast(errMsg, "error");
+            SoundSystem.play("error");
+          }
+          return;
         }
-        if (_voicePlayPending !== playId) return;
         const blob = await res.blob();
         if (_voicePlayPending !== playId) return;
+        if (!blob || blob.size === 0) {
+          if (_voicePlayPending === playId) showToast(t("voicePreviewError"), "error");
+          return;
+        }
         const url = URL.createObjectURL(blob);
         _voiceAudio = new Audio(url);
         _voiceAudio.addEventListener("ended", function() {
@@ -2384,8 +2401,18 @@ INDEX_HTML = r"""<!doctype html>
           URL.revokeObjectURL(url);
           document.querySelectorAll(".voice-pill").forEach(function(p) { p.classList.remove("playing"); });
         });
+        _voiceAudio.addEventListener("play", function() {
+          // Successfully started playing
+        });
+        _voiceAudio.addEventListener("error", function(e) {
+          if (_voicePlayPending !== playId) return;
+          stopVoicePreview();
+          showToast(t("voicePreviewError"), "error");
+          SoundSystem.play("error");
+        });
         await _voiceAudio.play();
       } catch (err) {
+        if (_voicePlayPending !== playId) return;
         stopVoicePreview();
         showToast(err.message || t("voicePreviewError"), "error");
         SoundSystem.play("error");
@@ -3838,6 +3865,21 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
         voice_lang = _detect_lang_from_voice_id(voice_id)
     else:
         voice_lang = "English"
+    # Detect translation / transformation directives in lyrics_idea.
+    # These are instruction sentences that ask AI to translate, rewrite, or adapt
+    # existing lyrics rather than write new ones from scratch.
+    _TRANSLATION_PATTERNS = [
+        re.compile(r"translate", re.IGNORECASE),
+        re.compile(r"rewrite.*in|rewrite.*as", re.IGNORECASE),
+        re.compile(r"convert.*to", re.IGNORECASE),
+        re.compile(r"write.*lyrics? in", re.IGNORECASE),
+        re.compile(r"中文|韩语|日语|英语|西班牙语|法语|德语", re.IGNORECASE),
+        re.compile(r"粤语|普通话|普通话", re.IGNORECASE),
+        re.compile(r"한국어|日本語|English|Español|Français|Deutsch", re.IGNORECASE),
+    ]
+    lyrics_idea_has_directive = bool(
+        lyrics_idea and any(p.search(lyrics_idea) for p in _TRANSLATION_PATTERNS)
+    )
     context = {
         "music_style_prompt": prompt,
         "lyrics_brief": lyrics_idea or "No separate lyrics brief was provided. Infer a complete lyric concept from the music style prompt.",
@@ -3848,6 +3890,7 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
         "avoid": extra.get("avoid", ""),
         "use_case": extra.get("use_case", ""),
         "extra_details": extra.get("extra", ""),
+        "lyrics_idea_has_directive": lyrics_idea_has_directive,
     }
     if voice_lang == "Cantonese":
         system = (
@@ -3925,7 +3968,7 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
     if music_style:
         context_lines.append(f"MUSIC STYLE: {music_style}")
     if lyrics_brief_raw:
-        context_lines.append(f"LYRICS BRIEF (ideas, feelings, imagery, story fragments — NOT lyrics to copy):\n{lyrics_brief_raw}")
+        context_lines.append(f"LYRIC PROMPT / INSTRUCTIONS (ideas, feelings, imagery, OR a task such as 'translate into Korean'):\n{lyrics_brief_raw}")
     if extra.get("mood"):
         context_lines.append(f"MOOD: {extra['mood']}")
     if extra.get("genre"):
