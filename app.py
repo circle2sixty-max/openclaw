@@ -416,6 +416,46 @@ INDEX_HTML = r"""<!doctype html>
     .lyrics-line.section { margin-top: 8px; color: var(--text-muted); font-size: 11px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; }
     .lyrics-line.active { color: #06100b; background: linear-gradient(90deg, #1DB954, #9af7be); box-shadow: 0 10px 28px rgba(29,185,84,0.18); transform: translateX(4px); font-weight: 800; }
     .lyrics-empty { color: var(--text-muted); font-size: 13px; line-height: 1.6; padding: 14px 10px; }
+    /* Fullscreen Lyrics Modal */
+    .lyrics-fullscreen-btn { width: 36px; height: 36px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; background: rgba(255,255,255,0.06); color: var(--text-secondary); font-size: 16px; cursor: pointer; transition: var(--transition); display: flex; align-items: center; justify-content: center; }
+    .lyrics-fullscreen-btn:hover { background: rgba(29,185,84,0.18); border-color: rgba(29,185,84,0.52); color: var(--accent); }
+    #lyricsFullscreenModal { display: none; position: fixed; inset: 0; z-index: 9999; flex-direction: column; }
+    #lyricsFullscreenModal.open { display: flex; animation: lfm-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes lfm-in { from { opacity: 0; transform: translateY(60px); } to { opacity: 1; transform: translateY(0); } }
+    .lfm-bg { position: absolute; inset: 0; background: linear-gradient(160deg, #0d0d1a 0%, #0a0a14 50%, #06060e 100%); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); }
+    .lfm-header { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; padding: 24px 32px 16px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+    .lfm-track-info { flex: 1; min-width: 0; }
+    .lfm-title { font-size: 18px; font-weight: 800; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lfm-artist { font-size: 13px; color: rgba(255,255,255,0.45); margin-top: 2px; }
+    .lfm-close { width: 40px; height: 40px; border: 1px solid rgba(255,255,255,0.15); border-radius: 50%; background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.6); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: var(--transition); flex-shrink: 0; }
+    .lfm-close:hover { background: rgba(255,255,255,0.14); color: #fff; }
+    .lfm-body { position: relative; z-index: 1; flex: 1; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+    .lfm-lines { width: 100%; max-width: 720px; height: 100%; overflow-y: auto; padding: 40px 32px; scroll-behavior: smooth; }
+    .lfm-lines::-webkit-scrollbar { width: 4px; }
+    .lfm-lines::-webkit-scrollbar-track { background: transparent; }
+    .lfm-lines::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+    .lfm-line { color: rgba(255,255,255,0.3); font-size: clamp(18px, 4vw, 28px); font-weight: 600; line-height: 1.6; padding: 12px 20px; border-radius: 12px; transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1); text-align: center; }
+    .lfm-line.section { font-size: 11px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.2); margin-top: 20px; }
+    .lfm-line.active { color: #fff; background: linear-gradient(135deg, rgba(29,185,84,0.22), rgba(154,247,190,0.12)); box-shadow: 0 8px 32px rgba(29,185,84,0.18); transform: scale(1.04); font-weight: 800; text-shadow: 0 0 40px rgba(29,185,84,0.4); }
+    .lfm-empty { color: rgba(255,255,255,0.35); font-size: 16px; text-align: center; padding: 60px 0; }
+    .lfm-footer { position: relative; z-index: 1; padding: 16px 32px 28px; border-top: 1px solid rgba(255,255,255,0.07); }
+    .lfm-current-line { text-align: center; font-size: 13px; color: rgba(255,255,255,0.4); margin-top: 10px; min-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lfm-controls { display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 14px; }
+    .lfm-btn { width: 44px; height: 44px; border: 1px solid rgba(255,255,255,0.15); border-radius: 50%; background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.7); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: var(--transition); }
+    .lfm-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+    .lfm-play { width: 56px; height: 56px; background: var(--accent); border-color: var(--accent); color: #06100b; font-size: 18px; }
+    .lfm-play:hover { background: #1ed760; transform: scale(1.06); }
+    .lfm-progress-row { display: flex; align-items: center; gap: 12px; }
+    .lfm-time { font-size: 12px; color: rgba(255,255,255,0.45); font-variant-numeric: tabular-nums; min-width: 36px; font-family: monospace; }
+    .lfm-bar { flex: 1; height: 4px; background: rgba(255,255,255,0.12); border-radius: 2px; cursor: pointer; overflow: hidden; }
+    .lfm-bar-fill { height: 100%; background: linear-gradient(90deg, #1DB954, #9af7be); border-radius: 2px; width: 0; transition: width 0.1s linear; }
+    .lfm-bar:hover { height: 6px; }
+    @media (max-width: 600px) {
+      .lfm-header { padding: 16px 20px 12px; }
+      .lfm-lines { padding: 24px 20px; }
+      .lfm-footer { padding: 12px 20px 20px; }
+      .lfm-line { font-size: 20px; padding: 10px 16px; }
+    }
     /* Recording Modal */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; }
     .modal-content { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-lg); width: min(520px, 95vw); max-height: 90vh; overflow-y: auto; }
@@ -894,6 +934,7 @@ INDEX_HTML = r"""<!doctype html>
       </div>
       <div class="player-extra">
         <button class="lyrics-toggle" id="playerLyricsToggle" type="button" aria-expanded="false" aria-controls="lyricsPanel">Lyrics</button>
+        <button class="lyrics-fullscreen-btn" id="lyricsFullscreenBtn" type="button" title="Fullscreen lyrics" aria-label="Open fullscreen lyrics">⛶</button>
         <div class="player-volume">
           <span class="volume-icon" id="volumeIcon" aria-hidden="true"><svg class="ui-icon"><use href="#icon-volume"></use></svg></span>
           <div class="volume-slider" id="volumeSlider"><div class="volume-fill" id="volumeFill"></div></div>
@@ -2571,6 +2612,149 @@ INDEX_HTML = r"""<!doctype html>
         openVoiceRecorder();
       }
     });
+
+    // ── Fullscreen Lyrics Modal ─────────────────────────────────────
+    const lyricsModal = document.createElement("div");
+    lyricsModal.id = "lyricsFullscreenModal";
+    lyricsModal.innerHTML = `
+      <div class="lfm-bg"></div>
+      <div class="lfm-header">
+        <div class="lfm-track-info">
+          <div class="lfm-title" id="lfmTitle">Song Title</div>
+          <div class="lfm-artist" id="lfmArtist">Music Speaks</div>
+        </div>
+        <button class="lfm-close" id="lfmClose" aria-label="Close fullscreen lyrics">✕</button>
+      </div>
+      <div class="lfm-body" id="lfmBody">
+        <div class="lfm-lines" id="lfmLines"></div>
+      </div>
+      <div class="lfm-footer">
+        <div class="lfm-controls">
+          <button class="lfm-btn" id="lfmPrev" aria-label="Previous">◀</button>
+          <button class="lfm-btn lfm-play" id="lfmPlay" aria-label="Play/Pause">▶</button>
+          <button class="lfm-btn" id="lfmNext" aria-label="Next">▶</button>
+        </div>
+        <div class="lfm-progress-row">
+          <span class="lfm-time" id="lfmCurrentTime">0:00</span>
+          <div class="lfm-bar" id="lfmBar"><div class="lfm-bar-fill" id="lfmBarFill"></div></div>
+          <span class="lfm-time" id="lfmDuration">0:00</span>
+        </div>
+        <div class="lfm-current-line" id="lfmCurrentLine"></div>
+      </div>
+    `;
+    document.body.appendChild(lyricsModal);
+
+    let _lfmLastIndex = -1;
+    function _openLyricsModal() {
+      lyricsModal.classList.add("open");
+      document.body.style.overflow = "hidden";
+      _syncLfmFromPlayer();
+    }
+    function _closeLyricsModal() {
+      lyricsModal.classList.remove("open");
+      document.body.style.overflow = "";
+    }
+    function _syncLfmFromPlayer() {
+      if (!currentTrack) return;
+      document.getElementById("lfmTitle").textContent = currentTrack.title || "Untitled";
+      document.getElementById("lfmArtist").textContent = "Music Speaks";
+      const rows = getLyricRows();
+      const playableRows = rows.filter(r => !r.isSection && r.text);
+      if (!playableRows.length) {
+        document.getElementById("lfmLines").innerHTML = '<div class="lfm-empty">No lyrics available.</div>';
+        return;
+      }
+      document.getElementById("lfmLines").innerHTML = rows.map(row => {
+        const cls = row.isSection ? "lfm-line section" : "lfm-line";
+        return '<div class="' + cls + '" data-idx="' + row.index + '">' + escapeHtml(row.text) + '</div>';
+      }).join("");
+      document.getElementById("lfmDuration").textContent = formatTime(audioPlayer.duration);
+      document.getElementById("lfmPlay").textContent = audioPlayer.paused ? "▶" : "⏸";
+    }
+    function _updateLfmProgress() {
+      const rows = getLyricRows();
+      if (!rows.length) return;
+      const playableRows = rows.filter(r => !r.isSection && r.text);
+      if (!playableRows.length || !audioPlayer.duration) return;
+      const lineIdx = Math.floor((audioPlayer.currentTime / audioPlayer.duration) * playableRows.length);
+      const safeIdx = Math.max(0, Math.min(lineIdx, playableRows.length - 1));
+      const activeIndex = playableRows[safeIdx].index;
+      const currentText = playableRows[safeIdx] ? playableRows[safeIdx].text : "";
+      document.getElementById("lfmCurrentLine").textContent = currentText;
+      document.getElementById("lfmCurrentTime").textContent = formatTime(audioPlayer.currentTime);
+      document.getElementById("lfmBarFill").style.width = ((audioPlayer.currentTime / audioPlayer.duration) * 100) + "%";
+      document.getElementById("lfmPlay").textContent = audioPlayer.paused ? "▶" : "⏸";
+      if (activeIndex !== _lfmLastIndex) {
+        _lfmLastIndex = activeIndex;
+        document.querySelectorAll(".lfm-line").forEach(el => {
+          el.classList.toggle("active", el.getAttribute("data-idx") === String(activeIndex));
+        });
+        const activeEl = document.querySelector('.lfm-line[data-idx="' + activeIndex + '"]');
+        if (activeEl) activeEl.scrollIntoView({ block: "center", behavior: "smooth" });
+      }
+    }
+
+    document.getElementById("lyricsFullscreenBtn").addEventListener("click", () => {
+      if (lyricsModal.classList.contains("open")) { _closeLyricsModal(); return; }
+      _openLyricsModal();
+      _syncLfmFromPlayer();
+      _updateLfmProgress();
+    });
+    document.getElementById("lfmClose").addEventListener("click", _closeLyricsModal);
+    document.querySelector(".lfm-bg").addEventListener("click", _closeLyricsModal);
+    document.getElementById("lfmPlay").addEventListener("click", () => {
+      if (audioPlayer.paused) audioPlayer.play(); else audioPlayer.pause();
+    });
+    document.getElementById("lfmBar").addEventListener("click", e => {
+      if (!audioPlayer.duration) return;
+      const rect = document.getElementById("lfmBar").getBoundingClientRect();
+      audioPlayer.currentTime = ((e.clientX - rect.left) / rect.width) * audioPlayer.duration;
+      _updateLfmProgress();
+    });
+    audioPlayer.addEventListener("timeupdate", _updateLfmProgress);
+    audioPlayer.addEventListener("play", () => { document.getElementById("lfmPlay").textContent = "⏸"; });
+    audioPlayer.addEventListener("pause", () => { document.getElementById("lfmPlay").textContent = "▶"; });
+    audioPlayer.addEventListener("ended", () => { document.getElementById("lfmPlay").textContent = "▶"; _lfmLastIndex = -1; });
+    audioPlayer.addEventListener("loadedmetadata", () => {
+      if (lyricsModal.classList.contains("open")) document.getElementById("lfmDuration").textContent = formatTime(audioPlayer.duration);
+    });
+
+    // ── Lyrics timestamp parsing (for [00:12.34] format) ────────────
+    // If lyrics contain timestamps, use them for precise sync instead of equal division
+    const _timestampCache = new Map();
+    function _parseTimestamps(lyricsText) {
+      if (_timestampCache.has(lyricsText)) return _timestampCache.get(lyricsText);
+      const lines = lyricsText.split(/\r?\n/);
+      const results = [];
+      for (const line of lines) {
+        const m = line.match(/^\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\](.*)$/);
+        if (m) {
+          const min = parseInt(m[1]), sec = parseInt(m[2]);
+          const ms = m[3] ? (m[3].length === 2 ? parseInt(m[3]) * 10 : parseInt(m[3])) : 0;
+          const time = min * 60 + sec + ms / 1000;
+          const text = m[4].trim();
+          if (text) results.push({ time, text });
+        }
+      }
+      _timestampCache.set(lyricsText, results);
+      return results;
+    }
+    // Override currentLyricRowIndex to use timestamps when available
+    const _origCurrentLyricRowIndex = currentLyricRowIndex;
+    currentLyricRowIndex = function(rows) {
+      const tsData = _parseTimestamps(currentTrack ? currentTrack.lyrics || "" : "");
+      if (tsData.length >= 2) {
+        const t = audioPlayer.currentTime;
+        for (let i = tsData.length - 1; i >= 0; i--) {
+          if (t >= tsData[i].time) {
+            const text = tsData[i].text;
+            const found = rows.find(r => r.text === text);
+            if (found) return found.index;
+          }
+        }
+      }
+      return _origCurrentLyricRowIndex(rows);
+    };
   </script>
 </body>
 </html>
