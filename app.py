@@ -4190,41 +4190,112 @@ def fallback_generated_lyrics(prompt: str, lyrics_idea: str, extra: dict[str, An
 
 
 def generate_title_from_text_model(job: dict[str, Any], lyrics: str, timeout: float = 180) -> str:
+    """
+    Generate song title by having AI produce 5 candidates, then score+rank them
+    against the full lyrics to pick the most fitting one. No hardcoded keywords.
+    """
+    lyrics_lines = _lyrics_content_lines(lyrics)
+    lyric_text = "\n".join(lyrics_lines)
+    preferred_lang = _title_language(lyric_text)
+
     prompt = str(job.get("prompt", "")).strip()
     lyrics_idea = str(job.get("lyrics_idea", "")).strip()
     extra = job.get("extra", {}) if isinstance(job.get("extra"), dict) else {}
-    context = {
-        "music_style_prompt": prompt,
-        "lyrics": lyrics,
-        "lyrics_brief": lyrics_idea,
-        "genre": extra.get("genre", ""),
-        "mood": extra.get("mood", ""),
-        "vocal_style": extra.get("vocals", ""),
-        "use_case": extra.get("use_case", ""),
-    }
-    system = (
-        "You are a music editor naming a song. Create exactly one concise song title. "
-        "Output only the title, with no explanation, no quotes, and no markdown. "
-        "TITLE RULES: English titles must be 2-6 words. Chinese titles must be 4-12 characters. "
-        "Read all lyrics first, identify the central image, emotion, scene, or story, then name the song from that theme. "
-        "Do NOT copy the first line, chorus line, or any full lyric line as the title. "
-        "Use the same language as the lyrics when possible. Make it sound like a real released song title."
+    mood = extra.get("mood", "")
+
+    # Language-aware instruction
+    if preferred_lang == "zh":
+        title_rules = "中文歌名，4-10个汉字，不要英文。"
+        example_titles = "《夜雨寄北》《平凡之路》《匆匆那年》《模特》"
+    else:
+        title_rules = "English title, 2-6 words, no Chinese characters."
+        example_titles = '"Chasing Cars", "Someone Like You", "Fix You", "Let Her Go"'
+
+    # Step 1: Ask AI to generate 5 diverse, creative title options.
+    # Each title should capture a DIFFERENT aspect/angle of the song.
+    gen_system = (
+        "You are a songwriter naming a new song. You will receive the complete lyrics. "
+        "Generate exactly 5 different possible song titles. "
+        "Each title must be concise, poetic, and capture a distinct angle of the song — "
+        "not just the first line or obvious repeated phrase. "
+        "Vary the style: one may be image-based, one emotion-based, one action-based, "
+        "one metaphor-based, one abstract. "
+        "Do NOT use generic titles like 'My Love', 'Forever', 'You and Me' — these are banned. "
+        f"TITLE FORMAT: {title_rules} "
+        f"Real song title examples: {example_titles} "
+        "Output exactly 5 titles, one per line, nothing else."
     )
-    output = run_mmx([
+
+    gen_message = f"""Here are the complete lyrics of the song:
+
+{lyric_text[:3000]}
+
+{f"Music style prompt: {prompt}" if prompt else ""}
+{f"Suggested mood: {mood}" if mood else ""}
+{f"Lyrics brief: {lyrics_idea}" if lyrics_idea else ""}
+
+Generate 5 different song titles, one per line. No numbering, no explanation."""
+
+    candidates_raw = run_mmx([
         "text", "chat",
-        "--system", system,
-        "--message", json.dumps(context, ensure_ascii=False, indent=2),
-        "--max-tokens", "80",
-        "--temperature", "0.65",
+        "--system", gen_system,
+        "--message", gen_message,
+        "--max-tokens", "200",
+        "--temperature", "0.9",
         "--non-interactive",
         "--quiet",
         "--output", "text",
     ], timeout=int(max(60, timeout)))
-    preferred_lang = _title_language(" ".join(_lyrics_content_lines(lyrics)) or lyrics_idea or prompt)
-    title = normalize_generated_song_title(output, lyrics, preferred_lang)
-    if not title:
-        raise RuntimeError("MiniMax text model returned an invalid song title.")
-    return title
+
+    # Parse 5 candidates
+    candidates = []
+    for line in candidates_raw.strip().splitlines():
+        line = line.strip().strip('"\'《》')
+        if line and len(line) > 1:
+            cleaned = clean_song_title(line)
+            if cleaned:
+                candidates.append(cleaned)
+    if len(candidates) < 2:
+        # Not enough candidates — use what we have or bail
+        if candidates:
+            return candidates[0]
+        raise RuntimeError("MiniMax could not generate enough title options.")
+
+    # Step 2: Score each candidate against the full lyrics.
+    # Ask AI to rank+pick the best one based on how well it captures the song's essence.
+    score_system = (
+        "You are a music critic. You will receive a song's complete lyrics and 5 title options. "
+        "Pick the ONE title that best captures the song's central theme, emotion, and imagery. "
+        "Avoid titles that are generic, cliché, or only surface-level. "
+        "Prefer titles that are poetic, evocative, or metaphorically rich. "
+        "Output ONLY the chosen title text — no explanation, no number, no quotes."
+    )
+
+    titles_block = "\n".join(f"- {t}" for t in candidates)
+    score_message = f"""Song lyrics:
+{lyric_text[:3000]}
+
+Title options:
+{titles_block}
+
+Pick the single best title. Output only the title itself."""
+
+    chosen = run_mmx([
+        "text", "chat",
+        "--system", score_system,
+        "--message", score_message,
+        "--max-tokens", "60",
+        "--temperature", "0.3",
+        "--non-interactive",
+        "--quiet",
+        "--output", "text",
+    ], timeout=int(max(30, timeout)))
+
+    final = clean_song_title(chosen)
+    if not final:
+        # Fallback to first candidate if AI returned gibberish
+        return candidates[0]
+    return final
 
 
 def mark_job(job_id: str, **updates: Any) -> None:
