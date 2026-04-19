@@ -48,7 +48,7 @@ LYRICS_CHAR_LIMIT = 6000
 VOICE_CLONE_SINGING_ENDPOINT = os.getenv("MINIMAX_VOICE_CLONE_SINGING_ENDPOINT", "/v1/voice_clone_singing")
 VOICE_CLONE_SINGING_MODEL = os.getenv("MINIMAX_VOICE_CLONE_SINGING_MODEL", "music-2.6")
 LYRICS_REQUEST_TIMEOUT = float(os.getenv("LYRICS_REQUEST_TIMEOUT", "4"))
-VOICE_LIST_TIMEOUT = float(os.getenv("VOICE_LIST_TIMEOUT", "3"))
+VOICE_LIST_TIMEOUT = float(os.getenv("VOICE_LIST_TIMEOUT", "15"))
 JOB_TIMEOUT_SECONDS = int(os.getenv("JOB_TIMEOUT_SECONDS", "3600"))
 JOB_RETENTION_SECONDS = int(os.getenv("JOB_RETENTION_SECONDS", "604800"))
 
@@ -1288,7 +1288,7 @@ INDEX_HTML = r"""<!doctype html>
         voice_mode: voiceSingingMode && voiceSingingMode.checked ? "voice_clone_singing" : "cover",
         genre: get("genre"), mood: get("mood"), instruments: get("instruments"), tempo: get("tempo"), bpm: get("bpm"), key: get("key"),
         vocals: get("vocals"), structure: get("structure"), references: get("references"), avoid: get("avoid"), use_case: get("useCase"), extra: get("extra"),
-        voice_id: clonedVoiceId,
+        voice_id: clonedVoiceId || _selectedVoiceId || "",
       };
     }
     function restorePayload(payload = {}) {
