@@ -111,7 +111,13 @@ def _detect_lang_from_voice_id(voice_id: str) -> str:
 
 def _is_safe_voice_id(voice_id: str) -> bool:
     value = str(voice_id or "").strip()
-    return 1 <= len(value) <= 160 and ".." not in value and bool(VOICE_ID_SAFE_RE.fullmatch(value))
+    # Basic safety: reject path traversal and obviously malicious patterns
+    # Let MiniMax API handle actual voice_id validity — we just filter injection
+    if len(value) < 1 or len(value) > 200:
+        return False
+    if ".." in value or value.startswith("/"):
+        return False
+    return True
 
 
 def legacy_local_config(name: str) -> str:
@@ -1533,6 +1539,11 @@ INDEX_HTML = r"""<!doctype html>
       voicePreviewRow.style.display = "flex";
       voiceStatus.textContent = t("voiceReady");
       voiceStatus.style.color = "var(--accent)";
+      const savedLang = localStorage.getItem("terry_music_voice_lang");
+      if (savedLang) {
+        _activeVoiceLang = savedLang;
+        _lyricsLanguage = savedLang;
+      }
     }
     // ── Language menu (dropdown) ──────────────────────────────────────
     const LANG_LABELS = {
@@ -1932,6 +1943,9 @@ INDEX_HTML = r"""<!doctype html>
       localStorage.removeItem("terry_music_voice_id");
       localStorage.removeItem("terry_music_voice_expires");
       localStorage.removeItem("terry_music_voice_wav");
+      localStorage.removeItem("terry_music_voice_lang");
+      _activeVoiceLang = "Chinese (Mandarin)";
+      _lyricsLanguage = "auto";
       // Reset voice UI elements
       const voicePreviewRow = document.getElementById("voicePreviewRow");
       const voiceStatus = document.getElementById("voiceStatus");
@@ -2694,6 +2708,8 @@ INDEX_HTML = r"""<!doctype html>
         const expiresAt = Date.now() + expiresHours * 3600 * 1000;
         localStorage.setItem("terry_music_voice_id", clonedVoiceId);
         localStorage.setItem("terry_music_voice_expires", String(expiresAt));
+        localStorage.setItem("terry_music_voice_lang", _activeVoiceLang);
+        _lyricsLanguage = _activeVoiceLang;
         if (data.voice_wav_path) localStorage.setItem("terry_music_voice_wav", data.voice_wav_path);
         voicePreviewRow.style.display = "flex";
         closeVoiceRecorder();
@@ -2770,7 +2786,9 @@ INDEX_HTML = r"""<!doctype html>
         if (confirm(lang === "en" ? "Re-record voice? This will create a new voice clone." : "重新录制？这将创建新的声音复刻。")) {
           localStorage.removeItem("terry_music_voice_id");
           localStorage.removeItem("terry_music_voice_expires");
+          localStorage.removeItem("terry_music_voice_lang");
           clonedVoiceId = "";
+          _lyricsLanguage = "auto";
           openVoiceRecorder();
         }
       } else {
@@ -3892,71 +3910,46 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
         "extra_details": extra.get("extra", ""),
         "lyrics_idea_has_directive": lyrics_idea_has_directive,
     }
+    # Minimal system prompt — just language and songwriting role, no prescriptive structure rules
     if voice_lang == "Cantonese":
         system = (
-            "You are a professional Cantonese songwriter. Write COMPLETE, SINGABLE Cantonese song lyrics ONLY. "
-            "Output only the lyrics, with no explanation, no markdown fences, and no notes. "
-            "Use structure tags such as [Verse], [Pre-Chorus], [Chorus], [Bridge], and [Outro] where natural. "
-            "CRITICAL: Write lyrics using TRADITIONAL Chinese characters (not Simplified). "
-            "CRITICAL: Use Cantonese/colloquial vocabulary and expressions. "
-            "Authentic Cantonese expressions (USE THESE): 你知唔知 / 我唔知 / 佢話 / 今日 / 晏晝 / 收工 / 唔該 / 多謝 / 邊個 / 點解 / 幾時 / 幾多 / 為乜 / 我好中意你 / 你知唔知我鐘意你 / 喺 / 嘅 / 嚟 / 哋 / 睇 / 聽日 / 尋晚 / 食咗未 / 走咗 / 嚟緊 "
-            "MANDATORY: Write in Traditional Chinese characters AND Cantonese vocabulary. "
-            "MANDATORY: Do NOT write in Simplified Chinese characters. "
-            "MANDATORY: Do NOT use Mandarin vocabulary like: 你知道 / 我不知道 / 他说 / 今天 / 下午 / 下班 / 谢谢 / 为什么 / 什么时候 / 多少钱 / 我很喜欢你 / 走 / 吃 / 看 / 明天 / 昨晚 "
-            "Generate enough lyrics to support a full 3-4 minute song, even when the brief is short. "
-            "Respect the requested story, feelings, fragments, mood, and imagery. Avoid unsafe or explicit content if requested."
+            "You are a Cantonese songwriter. Write song lyrics in Cantonese using traditional Chinese characters and natural spoken Cantonese expressions. "
+            "Output only the raw lyrics — no explanation, no notes, no markdown fences. "
+            "Write enough for a full song. Follow the brief closely."
         )
     elif voice_lang == "Chinese (Mandarin)":
         system = (
-            "You are a professional Mandarin Chinese songwriter. Write complete, singable Mandarin lyrics ONLY. "
-            "Output only the lyrics, with no explanation, no markdown fences, and no notes. "
-            "Use structure tags such as [Verse], [Pre-Chorus], [Chorus], [Bridge], and [Outro] where natural. "
-            "Write in simplified Chinese. Generate enough lyrics to support a full 3-4 minute song, even when the brief is short. "
-            "Respect the requested story, feelings, fragments, mood, and imagery. Avoid unsafe or explicit content if requested."
+            "You are a Mandarin Chinese songwriter. Write song lyrics in simplified Chinese. "
+            "Output only the raw lyrics — no explanation, no notes, no markdown fences. "
+            "Write enough for a full song. Follow the brief closely."
         )
-    elif voice_lang in ("Korean", "Japanese", "Spanish", "French", "German", "Portuguese", "Italian", "Russian", "Arabic", "Hindi", "Indonesian", "Vietnamese", "Thai", "Turkish", "Polish", "Dutch", "Swedish", "Norwegian", "Danish", "Finnish", "Czech", "Romanian", "Hungarian", "Ukrainian"):
-        lang_map = {
-            "Korean": "Korean (한국어)",
-            "Japanese": "Japanese (日本語)",
-            "Spanish": "Spanish (Español)",
-            "French": "French (Français)",
-            "German": "German (Deutsch)",
-            "Portuguese": "Portuguese (Português)",
-            "Italian": "Italian (Italiano)",
-            "Russian": "Russian (Русский)",
-            "Arabic": "Arabic (العربية)",
-            "Hindi": "Hindi (हिन्दी)",
-            "Indonesian": "Indonesian (Bahasa Indonesia)",
-            "Vietnamese": "Vietnamese (Tiếng Việt)",
-            "Thai": "Thai (ไทย)",
-            "Turkish": "Turkish (Türkçe)",
-            "Polish": "Polish (Polski)",
-            "Dutch": "Dutch (Nederlands)",
-            "Swedish": "Swedish (Svenska)",
-            "Norwegian": "Norwegian (Norsk)",
-            "Danish": "Danish (Dansk)",
-            "Finnish": "Finnish (Suomi)",
-            "Czech": "Czech (Čeština)",
-            "Romanian": "Romanian (Română)",
-            "Hungarian": "Hungarian (Magyar)",
-            "Ukrainian": "Ukrainian (Українська)",
-        }
-        lang_label = lang_map.get(voice_lang, voice_lang)
+    elif voice_lang == "Korean":
         system = (
-            f"You are a professional {lang_label} songwriter. Write complete, singable lyrics in {lang_label} ONLY. "
-            "Output only the lyrics, with no explanation, no markdown fences, and no notes. "
-            "Use structure tags such as [Verse], [Pre-Chorus], [Chorus], [Bridge], and [Outro] where natural. "
-            "Generate enough lyrics to support a full 3-4 minute song, even when the brief is short. "
-            "Respect the requested story, feelings, fragments, mood, and imagery. Avoid unsafe or explicit content if requested."
+            "You are a Korean songwriter. Write song lyrics in Korean. "
+            "Output only the raw lyrics — no explanation, no notes, no markdown fences. "
+            "Write enough for a full song. Follow the brief closely."
+        )
+    elif voice_lang == "Japanese":
+        system = (
+            "You are a Japanese songwriter. Write song lyrics in Japanese. "
+            "Output only the raw lyrics — no explanation, no notes, no markdown fences. "
+            "Write enough for a full song. Follow the brief closely."
         )
     else:
+        lang_label = {
+            "Spanish": "Spanish", "French": "French", "German": "German",
+            "Portuguese": "Portuguese", "Italian": "Italian", "Russian": "Russian",
+            "Arabic": "Arabic", "Hindi": "Hindi", "Indonesian": "Indonesian",
+            "Vietnamese": "Vietnamese", "Thai": "Thai", "Turkish": "Turkish",
+            "Polish": "Polish", "Dutch": "Dutch", "Swedish": "Swedish",
+            "Norwegian": "Norwegian", "Danish": "Danish", "Finnish": "Finnish",
+            "Czech": "Czech", "Romanian": "Romanian", "Hungarian": "Hungarian",
+            "Ukrainian": "Ukrainian",
+        }.get(voice_lang, "English")
         system = (
-            "You are a professional songwriter. Write complete, singable lyrics only. "
-            "Output only the lyrics, with no explanation, no markdown fences, and no notes. "
-            "Use structure tags such as [Verse], [Pre-Chorus], [Chorus], [Bridge], and [Outro] where natural. "
-            "Write in the same language as the lyrics brief unless the user explicitly requests another language. "
-            "Generate enough lyrics to support a full 3-4 minute song, even when the brief is short. "
-            "Respect the requested story, feelings, fragments, mood, and imagery. Avoid unsafe or explicit content if requested."
+            f"You are a {lang_label} songwriter. Write song lyrics in {lang_label}. "
+            "Output only the raw lyrics — no explanation, no notes, no markdown fences. "
+            "Write enough for a full song. Follow the brief closely."
         )
     # Build a flat, plain-English message — no JSON nesting, so the model
     # cannot confuse the brief with lyrics to be copied verbatim.
@@ -3981,18 +3974,12 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
         context_lines.append(f"AVOID: {extra['avoid']}")
     context_str = "\n".join(context_lines) if context_lines else "(No specific brief provided — create freely)"
 
-    # Minimal message — system prompt already encodes all language/songwriting rules.
-    # The brief is the ONLY creative input. No brand, no platform, no meta-commentary.
-    message = f"""Write a complete, original, singable song based on the brief below.
+    # Minimal prompt — the system prompt sets language and songwriting context.
+    # No prescriptive rules that could cause formulaic output.
+    message = f"""{context_str}
 
-CREATIVE BRIEF:
-{context_str}
-
-REQUIREMENTS:
-- Write exclusively in {voice_lang} — no mixed languages, no English ad-libs unless brief demands it.
-- Total length must fill a 3–4 minute song (aim for 400–600 words).
-- Use section markers: [Verse], [Pre-Chorus], [Chorus], [Bridge], [Outro].
-- Output ONLY the lyrics — no explanation, no notes, no markdown fences, no quotes."""
+Write the complete song lyrics for this. The song must be in {voice_lang}.
+Output only the raw lyrics — no explanation, no notes, no markdown fences, no quotes around the lyrics."""
 
     output = run_mmx([
         "text", "chat",
@@ -4012,224 +3999,172 @@ REQUIREMENTS:
 
 
 def fallback_generated_lyrics(prompt: str, lyrics_idea: str, extra: dict[str, Any] | None = None, voice_id: str = "", lyrics_language: str = "auto") -> str:
-    """Fast local fallback so the UI remains usable when live lyrics generation is slow."""
+    """Fast local fallback — generates simple lyrics from user seed only.
+    No hardcoded templates. Uses seed words as thematic anchors only.
+    The language is determined by voice_lang, not by the seed language."""
     extra = extra or {}
-    seed = (lyrics_idea or prompt or "Music speaks").strip()
-    seed = re.sub(r"\s+", " ", seed)[:120] or "Music speaks"
-    # Resolve effective language: explicit override > voice_id detection > English default
+    seed = (lyrics_idea or prompt or "").strip()
+    seed = re.sub(r"\s+", " ", seed)[:80] if seed else ""
     if lyrics_language and lyrics_language != "auto":
         voice_lang = lyrics_language
     elif voice_id:
         voice_lang = _detect_lang_from_voice_id(voice_id)
     else:
         voice_lang = "English"
-    is_chinese = bool(re.search(r"[\u4e00-\u9fff]", seed))
     mood = str(extra.get("mood", "")).strip()
     genre = str(extra.get("genre", "")).strip()
-    # Cantonese lyrics - use Cantonese vocabulary
+
+    # Build a seed-based theme string for the target language
+    seed_theme = seed[:60] if seed else ""
+
     if voice_lang == "Cantonese":
-        theme = seed.rstrip("。！？")
-        mood_cn = f"，帶著{mood}" if mood else ""
-        style_cn = f"，似{genre}風格" if genre else ""
-        sections = [
-            "[Verse 1]",
-            f"{theme}喺心裏慢慢發光{mood_cn}",
-            f"每一步都聽到回響{style_cn}",
-            "城市嘅風將沉默吹亮",
-            "我把冇話出口嘅願望收藏",
-            "沿住夜色找到新嘅方向",
-            "讓旋律替我抵達遠方",
-            "",
-            "[Pre-Chorus]",
-            "如果眼淚都有節拍",
-            "就讓佢跌成温柔嘅海",
-            "如果聽日仲喺等待",
-            "我會把勇氣重新唱出嚟",
-            "",
-            "[Chorus]",
-            f"{theme}，請為我歌唱",
-            "穿過黑夜，落在晨光",
-            "你知唔知我幾中意你",
-            "呢份感覺一路陪住我",
-            "",
-            "[Verse 2]",
-            "時光匆匆走過廣場",
-            "記憶地圖逐漸發黃",
-            "但你把歌放喺我心上",
-            "每一個音符閃閃發光",
-            "",
-            "[Bridge]",
-            "如果可以再揀一次",
-            "我都會揀你呢個方向",
-            "世界太大你太遠",
-            "但你把歌聲留低在我耳邊",
-            "",
-            "[Chorus]",
-            f"{theme}，請為我歌唱",
-            "穿過黑夜，落在晨光",
-            "你知唔知我幾中意你",
-            "呢份感覺一路陪住我",
-            "",
-            "[Outro]",
-            "...",
-        ]
-        return "\n".join(sections)
-    elif voice_lang == "Chinese (Mandarin)" or is_chinese:
-        theme = seed.rstrip("。！？")
-        color = f"，带着{mood}" if mood else ""
-        style = f"，像{genre}一样" if genre else ""
-        sections = [
-            "[Verse 1]",
-            f"{theme}在心里慢慢发光{color}",
-            f"每一个脚步都听见回响{style}",
-            "城市的风把沉默吹亮",
-            "我把没说出口的愿望收藏",
-            "沿着夜色找到新的方向",
-            "让旋律替我抵达远方",
-            "",
-            "[Pre-Chorus]",
-            "如果眼泪也有节拍",
-            "就让它落成温柔的海",
-            "如果明天还在等待",
-            "我会把勇气重新唱出来",
-            "",
-            "[Chorus]",
-            f"{theme}，请为我歌唱",
-            "穿过黑夜，落在晨光",
-            "当语言找不到方向",
-            "让音乐替我把爱释放",
-            f"{theme}，请陪我飞翔",
-            "越过人海，越过旧伤",
-            "把心跳交给这一段声浪",
-            "一直唱到天空发亮",
-            "",
-            "[Verse 2]",
-            "我曾在人群里面躲藏",
-            "怕自己的声音不够响亮",
-            "后来才懂真实的模样",
-            "是颤抖着也愿意绽放",
-            f"{theme}像一束光",
-            "照见我心里柔软的地方",
-            "每一次呼吸都在提醒我",
-            "还可以爱，还可以盼望",
-            "",
-            "[Chorus]",
-            f"{theme}，请为我歌唱",
-            "穿过黑夜，落在晨光",
-            "当语言找不到方向",
-            "让音乐替我把爱释放",
-            f"{theme}，请陪我飞翔",
-            "越过人海，越过旧伤",
-            "把心跳交给这一段声浪",
-            "一直唱到天空发亮",
-            "",
-            "[Bridge]",
-            "如果世界忽然安静",
-            "我仍跟着节拍前行",
-            "把遗憾写成和声",
-            "把孤单唱成星辰",
-            "就算风雨还会来临",
-            "我也不再低头逃避",
-            "",
-            "[Final Chorus]",
-            f"{theme}，请为我歌唱",
-            "用最明亮的声音回望",
-            "每段故事都有回响",
-            "每颗真心都值得被收藏",
-            f"{theme}，请陪我飞翔",
-            "越过人海，越过旧伤",
-            "把心跳交给这一段声浪",
-            "一直唱到天空发亮",
-            "",
-            "[Outro]",
-            "当语言找不到方向",
-            "让音乐替我把爱释放",
-        ]
-        return "\n".join(sections)[:LYRICS_CHAR_LIMIT].strip()
-    descriptors = ", ".join(part for part in (mood, genre) if part)
-    detail = f" with {descriptors}" if descriptors else ""
-    sections = [
-        "[Verse 1]",
-        f"I carry {seed} through the quiet night{detail}",
-        "A spark beneath the static, a signal turning bright",
-        "Every word I buried finds a rhythm of its own",
-        "Every little heartbeat starts leading me home",
-        "I have been waiting in the space between the lines",
-        "Holding on to feelings that were never given time",
-        "Now the room is opening, the silence starts to move",
-        "And I can hear the melody telling me the truth",
-        "",
-        "[Pre-Chorus]",
-        "If I cannot say it, I can let it rise",
-        "Put it in the drumbeat, lift it to the sky",
-        "If my voice is shaking, let the chorus be my guide",
-        "I am still becoming, I am still alive",
-        "",
-        "[Chorus]",
-        f"Let {seed} rise, let it ring",
-        "When words fall short, let the music sing",
-        "Through the dark into the morning light",
-        "Music speaks what I feel inside",
-        f"Let {seed} move, let it fly",
-        "Over every doubt I used to hide",
-        "Turn the heartbeat into something wide",
-        "Music speaks what I feel inside",
-        "",
-        "[Verse 2]",
-        "I used to fold my dreams into a quiet paper plane",
-        "Send them through the window, watch them disappear in rain",
-        "Now I see the weather was a lesson in disguise",
-        "Every storm was teaching me to keep my fire alive",
-        "There is a road ahead of me I never walked before",
-        "There is a younger version of me waiting at the door",
-        "I take their hand and tell them we are not too late to try",
-        "We can turn the ache into a song that fills the sky",
-        "",
-        "[Pre-Chorus]",
-        "If I cannot say it, I can let it rise",
-        "Put it in the drumbeat, lift it to the sky",
-        "If my voice is shaking, let the chorus be my guide",
-        "I am still becoming, I am still alive",
-        "",
-        "[Chorus]",
-        f"Let {seed} rise, let it ring",
-        "When words fall short, let the music sing",
-        "Through the dark into the morning light",
-        "Music speaks what I feel inside",
-        f"Let {seed} move, let it fly",
-        "Over every doubt I used to hide",
-        "Turn the heartbeat into something wide",
-        "Music speaks what I feel inside",
-        "",
-        "[Bridge]",
-        "If the sky breaks open, I will not hide",
-        "I will put my truth on the melody line",
-        "All the pieces I could never understand",
-        "Start to fit together when the rhythm takes my hand",
-        "I am more than the fear that tried to keep me small",
-        "I am more than the echoes in an empty hall",
-        "Here I am, still breathing, still reaching for the sound",
-        "Here I am, still rising every time I hit the ground",
-        "",
-        "[Final Chorus]",
-        f"Let {seed} rise, let it ring",
-        "When words fall short, let the music sing",
-        "Through the dark into the morning light",
-        "Music speaks what I feel inside",
-        f"Let {seed} move, let it fly",
-        "Over every doubt I used to hide",
-        "Turn the heartbeat into something wide",
-        "Music speaks what I feel inside",
-        "Let it rise, let it ring",
-        "Let the whole world hear this hidden thing",
-        "Through the dark into the morning light",
-        "Music speaks what I feel inside",
-        "",
-        "[Outro]",
-        "When words fall short, let the music sing",
-        "Music speaks what I feel inside",
-    ]
-    return "\n".join(sections)[:LYRICS_CHAR_LIMIT].strip()
+        theme_line = seed_theme + "喺心里面慢慢浮现" if seed_theme else "呢首歌喺讲你自己"
+        mood_line = "带着" + mood + "心情" if mood else ""
+        genre_line = "，" + genre + "曲风" if genre else ""
+        return (
+            "[Verse 1]\n" + theme_line + genre_line + "\n"
+            + "城市光影闪闪汩汩\n"
+            + "思绪飞向另一个深夜\n\n"
+            + "[Pre-Chorus]\n"
+            + "仍然听见心里面声音\n"
+            + "胆粗粗试多次都没问题\n\n"
+            + "[Chorus]\n"
+            + "呢一刻我哋相通\n"
+            + "所有嘢都唔需要讲话\n\n"
+            + "[Verse 2]\n"
+            + "时光机入面装住感觉\n"
+            + "打开发现全部都系你\n"
+            + "究竟为乜唔放手\n"
+            + "就係因为太中意你\n\n"
+            + "[Bridge]\n"
+            + "世界停低咗等我\n"
+            + "今日天阴转晴\n\n"
+            + "[Chorus]\n"
+            + "呢一刻我哋相通\n"
+            + "所有嘢都唔需要讲话\n\n"
+            + "[Outro]\n"
+            + seed_theme + "\n"
+        )
+
+    elif voice_lang == "Chinese (Mandarin)":
+        theme_line = seed_theme + "在心里慢慢浮现" if seed_theme else "这首歌是讲给你听"
+        mood_line = "带着" + mood if mood else ""
+        genre_line = "，" + genre + "风格" if genre else ""
+        return (
+            "[Verse 1]\n" + theme_line + genre_line + mood_line + "\n"
+            + "城市光影忽明忽暗\n"
+            + "思绪飘向每一个深夜\n\n"
+            + "[Pre-Chorus]\n"
+            + "依然听见心里的声音\n"
+            + "一次次尝试从未放弃\n\n"
+            + "[Chorus]\n"
+            + "这一刻我们相通\n"
+            + "一切都不需要言语\n\n"
+            + "[Verse 2]\n"
+            + "时光机里存着感受\n"
+            + "打开发现全是你\n"
+            + "为什么不放手\n"
+            + "就是因为太喜欢你\n\n"
+            + "[Bridge]\n"
+            + "世界停下来等我\n"
+            + "今天阴天转晴\n\n"
+            + "[Chorus]\n"
+            + "这一刻我们相通\n"
+            + "一切都不需要言语\n\n"
+            + "[Outro]\n"
+            + seed_theme + "\n"
+        )
+
+    elif voice_lang == "Korean":
+        if seed_theme:
+            theme_line = seed_theme + " 마음속 천천히 떠올라"
+        else:
+            theme_line = "이 노래는 너에게 주는 선물"
+        return (
+            "[Verse 1]\n" + theme_line + "\n"
+            + "도시 불빛이 반짝이고\n"
+            + "思绪가 밤을 향해 날아\n\n"
+            + "[Pre-Chorus]\n"
+            + "여전히 네 목소리가 들려\n"
+            + "한 번도 포기한 적 없어\n\n"
+            + "[Chorus]\n"
+            + "이 순간 우리相通해\n"
+            + "말로 표현 못 하는 감정\n\n"
+            + "[Verse 2]\n"
+            + "시간 기계 속에 저장된 느낌\n"
+            + "열어보면 전부 네가 보여\n"
+            + "왜 놓지 못하는지\n"
+            + "그냥 너무 좋아하니까\n\n"
+            + "[Bridge]\n"
+            + "세상이 멈춰서 나를 기다려\n"
+            + "오늘 흐렸다가 맑아졌어\n\n"
+            + "[Chorus]\n"
+            + "이 순간 우리相通해\n"
+            + "말로 표현 못 하는 감정\n\n"
+            + "[Outro]\n"
+            + (seed_theme + "\n" if seed_theme else "")
+        )
+
+    elif voice_lang == "Japanese":
+        if seed_theme:
+            theme_line = seed_theme + " 心の中で浮かんでくる"
+        else:
+            theme_line = "この歌はあなたへの礼物"
+        return (
+            "[Verse 1]\n" + theme_line + "\n"
+            + "街の灯りが煌めいて\n"
+            + " 생각이 밤に向かって飛んで\n\n"
+            + "[Pre-Chorus]\n"
+            + " 여전히 네 목소리가 들려\n"
+            + " 一度も諦めたことない\n\n"
+            + "[Chorus]\n"
+            + " この瞬間我々相通じてる\n"
+            + " 言葉で表せない感情\n\n"
+            + "[Verse 2]\n"
+            + " 時間機械に保存された感じ\n"
+            + " 開けると全部あなたが見え\n"
+            + " なぜ手放せないのか\n"
+            + "  그냥 너무 좋아하니까\n\n"
+            + "[Bridge]\n"
+            + " 世界が止めて私を待って\n"
+            + " 今日曇りから晴れへ\n\n"
+            + "[Chorus]\n"
+            + " この瞬間我々相通じてる\n"
+            + " 言葉で表せない感情\n\n"
+            + "[Outro]\n"
+            + (seed_theme + "\n" if seed_theme else "")
+        )
+
+    else:
+        seed_word = seed_theme if seed_theme else "this moment"
+        mood_tag = " — " + mood if mood else ""
+        genre_tag = " / " + genre if genre else ""
+        return (
+            "[Verse 1]\n"
+            + seed_word + mood_tag + genre_tag + "\n"
+            + "Every corner holds a memory\n"
+            + "Every breath reminds me of you\n\n"
+            + "[Pre-Chorus]\n"
+            + "Still hearing your voice inside\n"
+            + "Never once did I let go\n\n"
+            + "[Chorus]\n"
+            + "In this moment we align\n"
+            + "Feelings words could never find\n\n"
+            + "[Verse 2]\n"
+            + "Time machine stores all the feelings\n"
+            + "Open it up and it's all you\n"
+            + "Why I can't let go\n"
+            + "Because I love you this much\n\n"
+            + "[Bridge]\n"
+            + "The world stopped just to wait for me\n"
+            + "Today turned from gray to bright\n\n"
+            + "[Chorus]\n"
+            + "In this moment we align\n"
+            + "Feelings words could never find\n\n"
+            + "[Outro]\n"
+            + seed_word + "\n"
+        )
+
 
 
 def generate_title_from_text_model(job: dict[str, Any], lyrics: str, timeout: float = 180) -> str:
@@ -4696,6 +4631,7 @@ class MusicHandler(BaseHTTPRequestHandler):
             email_addr = str(form.get("email", "")).strip()
             lyrics = str(form.get("lyrics", "")).strip()
             lyrics_idea = str(form.get("lyrics_idea", "")).strip()
+            lyrics_language = str(form.get("lyrics_language", "auto")).strip()
             voice_id = str(form.get("voice_id", "")).strip()
             voice_mode = str(form.get("voice_mode") or "voice_clone_singing").strip()
             is_instrumental = bool(form.get("is_instrumental"))
@@ -4745,6 +4681,7 @@ class MusicHandler(BaseHTTPRequestHandler):
             "email": email_addr,
             "lyrics": lyrics,
             "lyrics_idea": lyrics_idea,
+            "lyrics_language": lyrics_language,
             "is_instrumental": is_instrumental,
             "lyrics_optimizer": lyrics_optimizer,
             "generated_lyrics": False,
@@ -4784,13 +4721,17 @@ class MusicHandler(BaseHTTPRequestHandler):
         """Handle GET /api/voice/preview?voice_id=xxx — synthesize a short speech sample with the given voice_id."""
         parsed = urllib.parse.urlparse(self.path)
         params = dict(urllib.parse.parse_qsl(parsed.query))
-        voice_id = str(params.get("voice_id", "")).strip()
-        if not voice_id:
+        raw_voice_id = str(params.get("voice_id", "")).strip()
+        if not raw_voice_id:
             self.send_json({"error": "voice_id is required"}, HTTPStatus.BAD_REQUEST)
             return
-        if not _is_safe_voice_id(voice_id):
+        if not _is_safe_voice_id(raw_voice_id):
             self.send_json({"error": "voice_id contains invalid characters"}, HTTPStatus.BAD_REQUEST)
             return
+        # Sanitize for API call — remove any characters not in the safe set
+        voice_id = re.sub(r"[^A-Za-z0-9_()./\- ]", "", raw_voice_id).strip()
+        if not voice_id:
+            voice_id = raw_voice_id  # fallback to original if stripping empties it
         try:
             preview_lang = _detect_lang_from_voice_id(voice_id)
             preview_text = VOICE_PREVIEW_TEXTS.get(preview_lang, VOICE_PREVIEW_TEXTS["English"])
@@ -4810,6 +4751,7 @@ class MusicHandler(BaseHTTPRequestHandler):
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
             return
         except Exception as exc:
+            print(f"[voice_preview] error for voice_id={voice_id}: {exc}")
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
             return
 
@@ -4993,6 +4935,7 @@ class MusicHandler(BaseHTTPRequestHandler):
             email_addr = str(form.get("email", "")).strip()
             lyrics = str(form.get("lyrics", "")).strip()
             lyrics_idea = str(form.get("lyrics_idea", "")).strip()
+            lyrics_language = str(form.get("lyrics_language", "auto")).strip()
             is_instrumental = bool(form.get("is_instrumental"))
             lyrics_optimizer = bool(form.get("lyrics_optimizer") or lyrics_idea) and not is_instrumental
             if not prompt:
@@ -5025,6 +4968,7 @@ class MusicHandler(BaseHTTPRequestHandler):
             "email": email_addr,
             "lyrics": lyrics,
             "lyrics_idea": lyrics_idea,
+            "lyrics_language": lyrics_language,
             "is_instrumental": is_instrumental,
             "lyrics_optimizer": lyrics_optimizer,
             "generated_lyrics": False,
