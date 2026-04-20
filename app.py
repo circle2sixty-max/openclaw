@@ -45,6 +45,10 @@ JOBS_DB = OUTPUT_DIR / "jobs.json"
 DRAFTS_DB = OUTPUT_DIR / "drafts.json"
 MAX_BODY_BYTES = 1024 * 1024
 LYRICS_CHAR_LIMIT = 6000
+GENERATED_LYRICS_MIN_CHARS = 600
+GENERATED_LYRICS_TARGET_MIN_CHARS = 800
+GENERATED_LYRICS_TARGET_MAX_CHARS = 2000
+GENERATED_LYRICS_MAX_CHARS = 2500
 VOICE_CLONE_SINGING_ENDPOINT = os.getenv("MINIMAX_VOICE_CLONE_SINGING_ENDPOINT", "/v1/voice_clone_singing")
 VOICE_CLONE_SINGING_MODEL = os.getenv("MINIMAX_VOICE_CLONE_SINGING_MODEL", "music-2.6")
 LYRICS_REQUEST_TIMEOUT = float(os.getenv("LYRICS_REQUEST_TIMEOUT", "4"))
@@ -3272,6 +3276,205 @@ def clean_generated_lyrics(text: str) -> str:
     return cleaned[:LYRICS_CHAR_LIMIT].strip()
 
 
+def _normalize_copy_check_text(text: str) -> str:
+    text = str(text or "").lower()
+    return re.sub(r"[^0-9a-z_\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]+", "", text)
+
+
+def _source_sentence_candidates(text: str) -> list[str]:
+    text = str(text or "").strip()
+    if not text:
+        return []
+    candidates: list[str] = []
+    for part in re.split(r"[\r\n。！？!?；;]+", text):
+        part = re.sub(r"^\s*[-*#>\d.)、]+", "", part).strip(" \t\"'“”‘’`")
+        if not part:
+            continue
+        words = re.findall(r"[A-Za-z0-9_']+", part)
+        cjk_chars = re.findall(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]", part)
+        normalized = _normalize_copy_check_text(part)
+        if len(normalized) >= 24 or len(words) >= 4 or len(cjk_chars) >= 8:
+            candidates.append(part)
+    return candidates
+
+
+def _find_copied_source_fragment(lyrics: str, source_texts: list[str]) -> str:
+    normalized_lyrics = _normalize_copy_check_text(lyrics)
+    lyric_words = " " + " ".join(re.findall(r"[A-Za-z0-9_']+", lyrics.lower())) + " "
+    lyric_cjk = "".join(re.findall(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]", lyrics))
+    for source in source_texts:
+        for sentence in _source_sentence_candidates(source):
+            normalized_sentence = _normalize_copy_check_text(sentence)
+            if normalized_sentence and normalized_sentence in normalized_lyrics:
+                return sentence[:120]
+
+        source_words = re.findall(r"[A-Za-z0-9_']+", str(source or "").lower())
+        for size in range(min(10, len(source_words)), 5, -1):
+            for index in range(0, len(source_words) - size + 1):
+                phrase = " ".join(source_words[index:index + size])
+                if len(phrase) >= 25 and f" {phrase} " in lyric_words:
+                    return phrase[:120]
+
+        source_cjk = "".join(re.findall(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]", str(source or "")))
+        if len(source_cjk) >= 6 and lyric_cjk:
+            for index in range(0, len(source_cjk) - 5):
+                phrase = source_cjk[index:index + 6]
+                if phrase in lyric_cjk:
+                    return phrase
+    return ""
+
+
+def validate_generated_lyrics(lyrics: str, source_texts: list[str] | None = None) -> None:
+    if len(lyrics) < GENERATED_LYRICS_MIN_CHARS:
+        raise ValueError(
+            f"Generated lyrics were too short ({len(lyrics)} characters). "
+            f"Please regenerate; lyrics must be at least {GENERATED_LYRICS_MIN_CHARS} characters for a full song."
+        )
+    copied_fragment = _find_copied_source_fragment(lyrics, source_texts or [])
+    if copied_fragment:
+        raise ValueError(
+            "Generated lyrics reused text from the lyrics prompt. Please regenerate with a shorter inspiration brief; "
+            "the lyrics must be fully original and cannot include prompt sentences or phrases."
+        )
+
+
+def _theme_anchor_from_seed(seed: str, voice_lang: str) -> str:
+    seed = re.sub(r"\[[^\]]+\]", " ", str(seed or ""))
+    seed = re.sub(r"\s+", " ", seed).strip()
+    if not seed:
+        return {
+            "Cantonese": "心入面嘅光",
+            "Chinese (Mandarin)": "心里的光",
+            "Korean": "마음의 빛",
+            "Japanese": "心の光",
+        }.get(voice_lang, "inner light")
+
+    if re.search(r"[\u3400-\u9fff]", seed):
+        keyword_map = [
+            ("梦想", "梦想"), ("夢想", "夢想"), ("雨", "雨夜"), ("海", "海风"), ("城市", "城市"),
+            ("星", "星光"), ("夜", "夜色"), ("爱情", "爱"), ("愛情", "愛"), ("思念", "思念"),
+            ("失恋", "告别"), ("孤独", "孤独"), ("快乐", "快乐"), ("快樂", "快樂"), ("希望", "希望"),
+            ("回家", "归途"), ("家", "归途"), ("朋友", "陪伴"), ("未来", "未来"), ("未來", "未來"),
+        ]
+        anchors = [anchor for token, anchor in keyword_map if token in seed]
+        if anchors:
+            return "、".join(dict.fromkeys(anchors[:3]))
+        compact = re.sub(r"[^\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]+", "", seed)
+        return (compact[:4] + "的回响") if compact else "心里的光"
+
+    stop_words = {
+        "about", "above", "after", "again", "against", "also", "and", "another", "around", "because",
+        "before", "brief", "chorus", "describe", "feeling", "feelings", "from", "into", "like", "lyrics",
+        "make", "music", "only", "prompt", "rewrite", "song", "style", "that", "the", "this", "translate",
+        "verse", "want", "with", "write", "your",
+    }
+    words = [
+        word for word in re.findall(r"[A-Za-z][A-Za-z']{2,}", seed.lower())
+        if word not in stop_words
+    ]
+    if not words:
+        return "inner light"
+    unique_words = list(dict.fromkeys(words))
+    return " and ".join(unique_words[:2])
+
+
+def _fallback_extension_for_language(voice_lang: str) -> str:
+    if voice_lang == "Cantonese":
+        return (
+            "[Verse 3]\n"
+            "路燈一路陪我行過轉角\n"
+            "舊日嘅影像慢慢變得清楚\n"
+            "就算風聲遮住心跳\n"
+            "我都會將未講嘅話唱到天光\n\n"
+            "[Final Chorus]\n"
+            "呢一刻我哋相通\n"
+            "微光照住彼此嘅方向\n"
+            "所有沉默開成花\n"
+            "留低一首唔會熄滅嘅歌\n\n"
+            "[Outro]\n"
+            "當最後一粒星仍然閃爍\n"
+            "我把答案放入旋律\n"
+            "輕輕唱畀明日聽\n"
+        )
+    if voice_lang == "Chinese (Mandarin)":
+        return (
+            "[Verse 3]\n"
+            "路灯陪我走过转角\n"
+            "旧日画面慢慢变清楚\n"
+            "就算风声盖过心跳\n"
+            "我也把没说的话唱到破晓\n\n"
+            "[Final Chorus]\n"
+            "这一刻我们相通\n"
+            "微光照亮彼此方向\n"
+            "所有沉默开成花\n"
+            "留下不会熄灭的歌\n\n"
+            "[Outro]\n"
+            "当最后一颗星仍闪烁\n"
+            "我把答案放进旋律\n"
+            "轻轻唱给明天听\n"
+        )
+    if voice_lang == "Korean":
+        return (
+            "[Verse 3]\n"
+            "가로등은 천천히 길을 열고\n"
+            "오래된 장면들이 선명해져\n"
+            "바람이 심장 소릴 덮어도\n"
+            "말 못 한 진심을 새벽까지 노래해\n\n"
+            "[Final Chorus]\n"
+            "이 순간 우린 같은 빛 안에\n"
+            "서로의 방향을 다시 찾아\n"
+            "침묵은 꽃처럼 피어나\n"
+            "꺼지지 않는 노래로 남아\n\n"
+            "[Outro]\n"
+            "마지막 별이 아직 반짝일 때\n"
+            "내 대답을 멜로디에 담아\n"
+            "내일에게 조용히 불러\n"
+        )
+    if voice_lang == "Japanese":
+        return (
+            "[Verse 3]\n"
+            "街灯が曲がり角を照らし\n"
+            "古い景色が少しずつ澄んでいく\n"
+            "風が鼓動を隠しても\n"
+            "言えなかった想いを夜明けまで歌う\n\n"
+            "[Final Chorus]\n"
+            "この瞬間ふたつの光が\n"
+            "もう一度行き先を見つける\n"
+            "沈黙は花のように開き\n"
+            "消えない歌になって残る\n\n"
+            "[Outro]\n"
+            "最後の星がまたたくうちに\n"
+            "答えをメロディに預けて\n"
+            "明日へそっと歌う\n"
+        )
+    return (
+        "[Verse 3]\n"
+        "Streetlights open up the corner\n"
+        "Old photographs begin to breathe\n"
+        "Even when the wind gets louder\n"
+        "I keep the truth beneath the beat\n\n"
+        "[Final Chorus]\n"
+        "In this moment we align\n"
+        "Small sparks turning into signs\n"
+        "Every silence starts to bloom\n"
+        "Every shadow leaves the room\n\n"
+        "[Outro]\n"
+        "When the final star keeps shining\n"
+        "I place my answer in the sound\n"
+        "Let tomorrow hear it rising\n"
+    )
+
+
+def _finalize_fallback_lyrics(lyrics: str, voice_lang: str, source_texts: list[str]) -> str:
+    lyrics = lyrics.strip()
+    extension = _fallback_extension_for_language(voice_lang)
+    while len(lyrics) < GENERATED_LYRICS_MIN_CHARS:
+        lyrics = f"{lyrics}\n\n{extension}".strip()
+    lyrics = lyrics[:GENERATED_LYRICS_MAX_CHARS].strip()
+    validate_generated_lyrics(lyrics, source_texts)
+    return lyrics
+
+
 def _minimax_headers() -> dict[str, str]:
     return {
         "Authorization": f"Bearer {MINIMAX_API_KEY}",
@@ -4035,6 +4238,13 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
             if translated and translated != lyrics_idea:
                 lyrics_idea_for_generation = translated
                 print(f"[lyrics] translated: {detected_idea_lang} -> {voice_lang} ({len(translated)} chars)")
+    source_texts = [
+        prompt,
+        lyrics_idea,
+        lyrics_idea_for_generation,
+        lyrics_extra,
+        *[str(value) for value in extra.values() if value],
+    ]
 
     # ============================================================
     # STEP 2: Extract themes/keywords from lyrics_idea to avoid verbatim copying
@@ -4043,21 +4253,33 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
     themes_keywords = ""
     if lyrics_idea_for_generation and len(lyrics_idea_for_generation) >= 20:
         try:
-            theme_extract_msg = f"""Extract 5-8 KEYWORDS or SHORT PHRASES (themes, emotions, imagery, concepts) from the following lyrics idea.
-Return ONLY a comma-separated list of the most important themes/feelings/keywords — nothing else.
-Do NOT copy full sentences. Only extract individual words or short phrases (2-4 words max).
+            theme_extract_msg = f"""Extract 5-8 ABSTRACT THEME ANCHORS from the following lyrics idea.
+Return ONLY a comma-separated list of generic motifs, emotions, imagery, and concepts — nothing else.
+Do NOT preserve the user's wording. Do NOT copy sentences, clauses, lyric fragments, slogans, or distinctive expressions.
+Use one- to three-word labels only, such as: longing, rain at night, courage, distant city, second chance.
 
 Text: {lyrics_idea_for_generation[:1000]}"""
             themes_keywords = run_mmx([
                 "text", "chat",
                 "--model", "auto",
-                "--system", "You are a creative writing assistant. Extract keywords and themes only. Output a comma-separated list, nothing else.",
+                "--system", "You extract abstract writing themes. Never reuse source wording. Output a comma-separated list only.",
                 "--message", theme_extract_msg,
                 "--max-tokens", "100",
                 "--temperature", "0.3",
                 "--non-interactive", "--quiet", "--output", "text",
             ], timeout=15)
             themes_keywords = themes_keywords.strip().strip('"').strip("'")
+            safe_theme_parts: list[str] = []
+            for part in re.split(r"[,，;\n]+", themes_keywords):
+                part = part.strip(" \t\"'“”‘’`.-")
+                if not part or re.search(r"[。！？!?]", part):
+                    continue
+                words = re.findall(r"[A-Za-z0-9_']+", part)
+                cjk_chars = re.findall(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]", part)
+                if len(words) > 3 or len(cjk_chars) > 8:
+                    continue
+                safe_theme_parts.append(part)
+            themes_keywords = ", ".join(safe_theme_parts[:8])
             if len(themes_keywords) > 200:
                 themes_keywords = themes_keywords[:200]
             print(f"[lyrics] extracted themes: {themes_keywords[:80]}")
@@ -4073,25 +4295,25 @@ Text: {lyrics_idea_for_generation[:1000]}"""
         system = (
             "You are a Cantonese songwriter. Write song lyrics in Cantonese using traditional Chinese characters and natural spoken Cantonese expressions. "
             "Output only the raw lyrics — no explanation, no notes, no markdown fences. "
-            "Write enough for a full song. Follow the brief closely."
+            "Write enough for a full song. Use only the high-level emotion, story, and imagery as inspiration."
         )
     elif voice_lang == "Chinese (Mandarin)":
         system = (
             "You are a Mandarin Chinese songwriter. Write song lyrics in simplified Chinese. "
             "Output only the raw lyrics — no explanation, no notes, no markdown fences. "
-            "Write enough for a full song. Follow the brief closely."
+            "Write enough for a full song. Use only the high-level emotion, story, and imagery as inspiration."
         )
     elif voice_lang == "Korean":
         system = (
             "You are a Korean songwriter. Write song lyrics in Korean. "
             "Output only the raw lyrics — no explanation, no notes, no markdown fences. "
-            "Write enough for a full song. Follow the brief closely."
+            "Write enough for a full song. Use only the high-level emotion, story, and imagery as inspiration."
         )
     elif voice_lang == "Japanese":
         system = (
             "You are a Japanese songwriter. Write song lyrics in Japanese. "
             "Output only the raw lyrics — no explanation, no notes, no markdown fences. "
-            "Write enough for a full song. Follow the brief closely."
+            "Write enough for a full song. Use only the high-level emotion, story, and imagery as inspiration."
         )
     else:
         lang_label = {
@@ -4107,8 +4329,15 @@ Text: {lyrics_idea_for_generation[:1000]}"""
         system = (
             f"You are a {lang_label} songwriter. Write song lyrics in {lang_label}. "
             "Output only the raw lyrics — no explanation, no notes, no markdown fences. "
-            "Write enough for a full song. Follow the brief closely."
+            "Write enough for a full song. Use only the high-level emotion, story, and imagery as inspiration."
         )
+    originality_system_rules = (
+        " The user's text is inspiration only, not lyric source material. "
+        "Do not quote, copy, translate verbatim, paraphrase line-by-line, or lightly edit any user sentence, clause, phrase, lyric fragment, title, or distinctive expression. "
+        "First infer the feeling and theme silently, then compose new lyric lines from scratch with different imagery and wording. "
+        "Avoid exact three-word sequences from user text; for CJK text, avoid exact six-character sequences."
+    )
+    system = system + originality_system_rules
 
     # Build context message — themes used as inspiration, NOT raw content to copy
     music_style = prompt.strip()
@@ -4116,7 +4345,7 @@ Text: {lyrics_idea_for_generation[:1000]}"""
     if music_style:
         context_lines.append(f"MUSIC STYLE / TONE: {music_style}")
     if themes_keywords:
-        context_lines.append(f"THEMES & KEYWORDS (use these as inspiration only): {themes_keywords}")
+        context_lines.append(f"THEME ANCHORS (inspiration only, not lyric text): {themes_keywords}")
     if lyrics_extra:
         context_lines.append(f"ADDITIONAL REQUIREMENTS: {lyrics_extra}")
     if extra.get("mood"):
@@ -4133,13 +4362,17 @@ Text: {lyrics_idea_for_generation[:1000]}"""
 
     message = f"""{context_str}
 
+All user-provided text above is creative source material only. It is NOT lyric text to copy, rewrite, quote, or translate verbatim.
+
 Write the complete song lyrics for this. The song must be in {voice_lang}.
 
 CRITICAL RULES — Follow these exactly:
-1. LENGTH: Generate lyrics that are 800-1500 CHARACTERS long. This must be a FULL song with verses, a hook/chorus, and an outro — NOT a short fragment.
-2. ZERO COPYING: The lyrics must be 100% ORIGINAL. You are FORBIDDEN from copying or reproducing any text from the user's brief (if any). Do not use any sentences, phrases, or expressions from the brief in your output. All lyrical content must be completely original.
-3. CREATIVE INTERPRETATION: Use the THEMES & KEYWORDS above as inspiration to write your own original lyrics. Do not reproduce the themes/keywords as a list — weave them naturally into the song.
-4. OUTPUT: Only output the raw lyrics themselves — no explanation, no notes, no "Here are the lyrics:" prefix, no markdown fences, no quotes."""
+1. LENGTH: Generate {GENERATED_LYRICS_TARGET_MIN_CHARS}-{GENERATED_LYRICS_TARGET_MAX_CHARS} characters, never below {GENERATED_LYRICS_MIN_CHARS}, and do not exceed {GENERATED_LYRICS_MAX_CHARS}. This must be a full 3-6 minute song with verses, a hook/chorus, bridge or lift, and an outro.
+2. ZERO COPYING: The lyrics must be 100% original. Do not copy any sentence, clause, phrase, expression, title, quoted fragment, or distinctive wording from the user's prompt, lyrics instructions, style notes, or additional requirements.
+3. NO PARAPHRASE: Do not rewrite the user's text line by line. Do not translate the user's lines as lyrics. Do not keep the same sentence shape with swapped words.
+4. CREATIVE DISTANCE: Create a fresh central metaphor, fresh scene details, and new singable lines. Use the theme anchors only to understand mood and subject.
+5. SELF-CHECK: Before outputting, silently compare the lyrics against the user's source text. If any line shares a three-word sequence or six CJK characters with the source, rewrite that line.
+6. OUTPUT: Only output the raw lyrics themselves — no explanation, no notes, no "Here are the lyrics:" prefix, no markdown fences, no quotes."""
 
     output = run_mmx([
         "text", "chat",
@@ -4155,6 +4388,7 @@ CRITICAL RULES — Follow these exactly:
     lyrics = clean_generated_lyrics(output)
     if not lyrics:
         raise RuntimeError("MiniMax lyrics_generation model returned empty lyrics.")
+    validate_generated_lyrics(lyrics, source_texts)
     return lyrics
 
 
@@ -4174,14 +4408,15 @@ def fallback_generated_lyrics(prompt: str, lyrics_idea: str, extra: dict[str, An
     mood = str(extra.get("mood", "")).strip()
     genre = str(extra.get("genre", "")).strip()
 
-    # Build a seed-based theme string for the target language
-    seed_theme = seed[:60] if seed else ""
+    # Build a short theme anchor without copying full user sentences into the fallback lyrics.
+    seed_theme = _theme_anchor_from_seed(seed, voice_lang)
+    source_texts = [prompt, lyrics_idea, *[str(value) for value in extra.values() if value]]
 
     if voice_lang == "Cantonese":
         theme_line = seed_theme + "喺心里面慢慢浮现" if seed_theme else "呢首歌喺讲你自己"
         mood_line = "带着" + mood + "心情" if mood else ""
         genre_line = "，" + genre + "曲风" if genre else ""
-        return (
+        return _finalize_fallback_lyrics((
             "[Verse 1]\n" + theme_line + genre_line + "\n"
             + "城市光影闪闪汩汩\n"
             + "思绪飞向另一个深夜\n\n"
@@ -4204,13 +4439,13 @@ def fallback_generated_lyrics(prompt: str, lyrics_idea: str, extra: dict[str, An
             + "所有嘢都唔需要讲话\n\n"
             + "[Outro]\n"
             + seed_theme + "\n"
-        )
+        ), voice_lang, source_texts)
 
     elif voice_lang == "Chinese (Mandarin)":
         theme_line = seed_theme + "在心里慢慢浮现" if seed_theme else "这首歌是讲给你听"
         mood_line = "带着" + mood if mood else ""
         genre_line = "，" + genre + "风格" if genre else ""
-        return (
+        return _finalize_fallback_lyrics((
             "[Verse 1]\n" + theme_line + genre_line + mood_line + "\n"
             + "城市光影忽明忽暗\n"
             + "思绪飘向每一个深夜\n\n"
@@ -4233,14 +4468,14 @@ def fallback_generated_lyrics(prompt: str, lyrics_idea: str, extra: dict[str, An
             + "一切都不需要言语\n\n"
             + "[Outro]\n"
             + seed_theme + "\n"
-        )
+        ), voice_lang, source_texts)
 
     elif voice_lang == "Korean":
         if seed_theme:
             theme_line = seed_theme + " 마음속 천천히 떠올라"
         else:
             theme_line = "이 노래는 너에게 주는 선물"
-        return (
+        return _finalize_fallback_lyrics((
             "[Verse 1]\n" + theme_line + "\n"
             + "도시 불빛이 반짝이고\n"
             + "思绪가 밤을 향해 날아\n\n"
@@ -4263,14 +4498,14 @@ def fallback_generated_lyrics(prompt: str, lyrics_idea: str, extra: dict[str, An
             + "말로 표현 못 하는 감정\n\n"
             + "[Outro]\n"
             + (seed_theme + "\n" if seed_theme else "")
-        )
+        ), voice_lang, source_texts)
 
     elif voice_lang == "Japanese":
         if seed_theme:
             theme_line = seed_theme + " 心の中で浮かんでくる"
         else:
             theme_line = "この歌はあなたへの礼物"
-        return (
+        return _finalize_fallback_lyrics((
             "[Verse 1]\n" + theme_line + "\n"
             + "街の灯りが煌めいて\n"
             + " 생각이 밤に向かって飛んで\n\n"
@@ -4293,13 +4528,13 @@ def fallback_generated_lyrics(prompt: str, lyrics_idea: str, extra: dict[str, An
             + " 言葉で表せない感情\n\n"
             + "[Outro]\n"
             + (seed_theme + "\n" if seed_theme else "")
-        )
+        ), voice_lang, source_texts)
 
     else:
         seed_word = seed_theme if seed_theme else "this moment"
         mood_tag = " — " + mood if mood else ""
         genre_tag = " / " + genre if genre else ""
-        return (
+        return _finalize_fallback_lyrics((
             "[Verse 1]\n"
             + seed_word + mood_tag + genre_tag + "\n"
             + "Every corner holds a memory\n"
@@ -4323,7 +4558,7 @@ def fallback_generated_lyrics(prompt: str, lyrics_idea: str, extra: dict[str, An
             + "Feelings words could never find\n\n"
             + "[Outro]\n"
             + seed_word + "\n"
-        )
+        ), voice_lang, source_texts)
 
 
 
