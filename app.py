@@ -3990,17 +3990,18 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
 
 Write the complete song lyrics for this. The song must be in {voice_lang}.
 
-IMPORTANT REQUIREMENTS:
-1. The lyrics must be at LEAST 600 characters long (approximately 100+ words). A 3-4 minute pop/electronic song typically requires 400-800 characters. Write generously.
-2. The lyrics must be 100% ORIGINAL. Do NOT copy any sentences, phrases, or paragraphs verbatim from the LYRIC PROMPT / INSTRUCTIONS above. You may extract and incorporate the FEELINGS, IMAGERY, and KEYWORDS from the brief, but you must rephrase everything in your own words and create original lyrical sentences. The output must not contain any large block of text that appears in the instructions.
-3. Output only the raw lyrics — no explanation, no notes, no markdown fences, no quotes around the lyrics."""
+CRITICAL RULES — Follow these exactly:
+1. LENGTH: Generate lyrics that are 800-1500 CHARACTERS long. This must be a FULL song with verses, a hook/chorus, and an outro — NOT a short fragment. A 3-5 minute pop/electronic song requires substantial lyrics.
+2. ZERO COPYING: The lyrics must be 100% ORIGINAL and CREATIVE. You are FORBIDDEN from copying any complete sentence, phrase, or paragraph from the LYRIC PROMPT / INSTRUCTIONS above. Even if the user's brief contains a chorus line or verse, you must REWRITE IT COMPLETELY in your own words and style. Do not reproduce any text from the instructions verbatim.
+3. CREATIVE INTERPRETATION: You may use the THEMES, EMOTIONS, IMAGERY, and KEYWORDS from the brief as inspiration, but you must generate all lyrical content from scratch. Write original sentences, original rhymes, and original expressions.
+4. OUTPUT: Only output the raw lyrics themselves — no explanation, no notes, no "Here are the lyrics:" prefix, no markdown fences, no quotes around the lyrics."""
 
     output = run_mmx([
         "text", "chat",
         "--model", "auto",
         "--system", system,
         "--message", message,
-        "--max-tokens", "3200",
+        "--max-tokens", "4000",
         "--temperature", "0.8",
         "--non-interactive",
         "--quiet",
