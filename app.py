@@ -1476,8 +1476,12 @@ INDEX_HTML = r"""<!doctype html>
           throw new Error(errMsg);
         }
         lyrics.value = data.lyrics || "";
-        saveDraftSoon();
-        setLyricsAssistMessage(t("lyricsGenerated"));
+        // Warn if lyrics are too short for a 3-4 minute song
+        if (lyrics.value.length < 500) {
+          setLyricsAssistMessage("⚠️ 歌词较短（" + lyrics.value.length + "字），可能只适合1-2分钟片段。建议扩充歌词或重新生成以获得更完整的歌曲。", true);
+        } else {
+          setLyricsAssistMessage(t("lyricsGenerated") + " (" + lyrics.value.length + "字)");
+        }
         showToast(t("toastLyricsSuccess"), "success");
         generateLyricsBtn.classList.remove("animate-pulse");
         generateLyricsBtn.classList.add("animate-bounce-in");
@@ -2381,9 +2385,9 @@ INDEX_HTML = r"""<!doctype html>
 
     async function playVoicePreview(voiceId) {
       const playId = voiceId;
-      // Set pending BEFORE stopping — prevents race condition from slow fetches
-      _voicePlayPending = playId;
       stopVoicePreview();
+      // Set pending AFTER stopping — stopVoicePreview may null _voicePlayPending
+      _voicePlayPending = playId;
       document.querySelectorAll(".voice-pill").forEach(function(p) {
         p.classList.remove("playing");
         if (p.getAttribute("data-voice") === voiceId) p.classList.add("playing");
@@ -2434,7 +2438,9 @@ INDEX_HTML = r"""<!doctype html>
     }
 
     function stopVoicePreview() {
-      _voicePlayPending = null;  // Invalidate any in-flight fetch
+      // NOTE: Do NOT set _voicePlayPending = null here — that happens in the 'ended' event
+      // or when a new playVoicePreview call overwrites it. Clearing it here causes the
+      // _voicePlayPending !== playId check after fetch to return early, breaking preview.
       if (_voiceAudio) {
         const src = _voiceAudio.src;
         _voiceAudio.pause();
@@ -3979,7 +3985,11 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
     message = f"""{context_str}
 
 Write the complete song lyrics for this. The song must be in {voice_lang}.
-Output only the raw lyrics — no explanation, no notes, no markdown fences, no quotes around the lyrics."""
+
+IMPORTANT REQUIREMENTS:
+1. The lyrics must be at LEAST 600 characters long (approximately 100+ words). A 3-4 minute pop/electronic song typically requires 400-800 characters. Write generously.
+2. The lyrics must be 100% ORIGINAL. Do NOT copy any sentences, phrases, or paragraphs verbatim from the LYRIC PROMPT / INSTRUCTIONS above. You may extract and incorporate the FEELINGS, IMAGERY, and KEYWORDS from the brief, but you must rephrase everything in your own words and create original lyrical sentences. The output must not contain any large block of text that appears in the instructions.
+3. Output only the raw lyrics — no explanation, no notes, no markdown fences, no quotes around the lyrics."""
 
     output = run_mmx([
         "text", "chat",
