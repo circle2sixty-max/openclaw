@@ -299,7 +299,9 @@ INDEX_HTML = r"""<!doctype html>
     .voice-option-list::-webkit-scrollbar-track { background: transparent; }
     .voice-lang-list::-webkit-scrollbar-thumb,
     .voice-option-list::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
-    .voice-lang-list { display: flex; flex-direction: column; gap: 6px; padding: 4px; border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; background: rgba(0,0,0,0.16); }
+    .voice-lang-list::-webkit-scrollbar-thumb:hover,
+    .voice-option-list::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+    .voice-lang-list { display: flex; flex-direction: column; gap: 6px; padding: 4px; border: 1px solid var(--border-light); border-radius: 8px; background: var(--bg-secondary); }
     .voice-lang-btn { width: 100%; min-height: 34px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 8px 9px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text-secondary); font-size: 11px; font-weight: 700; text-align: left; cursor: pointer; transition: var(--transition); }
     .voice-lang-btn:hover { color: var(--text-primary); background: var(--bg-tertiary); border-color: var(--border); }
     .voice-lang-btn.active { color: var(--accent); background: linear-gradient(135deg, rgba(29,185,84,0.18), rgba(29,185,84,0.06)); border-color: rgba(29,185,84,0.55); box-shadow: inset 3px 0 0 var(--accent); }
@@ -312,16 +314,16 @@ INDEX_HTML = r"""<!doctype html>
     .voice-custom-btn:hover { border-color: var(--accent); color: var(--accent); }
     .voice-custom-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
     .voice-custom-label { display: block; margin-top: 5px; font-size: 10px; line-height: 1.3; color: var(--text-muted); }
-    .voice-option-list { border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; background: rgba(255,255,255,0.025); }
+    .voice-option-list { border: 1px solid var(--border-light); border-radius: 8px; background: var(--bg-secondary); }
     .voice-options-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; background: rgba(18,18,26,0.96); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); }
     .voice-options-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 800; color: var(--text-primary); }
     .voice-options-meta { flex: 0 0 auto; color: var(--text-muted); font-size: 10px; font-weight: 700; }
     .voice-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 7px; padding: 9px; align-content: start; }
-    .voice-pill { width: 100%; min-width: 0; min-height: 38px; display: grid; grid-template-columns: minmax(0, 1fr) 24px; align-items: center; gap: 8px; padding: 7px 7px 7px 10px; background: rgba(26,26,37,0.9); border: 1px solid var(--border); border-radius: 8px; font-size: 11px; color: var(--text-secondary); cursor: pointer; transition: var(--transition); line-height: 1.2; text-align: left; }
+    .voice-pill { width: 100%; min-width: 0; min-height: 38px; display: grid; grid-template-columns: minmax(0, 1fr) 24px; align-items: center; gap: 8px; padding: 7px 7px 7px 10px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; font-size: 11px; color: var(--text-secondary); cursor: pointer; transition: var(--transition); line-height: 1.2; text-align: left; }
     .voice-pill:hover { border-color: var(--accent); color: var(--text-primary); transform: translateY(-1px); }
     .voice-pill.selected { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); box-shadow: inset 0 0 0 1px rgba(29,185,84,0.16); }
     .voice-pill.playing { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); animation: pulse 1s ease-in-out infinite; }
-    .voice-pill .play-icon { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--bg-elevated); color: var(--accent); font-size: 9px; }
+    .voice-pill .play-icon { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--bg-elevated); color: var(--accent); font-size: 9px; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
     .voice-pill .play-icon svg { width: 11px; height: 11px; fill: currentColor; }
     .voice-pill .voice-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .voice-empty { padding: 18px; text-align: center; color: var(--text-muted); font-size: 12px; }
@@ -804,6 +806,9 @@ INDEX_HTML = r"""<!doctype html>
               <label class="form-label" data-i18n="lyricsIdeaLabel">Lyric Prompt / Instructions (optional)</label>
               <textarea id="lyricsIdea" maxlength="2500" class="form-input" data-i18n-placeholder="lyricsIdeaPlaceholder" placeholder="Describe the story, feelings, images, or fragments you want. You can also write instructions like: 'Translate the above into Korean' or 'Rewrite as a Spanish love song.'"></textarea>
               <div class="form-hint" data-i18n="lyricsIdeaHint">Describe what you want, or give AI a task like "translate into Korean". The selected voice language is used automatically.</div>
+              <label class="form-label" style="margin-top:12px;font-size:12px;color:var(--text-muted);" data-i18n="lyricsExtraLabel">Additional Requirements (optional)</label>
+              <textarea id="lyricsExtra" maxlength="500" class="form-input" data-i18n-placeholder="lyricsExtraPlaceholder" placeholder="Length: 3-5 min / Emotion: melancholic, hopeful / Style: poetic, conversational / Mood: dark, upbeat / Tempo: fast, slow / Structure: verse-chorus-verse-chorus-bridge-chorus" style="min-height:60px;font-size:12px;"></textarea>
+              <div class="form-hint" data-i18n="lyricsExtraHint">Describe extra requirements for the lyrics: desired length, emotional tone, style, mood, tempo, structure, etc. These are附加 requirements separate from the main lyrics content.</div>
               <div style="margin-top:12px;display:flex;align-items:center;gap:12px;">
                 <button id="generateLyricsBtn" class="btn-secondary" type="button" data-i18n="generateLyrics">Generate Lyrics</button>
                 <span id="lyricsAssistMessage" style="font-size:13px;color:var(--text-muted);"></span>
@@ -1091,6 +1096,8 @@ INDEX_HTML = r"""<!doctype html>
         promptLabel: "Music Style Prompt", promptHint: "Include style, mood, instruments, tempo, and any references.",
         promptPlaceholder: "Cinematic electronic pop, confident and bright, polished production, strong hook",
         lyricsIdeaLabel: "Lyric Prompt / Instructions (optional)", lyricsIdeaHint: "Describe what you want, or give AI a task like 'translate into Korean'. The selected voice language is used automatically.",
+        lyricsExtraLabel: "Additional Requirements (optional)", lyricsExtraHint: "Describe extra requirements: desired length, emotional tone, style, mood, tempo, structure. These are附加 requirements separate from the main lyrics content.",
+        lyricsExtraPlaceholder: "Length: 3-5 min / Emotion: melancholic, hopeful / Style: poetic / Mood: dark, upbeat / Tempo: fast / Structure: verse-chorus-verse-chorus-bridge-chorus",
         lyricsIdeaPlaceholder: "Describe the story, feelings, images, or fragments you want. You can also write instructions like: 'Translate the above into Korean' or 'Rewrite as a Spanish love song.'",
         generateLyrics: "Generate Lyrics", generatingLyrics: "Generating lyrics...", lyricsGenerated: "Lyrics added below. You can edit them before generating music.",
         lyricsAssistNeedBrief: "Add a lyrics brief or music style prompt first.", lyricsAssistFailed: "Lyrics generation failed.",
@@ -1134,6 +1141,8 @@ INDEX_HTML = r"""<!doctype html>
         promptLabel: "音乐风格描述", promptHint: "写清风格、情绪、乐器、速度和参考对象。",
         promptPlaceholder: "例如：明亮自信的电子流行，制作精致，副歌有记忆点",
         lyricsIdeaLabel: "歌词指令（可选）", lyricsIdeaHint: "描述你想要的内容，或给 AI 指令如'翻译成韩语'。所选音色的语种会自动应用。",
+        lyricsExtraLabel: "附加要求（可选）", lyricsExtraHint: "描述歌词的附加要求：长度、情感基调、风格、情绪、节奏、结构等。这些是独立于歌词内容的附加说明。",
+        lyricsExtraPlaceholder: "长度：3-5分钟 / 情感：忧伤的、希望的 / 风格：诗意、口语化 / 情绪：暗黑、明快 / 节奏：快歌、慢歌 / 结构：主歌-副歌-主歌-副歌-桥段-副歌",
         lyricsIdeaPlaceholder: "写下你想要的故事、情绪、画面或零散片段。你也可以写指令，如：'把上面的内容翻译成韩语'或'改写成西班牙语情歌'。",
         generateLyrics: "生成歌词", generatingLyrics: "正在生成歌词...", lyricsGenerated: "歌词已填入下方，你可以编辑后再生成音乐。",
         lyricsAssistNeedBrief: "请先填写歌词需求描述或音乐风格。", lyricsAssistFailed: "歌词生成失败。",
@@ -1347,7 +1356,7 @@ INDEX_HTML = r"""<!doctype html>
     function collectPayload() {
       const get = id => { const el = document.getElementById(id); return el ? el.value.trim() : ""; };
       return {
-        email: get("email"), song_title: get("songTitle"), prompt: get("prompt"), lyrics: get("lyrics"), lyrics_idea: get("lyricsIdea"),
+        email: get("email"), song_title: get("songTitle"), prompt: get("prompt"), lyrics: get("lyrics"), lyrics_idea: get("lyricsIdea"), lyrics_extra: get("lyricsExtra"),
         is_instrumental: instrumental.checked, lyrics_optimizer: lyricsOptimizer.checked,
         voice_mode: voiceSingingMode && voiceSingingMode.checked ? "voice_clone_singing" : "cover",
         genre: get("genre"), mood: get("mood"), instruments: get("instruments"), tempo: get("tempo"), bpm: get("bpm"), key: get("key"),
@@ -1480,12 +1489,8 @@ INDEX_HTML = r"""<!doctype html>
           throw new Error(errMsg);
         }
         lyrics.value = data.lyrics || "";
-        // Warn if lyrics are too short for a 3-4 minute song
-        if (lyrics.value.length < 500) {
-          setLyricsAssistMessage("⚠️ 歌词较短（" + lyrics.value.length + "字），可能只适合1-2分钟片段。建议扩充歌词或重新生成以获得更完整的歌曲。", true);
-        } else {
-          setLyricsAssistMessage(t("lyricsGenerated") + " (" + lyrics.value.length + "字)");
-        }
+        saveDraftSoon();
+        setLyricsAssistMessage(t("lyricsGenerated") + " (" + lyrics.value.length + "字)");
         showToast(t("toastLyricsSuccess"), "success");
         generateLyricsBtn.classList.remove("animate-pulse");
         generateLyricsBtn.classList.add("animate-bounce-in");
@@ -3883,6 +3888,7 @@ def fallback_song_title(job: dict[str, Any], lyrics: str) -> str:
 def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -> str:
     prompt = str(job.get("prompt", "")).strip()
     lyrics_idea = str(job.get("lyrics_idea", "")).strip()
+    lyrics_extra = str(job.get("lyrics_extra", "")).strip()
     extra = job.get("extra", {}) if isinstance(job.get("extra"), dict) else {}
     voice_id = str(job.get("voice_id", "")).strip()
     lyrics_language_override = str(job.get("lyrics_language", "auto")).strip()
@@ -3982,6 +3988,9 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
         context_lines.append(f"PREFERRED STRUCTURE: {extra['structure']}")
     if extra.get("avoid"):
         context_lines.append(f"AVOID: {extra['avoid']}")
+    if lyrics_extra:
+        context_lines.append(f"ADDITIONAL REQUIREMENTS:")
+        context_lines.append(lyrics_extra)
     context_str = "\n".join(context_lines) if context_lines else "(No specific brief provided — create freely)"
 
     # Minimal prompt — the system prompt sets language and songwriting context.
@@ -4605,18 +4614,22 @@ class MusicHandler(BaseHTTPRequestHandler):
             form = self.read_json_body()
             prompt = str(form.get("prompt", "")).strip()
             lyrics_idea = str(form.get("lyrics_idea", "")).strip()
+            lyrics_extra = str(form.get("lyrics_extra", "")).strip()
             if not prompt and not lyrics_idea:
                 raise ValueError("Lyrics brief or music style prompt is required.")
             if len(prompt) > 2000:
                 raise ValueError("Prompt must be 2000 characters or fewer.")
             if len(lyrics_idea) > 2500:
                 raise ValueError("Lyrics brief must be 2500 characters or fewer.")
+            if lyrics_extra and len(lyrics_extra) > 500:
+                raise ValueError("附加要求 must be 500 characters or fewer.")
             extra = {key: str(form.get(key, "")).strip() for key in ("genre", "mood", "instruments", "tempo", "bpm", "key", "vocals", "structure", "references", "avoid", "use_case", "extra")}
             voice_id = str(form.get("voice_id", "")).strip()
             lyrics_language = str(form.get("lyrics_language", "auto")).strip()
             lyrics = generate_lyrics_from_text_model({
                 "prompt": prompt,
                 "lyrics_idea": lyrics_idea,
+                "lyrics_extra": lyrics_extra,
                 "extra": extra,
                 "voice_id": voice_id,
                 "lyrics_language": lyrics_language,
