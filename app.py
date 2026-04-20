@@ -3384,8 +3384,14 @@ def synthesize_speech(text: str, voice_id: str, output_path: Path, model: str = 
         or resp.get("audio")
     )
     if not audio_hex:
+        # Check for specific MiniMax error codes
+        base_resp = resp.get("base_resp", {})
+        status_code = base_resp.get("status_code", 0)
+        status_msg = base_resp.get("status_msg", "")
+        if status_code == 2054 or "not exist" in status_msg.lower() or "not found" in status_msg.lower():
+            raise RuntimeError(f"This voice is not available for preview: {voice_id}")
         print(f"[TTS] unexpected resp: {resp}")
-        raise RuntimeError(f"No audio in TTS response: {resp}")
+        raise RuntimeError(f"No audio in TTS response: {status_msg or str(resp)}")
     audio_bytes = bytes.fromhex(audio_hex)
     output_path.write_bytes(audio_bytes)
     return output_path
