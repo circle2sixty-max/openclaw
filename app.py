@@ -1242,10 +1242,7 @@ INDEX_HTML = r"""<!doctype html>
         generateLyrics: "生成歌詞", generatingLyrics: "正在生成歌詞...", lyricsGenerated: "歌詞已填入下方，你可以編輯後再生成音樂。",
         lyricsAssistNeedBrief: "請先填寫歌詞需求描述或音樂風格。", lyricsAssistFailed: "歌詞生成失敗。",
         lyricsLabel: "完整歌詞（可選）", lyricsHint: "如果你已經有確定歌詞，貼在這裡。完整歌詞會優先於歌詞需求描述。",
-        lyricsPlaceholder: "[主歌]
-在這裡寫歌詞...
-[副歌]
-在這裡寫副歌...",
+        lyricsPlaceholder: "[主歌]\n在這裡寫歌詞...\n[副歌]\n在這裡寫副歌...",
         instrumental: "純音樂", instrumentalHint: "無人聲，歌詞會被忽略。",
         autoLyrics: "自動生成歌詞", autoLyricsHint: "AI 根據描述寫歌詞。",
         voiceCloneLabel: "聲紋復刻（可選）", voiceRecordBtn: "錄製我的聲音", voiceCloneHint: "錄製5段不同音調和風格的短句，約30秒。復刻聲音有效期7天。",
@@ -1290,10 +1287,7 @@ INDEX_HTML = r"""<!doctype html>
         generateLyrics: "가사 생성", generatingLyrics: "가사 생성 중...", lyricsGenerated: "가사가 아래에 추가되었습니다. 음악 생성 전 편집할 수 있습니다.",
         lyricsAssistNeedBrief: "먼저 가사 요구사항이나 음악 스타일을 적어주세요.", lyricsAssistFailed: "가사 생성에 실패했습니다.",
         lyricsLabel: "완전한 가사 (선택)", lyricsHint: "이미 완성된 가사가 있으면 여기에 붙여넣으세요. 완성된 가사가 가사 요구사항보다 우선합니다.",
-        lyricsPlaceholder: "[ verse]
-여기에 가사...
-[ hook]
-여기에 후렴...",
+        lyricsPlaceholder: "[ verse]\n여기에 가사...\n[ hook]\n여기에 후렴...",
         instrumental: "반주", instrumentalHint: "보컬 없음. 가사는 무시됩니다.",
         autoLyrics: "자동 가사 생성", autoLyricsHint: "AI가 설명에서 가사를 작성합니다.",
         voiceCloneLabel: "음성 복제 (선택)", voiceRecordBtn: "내 목소리 녹음", voiceCloneHint: "다양한 톤과 스타일의 짧은 구절 5개를 녹음합니다. 약 30초. 복제된 음성은 7일 동안 유효합니다.",
@@ -1338,10 +1332,7 @@ INDEX_HTML = r"""<!doctype html>
         generateLyrics: "歌詞生成", generatingLyrics: "歌詞生成中...", lyricsGenerated: "歌詞が 아래に追加されました。音楽生成前に編集できます。",
         lyricsAssistNeedBrief: "まず歌詞 요구事項や音楽スタイルを書いてください。", lyricsAssistFailed: "歌詞生成に失敗しました。",
         lyricsLabel: "完全な歌詞（任意）", lyricsHint: "すでに完全な歌詞があるなら、ここに貼り付けてください。完全な歌詞が歌詞指示より優先されます。",
-        lyricsPlaceholder: "[ verse]
-ここに歌詞...
-[ hook]
-ここにフック...",
+        lyricsPlaceholder: "[ verse]\nここに歌詞...\n[ hook]\nここにフック...",
         instrumental: "伴奏", instrumentalHint: "ボーカルなし。歌詞は無視されます。",
         autoLyrics: "自動歌詞生成", autoLyricsHint: "AIが説明から歌詞を書きます。",
         voiceCloneLabel: "音声クローン（任意）", voiceRecordBtn: "声を録音", voiceCloneHint: "異なるトーンとスタイルの短い節5つを録音します 約30秒。クローンされた声は7日間有効です。",
@@ -1386,10 +1377,7 @@ INDEX_HTML = r"""<!doctype html>
         generateLyrics: "Generar letra", generatingLyrics: "Generando letra...", lyricsGenerated: "Letra añadida abajo. Puedes editarla antes de generar música.",
         lyricsAssistNeedBrief: "Añade primero una descripción o estilo musical.", lyricsAssistFailed: "La generación de letra ha fallado.",
         lyricsLabel: "Letra completa (opcional)", lyricsHint: "Pega aquí la letra exacta si ya la tienes. La letra exacta tiene prioridad.",
-        lyricsPlaceholder: "[Verso]
-Tu letra aquí...
-[Estribillo]
-Tu estribillo...",
+        lyricsPlaceholder: "[Verso]\nTu letra aquí...\n[Estribillo]\nTu estribillo...",
         instrumental: "Instrumental", instrumentalHint: "Sin vocals. La letra será ignorada.",
         autoLyrics: "Auto-generar letra", autoLyricsHint: "La IA escribe la letra según tu descripción.",
         voiceCloneLabel: "Clon de voz (opcional)", voiceRecordBtn: "Grabar mi voz", voiceCloneHint: "Graba 5 frases cortas de diferentes tonos. Toma unos 30 segundos. La voz clonada expira en 7 días.",
