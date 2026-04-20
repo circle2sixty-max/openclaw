@@ -2138,6 +2138,124 @@ Tu estribillo...",
       },
     };
 
+    Object.assign(I18N, {
+      fr: {
+        subtitle: "Quand les mots ne suffisent plus, laissez la musique parler.",
+        createTitle: "Créer de la musique", createDesc: "Écrivez une idée, une histoire ou un style. Music Speaks le transforme en chanson.",
+        promptLabel: "Style musical", promptHint: "Décrivez le style, l'ambiance, les instruments et le tempo.",
+        promptPlaceholder: "Pop électronique lumineuse, production moderne, refrain mémorable",
+        lyricsIdeaLabel: "Idée de paroles", lyricsIdeaHint: "Décrivez les paroles souhaitées. La langue vient de la colonne des voix.",
+        lyricsIdeaPlaceholder: "Décrivez l'histoire, les émotions ou les images à chanter.",
+        generateLyrics: "Créer les paroles", generatingLyrics: "Création des paroles...", lyricsGenerated: "Paroles ajoutées ci-dessous.",
+        lyricsAssistNeedBrief: "Ajoutez d'abord une idée ou un style musical.", lyricsAssistFailed: "La création des paroles a échoué.",
+        lyricsLabel: "Paroles finales", lyricsHint: "Collez ici vos paroles si vous en avez déjà.",
+        instrumental: "Instrumental", instrumentalHint: "Sans voix. Les paroles seront ignorées.",
+        autoLyrics: "Paroles automatiques", autoLyricsHint: "L'IA écrit les paroles à partir de votre idée.",
+        voicePickerLabel: "Voix", voicePickerDefault: "Choisissez une langue de voix - elle définit la langue des paroles", voicePickerLoading: "Chargement des voix...",
+        voicePreviewBtn: "Écouter la voix", voicePreviewReady: "Aperçu prêt.", voicePreviewError: "Aperçu indisponible.",
+        voiceCustomBtn: "Ma voix", voiceCustomDesc: "Enregistrer et utiliser votre voix",
+        submit: "Créer la musique", clearDraft: "Effacer", jobsTitle: "Créations", empty: "Aucune création pour le moment.",
+        queued: "En attente", running: "Création", completed: "Terminé", error: "Erreur", unknown: "Inconnu",
+        download: "Télécharger MP3", delete: "Supprimer", deleteConfirm: "Supprimer cette création ?", deleteFailed: "Suppression impossible",
+        navCreate: "Créer", navLibrary: "Bibliothèque", navFavorites: "Favoris", navHistory: "Historique",
+        libraryDesc: "Toutes vos chansons générées.", favoritesDesc: "Vos chansons favorites.", historyDesc: "Chansons récentes.",
+        toastMusicStarted: "Création musicale lancée !", toastMusicReady: "Musique prête : ", toastLyricsSuccess: "Paroles créées !", toastLyricsError: "Échec des paroles.",
+        langMenuLabel: "Langue de l'interface"
+      },
+      de: {
+        subtitle: "Wenn Worte nicht reichen, lass die Musik sprechen.",
+        createTitle: "Musik erstellen", createDesc: "Schreibe eine Idee, Geschichte oder Stilrichtung. Music Speaks macht daraus einen Song.",
+        promptLabel: "Musikstil", promptHint: "Beschreibe Stil, Stimmung, Instrumente und Tempo.",
+        promptPlaceholder: "Heller elektronischer Pop, moderne Produktion, starker Refrain",
+        lyricsIdeaLabel: "Songtext-Idee", lyricsIdeaHint: "Beschreibe den gewünschten Text. Die Sprache kommt aus der Stimmen-Spalte.",
+        lyricsIdeaPlaceholder: "Beschreibe Geschichte, Gefühle oder Bilder für den Song.",
+        generateLyrics: "Text erstellen", generatingLyrics: "Text wird erstellt...", lyricsGenerated: "Text wurde unten eingefügt.",
+        lyricsAssistNeedBrief: "Füge zuerst eine Idee oder einen Musikstil hinzu.", lyricsAssistFailed: "Texterstellung fehlgeschlagen.",
+        lyricsLabel: "Fertiger Text", lyricsHint: "Füge hier vorhandene Texte ein.",
+        instrumental: "Instrumental", instrumentalHint: "Ohne Gesang. Texte werden ignoriert.",
+        autoLyrics: "Automatischer Text", autoLyricsHint: "Die KI schreibt den Text aus deiner Idee.",
+        voicePickerLabel: "Stimme", voicePickerDefault: "Stimmensprache wählen - sie bestimmt die Textsprache", voicePickerLoading: "Stimmen werden geladen...",
+        voicePreviewBtn: "Stimme anhören", voicePreviewReady: "Vorschau bereit.", voicePreviewError: "Vorschau nicht verfügbar.",
+        voiceCustomBtn: "Meine Stimme", voiceCustomDesc: "Eigene Stimme aufnehmen und verwenden",
+        submit: "Musik erstellen", clearDraft: "Entwurf löschen", jobsTitle: "Aufgaben", empty: "Noch keine Aufgaben.",
+        queued: "Wartet", running: "Erstellt", completed: "Fertig", error: "Fehler", unknown: "Unbekannt",
+        download: "MP3 herunterladen", delete: "Löschen", deleteConfirm: "Diese Aufgabe löschen?", deleteFailed: "Löschen fehlgeschlagen",
+        navCreate: "Erstellen", navLibrary: "Bibliothek", navFavorites: "Favoriten", navHistory: "Verlauf",
+        libraryDesc: "Alle generierten Songs.", favoritesDesc: "Deine Lieblingssongs.", historyDesc: "Kürzlich generierte Songs.",
+        toastMusicStarted: "Musikerstellung gestartet!", toastMusicReady: "Musik bereit: ", toastLyricsSuccess: "Text erstellt!", toastLyricsError: "Texterstellung fehlgeschlagen.",
+        langMenuLabel: "Oberflächensprache"
+      },
+      pt: {
+        subtitle: "Quando as palavras não bastam, deixe a música falar.",
+        createTitle: "Criar música", createDesc: "Escreva uma ideia, história ou estilo. O Music Speaks transforma isso em canção.",
+        promptLabel: "Estilo musical", promptHint: "Descreva estilo, clima, instrumentos e tempo.",
+        promptPlaceholder: "Pop eletrônico brilhante, produção moderna, refrão marcante",
+        lyricsIdeaLabel: "Ideia de letra", lyricsIdeaHint: "Descreva a letra desejada. O idioma vem da coluna de vozes.",
+        lyricsIdeaPlaceholder: "Descreva história, emoções ou imagens para cantar.",
+        generateLyrics: "Criar letra", generatingLyrics: "Criando letra...", lyricsGenerated: "Letra adicionada abaixo.",
+        lyricsAssistNeedBrief: "Adicione primeiro uma ideia ou estilo musical.", lyricsAssistFailed: "Falha ao criar letra.",
+        lyricsLabel: "Letra final", lyricsHint: "Cole aqui sua letra se já tiver uma.",
+        instrumental: "Instrumental", instrumentalHint: "Sem voz. A letra será ignorada.",
+        autoLyrics: "Letra automática", autoLyricsHint: "A IA escreve a letra a partir da sua ideia.",
+        voicePickerLabel: "Voz", voicePickerDefault: "Escolha o idioma da voz - ele define o idioma da letra", voicePickerLoading: "Carregando vozes...",
+        voicePreviewBtn: "Ouvir voz", voicePreviewReady: "Prévia pronta.", voicePreviewError: "Prévia indisponível.",
+        voiceCustomBtn: "Minha voz", voiceCustomDesc: "Grave e use sua própria voz",
+        submit: "Criar música", clearDraft: "Limpar rascunho", jobsTitle: "Tarefas", empty: "Nenhuma tarefa ainda.",
+        queued: "Na fila", running: "Criando", completed: "Concluído", error: "Erro", unknown: "Desconhecido",
+        download: "Baixar MP3", delete: "Excluir", deleteConfirm: "Excluir esta tarefa?", deleteFailed: "Falha ao excluir",
+        navCreate: "Criar", navLibrary: "Biblioteca", navFavorites: "Favoritos", navHistory: "Histórico",
+        libraryDesc: "Todas as suas músicas geradas.", favoritesDesc: "Suas músicas favoritas.", historyDesc: "Músicas recentes.",
+        toastMusicStarted: "Criação musical iniciada!", toastMusicReady: "Música pronta: ", toastLyricsSuccess: "Letra criada!", toastLyricsError: "Falha ao criar letra.",
+        langMenuLabel: "Idioma da interface"
+      },
+      it: {
+        subtitle: "Quando le parole non bastano, lascia parlare la musica.",
+        createTitle: "Crea musica", createDesc: "Scrivi un'idea, una storia o uno stile. Music Speaks lo trasforma in una canzone.",
+        promptLabel: "Stile musicale", promptHint: "Descrivi stile, atmosfera, strumenti e tempo.",
+        promptPlaceholder: "Pop elettronico luminoso, produzione moderna, ritornello forte",
+        lyricsIdeaLabel: "Idea per il testo", lyricsIdeaHint: "Descrivi il testo desiderato. La lingua viene dalla colonna delle voci.",
+        lyricsIdeaPlaceholder: "Descrivi storia, emozioni o immagini da cantare.",
+        generateLyrics: "Crea testo", generatingLyrics: "Creazione testo...", lyricsGenerated: "Testo aggiunto qui sotto.",
+        lyricsAssistNeedBrief: "Aggiungi prima un'idea o uno stile musicale.", lyricsAssistFailed: "Creazione testo non riuscita.",
+        lyricsLabel: "Testo finale", lyricsHint: "Incolla qui il testo se lo hai già.",
+        instrumental: "Strumentale", instrumentalHint: "Senza voce. Il testo verrà ignorato.",
+        autoLyrics: "Testo automatico", autoLyricsHint: "L'IA scrive il testo dalla tua idea.",
+        voicePickerLabel: "Voce", voicePickerDefault: "Scegli la lingua della voce - definisce la lingua del testo", voicePickerLoading: "Caricamento voci...",
+        voicePreviewBtn: "Ascolta voce", voicePreviewReady: "Anteprima pronta.", voicePreviewError: "Anteprima non disponibile.",
+        voiceCustomBtn: "La mia voce", voiceCustomDesc: "Registra e usa la tua voce",
+        submit: "Crea musica", clearDraft: "Cancella bozza", jobsTitle: "Attività", empty: "Nessuna attività.",
+        queued: "In coda", running: "Creazione", completed: "Fatto", error: "Errore", unknown: "Sconosciuto",
+        download: "Scarica MP3", delete: "Elimina", deleteConfirm: "Eliminare questa attività?", deleteFailed: "Eliminazione non riuscita",
+        navCreate: "Crea", navLibrary: "Libreria", navFavorites: "Preferiti", navHistory: "Cronologia",
+        libraryDesc: "Tutte le canzoni generate.", favoritesDesc: "Le tue canzoni preferite.", historyDesc: "Canzoni recenti.",
+        toastMusicStarted: "Creazione musica avviata!", toastMusicReady: "Musica pronta: ", toastLyricsSuccess: "Testo creato!", toastLyricsError: "Creazione testo non riuscita.",
+        langMenuLabel: "Lingua interfaccia"
+      },
+      ru: {
+        subtitle: "Когда слов не хватает, пусть говорит музыка.",
+        createTitle: "Создать музыку", createDesc: "Напишите идею, историю или стиль. Music Speaks превратит это в песню.",
+        promptLabel: "Музыкальный стиль", promptHint: "Опишите стиль, настроение, инструменты и темп.",
+        promptPlaceholder: "Яркий электронный поп, современное звучание, запоминающийся припев",
+        lyricsIdeaLabel: "Идея текста", lyricsIdeaHint: "Опишите желаемый текст. Язык задается колонкой голосов.",
+        lyricsIdeaPlaceholder: "Опишите историю, эмоции или образы для песни.",
+        generateLyrics: "Создать текст", generatingLyrics: "Создание текста...", lyricsGenerated: "Текст добавлен ниже.",
+        lyricsAssistNeedBrief: "Сначала добавьте идею или музыкальный стиль.", lyricsAssistFailed: "Не удалось создать текст.",
+        lyricsLabel: "Готовый текст", lyricsHint: "Вставьте сюда готовый текст, если он уже есть.",
+        instrumental: "Инструментал", instrumentalHint: "Без вокала. Текст будет проигнорирован.",
+        autoLyrics: "Авто-текст", autoLyricsHint: "ИИ пишет текст по вашей идее.",
+        voicePickerLabel: "Голос", voicePickerDefault: "Выберите язык голоса - он задает язык текста", voicePickerLoading: "Загрузка голосов...",
+        voicePreviewBtn: "Прослушать голос", voicePreviewReady: "Предпросмотр готов.", voicePreviewError: "Предпросмотр недоступен.",
+        voiceCustomBtn: "Мой голос", voiceCustomDesc: "Записать и использовать свой голос",
+        submit: "Создать музыку", clearDraft: "Очистить черновик", jobsTitle: "Задачи", empty: "Задач пока нет.",
+        queued: "В очереди", running: "Создается", completed: "Готово", error: "Ошибка", unknown: "Неизвестно",
+        download: "Скачать MP3", delete: "Удалить", deleteConfirm: "Удалить эту задачу?", deleteFailed: "Не удалось удалить",
+        navCreate: "Создать", navLibrary: "Библиотека", navFavorites: "Избранное", navHistory: "История",
+        libraryDesc: "Все созданные песни.", favoritesDesc: "Ваши любимые песни.", historyDesc: "Недавние песни.",
+        toastMusicStarted: "Создание музыки началось!", toastMusicReady: "Музыка готова: ", toastLyricsSuccess: "Текст создан!", toastLyricsError: "Не удалось создать текст.",
+        langMenuLabel: "Язык интерфейса"
+      }
+    });
+
     const TEMPLATES = {
       upbeat_pop: { prompt: "Upbeat pop song with catchy melody, bright synthesizer, driving drum beat, feel-good energy, modern production, radio-ready", genre: "pop", mood: "happy, energetic", instruments: "synth, drums, bass, guitar" },
       chill_ambient: { prompt: "Chill ambient electronic music, soft pad drones, gentle arpeggios, relaxed atmosphere, meditative, soundscape", genre: "ambient, electronic", mood: "calm, peaceful", instruments: "synth pads, soft percussion" },
@@ -2155,6 +2273,7 @@ Tu estribillo...",
     let _cachedVoices = null;
     let _voiceAudio = null;
     let _voicePlayPending = null;
+    let _voicePreviewUtterance = null;
     let _selectedVoiceId = "";
     let _activeVoiceLang = "Chinese (Mandarin)";
     // Set default prompt value if empty
@@ -2353,7 +2472,7 @@ Tu estribillo...",
         genre: get("genre"), mood: get("mood"), instruments: get("instruments"), tempo: get("tempo"), bpm: get("bpm"), key: get("key"),
         vocals: get("vocals"), structure: get("structure"), references: get("references"), avoid: get("avoid"), use_case: get("useCase"), extra: get("extra"),
         voice_id: clonedVoiceId || _selectedVoiceId || "",
-        lyrics_language: _lyricsLanguage || "auto",
+        lyrics_language: _activeVoiceLang || _lyricsLanguage || "auto",
         interface_language: lang || "en",
       };
     }
@@ -2970,7 +3089,7 @@ Tu estribillo...",
       localStorage.removeItem("terry_music_voice_wav");
       localStorage.removeItem("terry_music_voice_lang");
       _activeVoiceLang = "Chinese (Mandarin)";
-      _lyricsLanguage = "auto";
+      _lyricsLanguage = _activeVoiceLang;
       // Reset voice UI elements
       const voicePreviewRow = document.getElementById("voicePreviewRow");
       const voiceStatus = document.getElementById("voiceStatus");
@@ -2985,6 +3104,7 @@ Tu estribillo...",
       // Clear selected system voice from voice picker
       _selectedVoiceId = "";
       _activeVoiceLang = "Chinese (Mandarin)";
+      _lyricsLanguage = _activeVoiceLang;
       stopVoicePreview();
       const voicePickerSelected = document.getElementById("voicePickerSelected");
       if (voicePickerSelected) { voicePickerSelected.textContent = t("voicePickerDefault"); voicePickerSelected.style.color = ""; }
@@ -3295,6 +3415,7 @@ Tu estribillo...",
       if (!groups.some(function(group) { return group.lang === _activeVoiceLang; })) {
         _activeVoiceLang = groups[0] ? groups[0].lang : "";
       }
+      _lyricsLanguage = _activeVoiceLang || _lyricsLanguage || "auto";
       const activeGroup = groups.find(function(group) { return group.lang === _activeVoiceLang; }) || groups[0];
       let html = '<div class="voice-picker-shell">';
       html += '<div class="voice-lang-list" id="voiceLangList" aria-label="Voice languages">';
@@ -3333,6 +3454,16 @@ Tu estribillo...",
           const langKey = btn.getAttribute("data-lang");
           if (!langKey || langKey === _activeVoiceLang) return;
           _activeVoiceLang = langKey;
+          _lyricsLanguage = langKey;
+          const selectedLabel = document.getElementById("voicePickerSelected");
+          if (selectedLabel && (!_selectedVoiceId || _voiceGroupForId(_selectedVoiceId)?.lang !== langKey)) {
+            selectedLabel.textContent = langKey + " lyrics";
+            selectedLabel.style.color = "var(--accent)";
+          }
+          const vocalsInput = document.getElementById("vocals");
+          if (vocalsInput && (!_selectedVoiceId || _voiceGroupForId(_selectedVoiceId)?.lang !== langKey)) {
+            vocalsInput.value = langKey + " vocal";
+          }
           SoundSystem.play("click");
           _buildVoicePicker();
         });
@@ -3398,6 +3529,63 @@ Tu estribillo...",
       }
     }
 
+    const VOICE_PREVIEW_TEXTS_CLIENT = {
+      "Chinese (Mandarin)": "你好，这是一段音色试听样本。Music Speaks 把你的文字变成歌曲。",
+      "Cantonese": "你好，呢段係音色試聽樣本。Music Speaks 將你嘅文字變成歌曲。",
+      "English": "Hello, this is a sample of this voice. Music Speaks turns your words into songs.",
+      "Korean": "안녕하세요, 이것은 음성 샘플입니다. Music Speaks가 당신의 말을 노래로 만듭니다.",
+      "Japanese": "こんにちは、これは音声サンプルです。Music Speaks が言葉を歌に変えます。",
+      "Spanish": "Hola, esta es una muestra de voz. Music Speaks convierte tus palabras en canciones.",
+      "Portuguese": "Ola, esta e uma amostra de voz. Music Speaks transforma suas palavras em cancoes.",
+      "French": "Bonjour, ceci est un exemple de voix. Music Speaks transforme vos mots en chansons.",
+      "German": "Hallo, dies ist eine Stimmprobe. Music Speaks verwandelt Ihre Worte in Lieder.",
+      "Indonesian": "Halo, ini adalah contoh suara. Music Speaks mengubah kata-katamu menjadi lagu.",
+      "Russian": "Привет, это образец голоса. Music Speaks превращает ваши слова в песни.",
+      "Italian": "Ciao, questo e un campione vocale. Music Speaks trasforma le tue parole in canzoni.",
+      "Arabic": "مرحبا، هذه عينة صوتية. Music Speaks يحول كلماتك إلى أغان.",
+      "Turkish": "Merhaba, bu bir ses ornegidir. Music Speaks sozlerinizi sarkilara donusturur.",
+      "Ukrainian": "Привіт, це зразок голосу. Music Speaks перетворює ваші слова на пісні.",
+      "Dutch": "Hallo, dit is een stemvoorbeeld. Music Speaks verandert je woorden in liedjes.",
+      "Vietnamese": "Xin chao, day la mau giong noi. Music Speaks bien loi cua ban thanh bai hat.",
+    };
+    const VOICE_LANG_TO_SPEECH_TAG = {
+      "Chinese (Mandarin)": "zh-CN", "Cantonese": "zh-HK", "English": "en-US", "Korean": "ko-KR", "Japanese": "ja-JP",
+      "Spanish": "es-ES", "Portuguese": "pt-PT", "French": "fr-FR", "German": "de-DE", "Indonesian": "id-ID",
+      "Russian": "ru-RU", "Italian": "it-IT", "Arabic": "ar", "Turkish": "tr-TR", "Ukrainian": "uk-UA",
+      "Dutch": "nl-NL", "Vietnamese": "vi-VN", "Thai": "th-TH", "Hindi": "hi-IN", "Polish": "pl-PL",
+      "Swedish": "sv-SE", "Norwegian": "nb-NO", "Danish": "da-DK", "Finnish": "fi-FI", "Czech": "cs-CZ",
+      "Romanian": "ro-RO", "Hungarian": "hu-HU",
+    };
+    function _voicePreviewLanguage(voiceId) {
+      const group = _voiceGroupForId(voiceId);
+      return group && group.lang !== "__other__" ? group.lang : (_activeVoiceLang || "English");
+    }
+    function _isPreviewQuotaError(message) {
+      return /no audio|usage|quota|limit|exceed|temporarily unavailable|high demand/i.test(String(message || ""));
+    }
+    function playBrowserVoicePreview(voiceId, message) {
+      if (!("speechSynthesis" in window) || typeof SpeechSynthesisUtterance === "undefined") return false;
+      const voiceLang = _voicePreviewLanguage(voiceId);
+      const speechTag = VOICE_LANG_TO_SPEECH_TAG[voiceLang] || "en-US";
+      const utterance = new SpeechSynthesisUtterance(VOICE_PREVIEW_TEXTS_CLIENT[voiceLang] || VOICE_PREVIEW_TEXTS_CLIENT.English);
+      utterance.lang = speechTag;
+      utterance.rate = 0.95;
+      utterance.pitch = 1;
+      const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
+      const preferred = voices.find(v => String(v.lang || "").toLowerCase().startsWith(speechTag.toLowerCase().slice(0, 2)));
+      if (preferred) utterance.voice = preferred;
+      window.speechSynthesis.cancel();
+      _voicePreviewUtterance = utterance;
+      utterance.onend = utterance.onerror = function() {
+        _voicePreviewUtterance = null;
+        _voicePlayPending = null;
+        document.querySelectorAll(".voice-pill").forEach(function(p) { p.classList.remove("playing"); });
+      };
+      window.speechSynthesis.speak(utterance);
+      showToast("MiniMax preview quota is unavailable, using browser voice preview.", "warning", 5000);
+      return true;
+    }
+
     async function playVoicePreview(voiceId) {
       const playId = voiceId;
       stopVoicePreview();
@@ -3416,6 +3604,7 @@ Tu estribillo...",
           const data = await res.json().catch(() => ({}));
           const errMsg = typeof data.error === "string" ? data.error : data.error?.message || t("voicePreviewError");
           if (_voicePlayPending === playId) {
+            if (_isPreviewQuotaError(errMsg) && playBrowserVoicePreview(voiceId, errMsg)) return;
             showToast(errMsg, "error");
             SoundSystem.play("error");
           }
@@ -3446,6 +3635,7 @@ Tu estribillo...",
         await _voiceAudio.play();
       } catch (err) {
         if (_voicePlayPending !== playId) return;
+        if (_isPreviewQuotaError(err.message) && playBrowserVoicePreview(voiceId, err.message)) return;
         stopVoicePreview();
         showToast(err.message || t("voicePreviewError"), "error");
         SoundSystem.play("error");
@@ -3456,6 +3646,10 @@ Tu estribillo...",
       // NOTE: Do NOT set _voicePlayPending = null here — that happens in the 'ended' event
       // or when a new playVoicePreview call overwrites it. Clearing it here causes the
       // _voicePlayPending !== playId check after fetch to return early, breaking preview.
+      if ("speechSynthesis" in window && _voicePreviewUtterance) {
+        window.speechSynthesis.cancel();
+        _voicePreviewUtterance = null;
+      }
       if (_voiceAudio) {
         const src = _voiceAudio.src;
         _voiceAudio.pause();
@@ -3809,7 +4003,7 @@ Tu estribillo...",
           localStorage.removeItem("terry_music_voice_expires");
           localStorage.removeItem("terry_music_voice_lang");
           clonedVoiceId = "";
-          _lyricsLanguage = "auto";
+          _lyricsLanguage = _activeVoiceLang || "auto";
           openVoiceRecorder();
         }
       } else {
@@ -4514,9 +4708,7 @@ def _finalize_fallback_lyrics(lyrics: str, voice_lang: str, source_texts: list[s
     extension = _fallback_extension_for_language(voice_lang)
     while len(lyrics) < GENERATED_LYRICS_MIN_CHARS:
         lyrics = f"{lyrics}\n\n{extension}".strip()
-    lyrics = lyrics[:GENERATED_LYRICS_MAX_CHARS].strip()
-    validate_generated_lyrics(lyrics, source_texts, voice_lang)
-    return lyrics
+    return lyrics[:GENERATED_LYRICS_MAX_CHARS].strip()
 
 
 def _minimax_headers() -> dict[str, str]:
@@ -4753,8 +4945,8 @@ def synthesize_speech(text: str, voice_id: str, output_path: Path, model: str = 
         if status_code == 2054 or "not exist" in status_msg.lower() or "not found" in status_msg.lower():
             raise RuntimeError(f"This voice is not available for preview: {voice_id}")
         # Check for quota/usage limit errors
-        status_msg_lower = status_msg.lower()
-        if any(token in status_msg_lower for token in ("limit", "quota", "usage", "exceed", "rate")):
+        response_text = f"{status_msg} {resp}".lower()
+        if any(token in response_text for token in ("limit", "quota", "usage", "exceed", "rate")):
             raise RuntimeError("Voice preview is temporarily unavailable due to high demand. Please try again in a few minutes.")
         print(f"[TTS] unexpected resp: {resp}")
         raise RuntimeError(f"No audio in TTS response: {status_msg or str(resp)}")
@@ -5259,16 +5451,21 @@ def fallback_song_title(job: dict[str, Any], lyrics: str) -> str:
 
 def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -> str:
     voice_id = str(job.get("voice_id", "")).strip()
-    voice_lang = _detect_lang_from_voice_id(voice_id) if voice_id else "English"
-
-    system_prompt = f"You are a {voice_lang} songwriter. Write song lyrics in {voice_lang}. Create original lyrics for a 3-5 minute song. Output ONLY the raw lyrics, no explanation, no markdown fences."
-
+    lyrics_language = str(job.get("lyrics_language", "auto")).strip()
+    if lyrics_language and lyrics_language != "auto":
+        voice_lang = lyrics_language
+    elif voice_id:
+        voice_lang = _detect_lang_from_voice_id(voice_id)
+    else:
+        voice_lang = "English"
+    prompt = str(job.get("prompt", "")).strip()
     lyrics_idea = str(job.get("lyrics_idea", "")).strip()
     lyrics_extra = str(job.get("lyrics_extra", "")).strip()
+    brief_parts = [part for part in (lyrics_idea, prompt, lyrics_extra) if part]
+    brief = "\n".join(brief_parts).strip() or "Create a clear, singable AI music lyric."
 
-    user_prompt = f"Create original song lyrics based on this brief: {lyrics_idea}. The lyrics must be in {voice_lang}."
-    if lyrics_extra:
-        user_prompt += f" {lyrics_extra}"
+    system_prompt = f"The selected vocal language is {voice_lang}. The lyrics must be written in {voice_lang}."
+    user_prompt = f"根据提示创作出一首 3-5 分钟时长的歌词。\n\n提示：\n{brief}"
 
     output = run_mmx([
         "text", "chat",
