@@ -45,14 +45,15 @@ JOBS_DB = OUTPUT_DIR / "jobs.json"
 DRAFTS_DB = OUTPUT_DIR / "drafts.json"
 MAX_BODY_BYTES = 1024 * 1024
 LYRICS_CHAR_LIMIT = 6000
-GENERATED_LYRICS_MIN_CHARS = 600
-GENERATED_LYRICS_TARGET_MIN_CHARS = 800
-GENERATED_LYRICS_TARGET_MAX_CHARS = 2000
-GENERATED_LYRICS_MAX_CHARS = 2500
+GENERATED_LYRICS_MIN_CHARS = 1200
+GENERATED_LYRICS_TARGET_MIN_CHARS = 1800
+GENERATED_LYRICS_TARGET_MAX_CHARS = 3600
+GENERATED_LYRICS_MAX_CHARS = 4200
 VOICE_CLONE_SINGING_ENDPOINT = os.getenv("MINIMAX_VOICE_CLONE_SINGING_ENDPOINT", "/v1/voice_clone_singing")
 VOICE_CLONE_SINGING_MODEL = os.getenv("MINIMAX_VOICE_CLONE_SINGING_MODEL", "music-2.6")
-LYRICS_REQUEST_TIMEOUT = float(os.getenv("LYRICS_REQUEST_TIMEOUT", "4"))
+LYRICS_REQUEST_TIMEOUT = float(os.getenv("LYRICS_REQUEST_TIMEOUT", "90"))
 VOICE_LIST_TIMEOUT = float(os.getenv("VOICE_LIST_TIMEOUT", "15"))
+VOICE_CACHE_TTL_SECONDS = int(os.getenv("VOICE_CACHE_TTL_SECONDS", "900"))
 JOB_TIMEOUT_SECONDS = int(os.getenv("JOB_TIMEOUT_SECONDS", "900"))
 JOB_RETENTION_SECONDS = int(os.getenv("JOB_RETENTION_SECONDS", "604800"))
 
@@ -113,6 +114,46 @@ def _detect_lang_from_voice_id(voice_id: str) -> str:
     return "English"
 
 
+UI_LANGUAGE_LABELS = {
+    "en": "English",
+    "zh": "Chinese (Mandarin)",
+    "yue": "Cantonese",
+    "ko": "Korean",
+    "ja": "Japanese",
+    "es": "Spanish",
+    "fr": "French",
+    "de": "German",
+    "pt": "Portuguese",
+    "it": "Italian",
+    "ru": "Russian",
+    "ar": "Arabic",
+    "hi": "Hindi",
+    "id": "Indonesian",
+    "vi": "Vietnamese",
+    "th": "Thai",
+    "tr": "Turkish",
+    "pl": "Polish",
+    "nl": "Dutch",
+    "sv": "Swedish",
+    "no": "Norwegian",
+    "da": "Danish",
+    "fi": "Finnish",
+    "cs": "Czech",
+    "ro": "Romanian",
+    "hu": "Hungarian",
+    "uk": "Ukrainian",
+}
+
+
+def _interface_language_label(value: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    if text.startswith("voice:"):
+        return text.removeprefix("voice:").strip()
+    return UI_LANGUAGE_LABELS.get(text, text if re.fullmatch(r"[A-Za-z][A-Za-z ()-]{1,40}", text) else "")
+
+
 def _is_safe_voice_id(voice_id: str) -> bool:
     value = str(voice_id or "").strip()
     # Basic safety: reject path traversal and obviously malicious patterns
@@ -157,6 +198,8 @@ JOBS: dict[str, dict[str, Any]] = {}
 JOBS_LOCK = threading.RLock()
 DRAFTS: dict[str, dict[str, Any]] = {}
 DRAFTS_LOCK = threading.RLock()
+VOICE_CACHE: dict[str, Any] = {"voices": [], "fallback": False, "fetched_at": 0.0}
+VOICE_CACHE_LOCK = threading.RLock()
 
 INDEX_HTML = r"""<!doctype html>
 <html lang="en">
@@ -1196,12 +1239,21 @@ INDEX_HTML = r"""<!doctype html>
     let lang = "en";
     let _lyricsLanguage = "auto"; // "auto" = match voice language, or an explicit IETF language tag
     let lastJobs = [];
+    let _cachedVoices = null;
+    let _voiceAudio = null;
+    let _voicePlayPending = null;
+    let _selectedVoiceId = "";
+    let _activeVoiceLang = "Chinese (Mandarin)";
     // Set default prompt value if empty
     const promptEl = document.getElementById("prompt");
     if (!promptEl.value.trim()) {
       promptEl.value = "Upbeat pop song with catchy melody, bright synthesizer, driving drum beat";
     }
     const jobsBox = document.getElementById("jobs");
+    const libraryBox = document.getElementById("library-list");
+    const favoritesBox = document.getElementById("favorites-list");
+    const historyBox = document.getElementById("history-list");
+    let currentView = "create";
     const form = document.getElementById("jobForm");
     const submitBtn = document.getElementById("submitBtn");
     let submitBtnOriginalText = submitBtn.textContent;
@@ -1294,32 +1346,54 @@ INDEX_HTML = r"""<!doctype html>
       if (Number.isNaN(date.getTime())) return "";
       return date.toLocaleString(lang === "en" ? "en-GB" : "zh-CN", {month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit"});
     }
-    function renderJobs(jobs) {
-      lastJobs = jobs || [];
-      if (!lastJobs.length) {
-        jobsBox.innerHTML = `<div class="job-empty">${t("empty")}</div>`;
+    function _jobsForView(view, jobs) {
+      const list = jobs || [];
+      if (view === "favorites") return list.filter(job => job.favorite || job.is_favorite);
+      if (view === "history") return list.slice(0, 12);
+      return list;
+    }
+    function _emptyJobsMessage(view) {
+      if (view === "favorites") return "No favorite tracks yet.";
+      if (view === "history") return "No recent tracks yet.";
+      if (view === "library") return "Your generated tracks will appear here.";
+      return t("empty");
+    }
+    function _renderJobList(box, jobs, view) {
+      if (!box) return;
+      const viewJobs = _jobsForView(view, jobs);
+      if (!viewJobs.length) {
+        box.innerHTML = `<div class="job-empty">${escapeHtml(_emptyJobsMessage(view))}</div>`;
         return;
       }
-      jobsBox.innerHTML = lastJobs.map((job, idx) => {
-        const status = escapeHtml(job.status || "unknown");
-        const fileName = escapeHtml(job.file_name || "terry-music.mp3");
-        const title = escapeHtml(job.song_title || job.prompt || "Untitled");
-        const mode = job.is_instrumental ? t("instrumentalMode") : t("vocalMode");
-        const downloadUrl = job.download_url ? `${escapeHtml(job.download_url)}?client_id=${encodeURIComponent(clientId)}` : "";
-        const isRunning = job.status === "running" || job.status === "queued";
-        const completedClass = job.status === "completed" ? "animate-bounce-in" : "";
-        const actions = job.status === "completed" && job.download_url
-          ? `<button class="job-action-btn download" onclick="playJob('${escapeHtml(job.id)}')">${UI_ICONS.play}<span>Play</span></button><a class="job-action-btn download" href="${downloadUrl}" download="${fileName}">${t("download")}</a>`
-          : isRunning ? `<span style="font-size:12px;color:var(--text-muted);"><span class="spinner" style="width:12px;height:12px;border-width:1.5px;"></span> ${statusLabel(status)}...</span>` : "";
-        return `<div class="job-card ${completedClass}" data-job-id="${escapeHtml(job.id)}" style="animation-delay:${idx * 50}ms">
-          <div class="job-art">${statusIcon(job.status)}</div>
-          <div class="job-info">
-            <div class="job-title">${title}</div>
-            <div class="job-meta"><span class="job-badge ${status}">${statusLabel(status)}</span><span>${mode}</span><span>${formatDate(job.created_at)}</span></div>
-          </div>
-          <div class="job-actions">${actions}</div>
-        </div>`;
-      }).join("");
+      box.innerHTML = viewJobs.map((job, idx) => _renderJobCard(job, idx)).join("");
+    }
+    function _renderJobCard(job, idx) {
+      const status = escapeHtml(job.status || "unknown");
+      const fileName = escapeHtml(job.file_name || "terry-music.mp3");
+      const title = escapeHtml(job.song_title || job.prompt || "Untitled");
+      const mode = job.is_instrumental ? t("instrumentalMode") : t("vocalMode");
+      const downloadUrl = job.download_url ? `${escapeHtml(job.download_url)}?client_id=${encodeURIComponent(clientId)}` : "";
+      const isRunning = job.status === "running" || job.status === "queued";
+      const completedClass = job.status === "completed" ? "animate-bounce-in" : "";
+      const deleteAction = !isRunning ? `<button class="job-action-btn" onclick="deleteJob('${escapeHtml(job.id)}')">${UI_ICONS.error}<span>${t("delete")}</span></button>` : "";
+      const actions = job.status === "completed" && job.download_url
+        ? `<button class="job-action-btn download" onclick="playJob('${escapeHtml(job.id)}')">${UI_ICONS.play}<span>Play</span></button><a class="job-action-btn download" href="${downloadUrl}" download="${fileName}">${t("download")}</a>${deleteAction}`
+        : isRunning ? `<span style="font-size:12px;color:var(--text-muted);"><span class="spinner" style="width:12px;height:12px;border-width:1.5px;"></span> ${statusLabel(status)}...</span>` : deleteAction;
+      return `<div class="job-card ${completedClass}" data-job-id="${escapeHtml(job.id)}" style="animation-delay:${idx * 50}ms">
+        <div class="job-art">${statusIcon(job.status)}</div>
+        <div class="job-info">
+          <div class="job-title">${title}</div>
+          <div class="job-meta"><span class="job-badge ${status}">${statusLabel(status)}</span><span>${mode}</span><span>${formatDate(job.created_at)}</span></div>
+        </div>
+        <div class="job-actions">${actions}</div>
+      </div>`;
+    }
+    function renderJobs(jobs) {
+      lastJobs = jobs || [];
+      _renderJobList(jobsBox, lastJobs, "create");
+      _renderJobList(libraryBox, lastJobs, "library");
+      _renderJobList(favoritesBox, lastJobs, "favorites");
+      _renderJobList(historyBox, lastJobs, "history");
     }
     function playJob(id) {
       const job = lastJobs.find(j => j.id === id);
@@ -1367,6 +1441,7 @@ INDEX_HTML = r"""<!doctype html>
         vocals: get("vocals"), structure: get("structure"), references: get("references"), avoid: get("avoid"), use_case: get("useCase"), extra: get("extra"),
         voice_id: clonedVoiceId || _selectedVoiceId || "",
         lyrics_language: _lyricsLanguage || "auto",
+        interface_language: lang || "en",
       };
     }
     function restorePayload(payload = {}) {
@@ -1375,6 +1450,7 @@ INDEX_HTML = r"""<!doctype html>
       set("songTitle", payload.song_title);
       set("prompt", payload.prompt);
       set("lyricsIdea", payload.lyrics_idea);
+      set("lyricsExtra", payload.lyrics_extra);
       set("lyrics", payload.lyrics);
       set("genre", payload.genre);
       set("mood", payload.mood);
@@ -1626,10 +1702,8 @@ INDEX_HTML = r"""<!doctype html>
             const voiceLang = val.slice(6);
             const ifaceLang = VOICE_LANG_TO_IETF[voiceLang] || "en";
             lang = ifaceLang;
-            _lyricsLanguage = voiceLang;
           } else {
             lang = val;
-            _lyricsLanguage = "auto";
           }
           applyLang();
           _closeLangMenu();
@@ -1735,6 +1809,7 @@ INDEX_HTML = r"""<!doctype html>
         e.preventDefault();
         SoundSystem.play("click");
         const view = item.dataset.view;
+        currentView = view || "create";
         document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
         item.classList.add("active");
         document.querySelectorAll("[id^='view-']").forEach(v => v.style.display = "none");
@@ -1742,6 +1817,7 @@ INDEX_HTML = r"""<!doctype html>
         if (viewEl) viewEl.style.display = "block";
         if (view === "library" || view === "favorites" || view === "history") {
           loadJobs();
+          renderJobs(lastJobs);
         }
       });
     });
@@ -1756,6 +1832,7 @@ INDEX_HTML = r"""<!doctype html>
     const playerBarFill = document.getElementById("playerBarFill");
     const playerCurrentTime = document.getElementById("playerCurrentTime");
     const playerDuration = document.getElementById("playerDuration");
+    const volumeSlider = document.getElementById("volumeSlider");
     const volumeFill = document.getElementById("volumeFill");
     const lyricsText = document.getElementById("lyricsText");
     const lyricsToggle = document.getElementById("playerLyricsToggle");
@@ -1925,6 +2002,24 @@ INDEX_HTML = r"""<!doctype html>
     });
     volumeFill.style.width = "70%";
     audioPlayer.volume = 0.7;
+    function setPlayerVolumeFromPointer(event) {
+      if (!volumeSlider) return;
+      const rect = volumeSlider.getBoundingClientRect();
+      const pct = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+      audioPlayer.volume = pct;
+      volumeFill.style.width = Math.round(pct * 100) + "%";
+    }
+    if (volumeSlider) {
+      volumeSlider.addEventListener("click", setPlayerVolumeFromPointer);
+      volumeSlider.addEventListener("pointerdown", event => {
+        event.preventDefault();
+        volumeSlider.setPointerCapture(event.pointerId);
+        setPlayerVolumeFromPointer(event);
+      });
+      volumeSlider.addEventListener("pointermove", event => {
+        if (event.buttons) setPlayerVolumeFromPointer(event);
+      });
+    }
     function formatTime(secs) {
       if (!secs || isNaN(secs)) return "0:00";
       const m = Math.floor(secs / 60);
@@ -2079,12 +2174,6 @@ INDEX_HTML = r"""<!doctype html>
     // =============================================================
     // Voice Picker
     // =============================================================
-    let _cachedVoices = null;
-    let _voiceAudio = null;
-    let _voicePlayPending = null;
-    let _selectedVoiceId = "";
-    let _activeVoiceLang = "Chinese (Mandarin)";
-
     const VOICE_LANG_GROUPS = [
       { lang: "Chinese (Mandarin)", label: "普通话", voices: [] },
       { lang: "Cantonese", label: "粤语", voices: [] },
@@ -3135,6 +3224,10 @@ def normalize_client_id(value: str | None) -> str:
     return "anonymous"
 
 
+def is_valid_client_id(value: str | None) -> bool:
+    return bool(re.fullmatch(r"[A-Za-z0-9._:-]{8,160}", (value or "").strip()))
+
+
 def normalize_draft_id(value: str | None) -> str:
     text = (value or "").strip()
     if re.fullmatch(r"[A-Za-z0-9._:-]{8,160}", text):
@@ -3216,6 +3309,9 @@ def clean_draft_payload(form: dict[str, Any]) -> dict[str, Any]:
         "prompt": 2000,
         "lyrics": LYRICS_CHAR_LIMIT,
         "lyrics_idea": 2500,
+        "lyrics_extra": 500,
+        "lyrics_language": 80,
+        "interface_language": 40,
         "genre": 200,
         "mood": 200,
         "instruments": 300,
@@ -3229,6 +3325,7 @@ def clean_draft_payload(form: dict[str, Any]) -> dict[str, Any]:
         "use_case": 300,
         "extra": 800,
         "voice_mode": 40,
+        "voice_id": 200,
     }
     draft = {key: str(form.get(key, "")).strip()[:limit] for key, limit in limits.items()}
     draft["is_instrumental"] = bool(form.get("is_instrumental"))
@@ -3240,6 +3337,9 @@ def public_job(job: dict[str, Any], include_lyrics: bool = False) -> dict[str, A
     result = {key: job.get(key) for key in ("id", "status", "created_at", "updated_at", "prompt", "song_title", "generated_title", "title_error", "email", "is_instrumental", "lyrics_optimizer", "file_name", "error", "email_sent", "voice_render_mode")}
     if include_lyrics:
         result["lyrics"] = job.get("lyrics", "")
+        result["lyrics_idea"] = job.get("lyrics_idea", "")
+        result["lyrics_extra"] = job.get("lyrics_extra", "")
+        result["lyrics_language"] = job.get("lyrics_language", "")
         result["generated_lyrics"] = bool(job.get("generated_lyrics"))
     if job.get("status") == "completed" and job.get("file_path"):
         result["download_url"] = f"/download/{urllib.parse.quote(str(job['id']))}"
@@ -3309,7 +3409,7 @@ def _find_copied_source_fragment(lyrics: str, source_texts: list[str]) -> str:
                 return sentence[:120]
 
         source_words = re.findall(r"[A-Za-z0-9_']+", str(source or "").lower())
-        for size in range(min(10, len(source_words)), 5, -1):
+        for size in range(min(10, len(source_words)), 4, -1):
             for index in range(0, len(source_words) - size + 1):
                 phrase = " ".join(source_words[index:index + size])
                 if len(phrase) >= 25 and f" {phrase} " in lyric_words:
@@ -3324,12 +3424,43 @@ def _find_copied_source_fragment(lyrics: str, source_texts: list[str]) -> str:
     return ""
 
 
-def validate_generated_lyrics(lyrics: str, source_texts: list[str] | None = None) -> None:
+def _lyrics_body_text(lyrics: str) -> str:
+    lines = []
+    for line in str(lyrics or "").splitlines():
+        stripped = line.strip()
+        if not stripped or re.fullmatch(r"\[[^\]]+\]", stripped):
+            continue
+        lines.append(stripped)
+    return "\n".join(lines)
+
+
+def _validate_lyrics_language_weight(lyrics: str, voice_lang: str) -> None:
+    body = _lyrics_body_text(lyrics)
+    if not body:
+        raise ValueError("Generated lyrics were empty after cleaning.")
+    cjk_count = len(re.findall(r"[\u3400-\u9fff]", body))
+    kana_count = len(re.findall(r"[\u3040-\u30ff]", body))
+    hangul_count = len(re.findall(r"[\uac00-\ud7af]", body))
+    letters_count = len(re.findall(r"[A-Za-z]", body))
+    meaningful_count = cjk_count + kana_count + hangul_count + letters_count
+    if meaningful_count < 80:
+        return
+    if voice_lang in {"Chinese (Mandarin)", "Cantonese"} and cjk_count / meaningful_count < 0.65:
+        raise ValueError("Generated lyrics did not primarily use the selected Chinese voice language.")
+    if voice_lang == "Japanese" and (kana_count + cjk_count) / meaningful_count < 0.65:
+        raise ValueError("Generated lyrics did not primarily use Japanese.")
+    if voice_lang == "Korean" and hangul_count / meaningful_count < 0.65:
+        raise ValueError("Generated lyrics did not primarily use Korean.")
+
+
+def validate_generated_lyrics(lyrics: str, source_texts: list[str] | None = None, voice_lang: str = "") -> None:
     if len(lyrics) < GENERATED_LYRICS_MIN_CHARS:
         raise ValueError(
             f"Generated lyrics were too short ({len(lyrics)} characters). "
             f"Please regenerate; lyrics must be at least {GENERATED_LYRICS_MIN_CHARS} characters for a full song."
         )
+    if voice_lang:
+        _validate_lyrics_language_weight(lyrics, voice_lang)
     copied_fragment = _find_copied_source_fragment(lyrics, source_texts or [])
     if copied_fragment:
         raise ValueError(
@@ -3471,7 +3602,7 @@ def _finalize_fallback_lyrics(lyrics: str, voice_lang: str, source_texts: list[s
     while len(lyrics) < GENERATED_LYRICS_MIN_CHARS:
         lyrics = f"{lyrics}\n\n{extension}".strip()
     lyrics = lyrics[:GENERATED_LYRICS_MAX_CHARS].strip()
-    validate_generated_lyrics(lyrics, source_texts)
+    validate_generated_lyrics(lyrics, source_texts, voice_lang)
     return lyrics
 
 
@@ -4216,6 +4347,7 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
     extra = job.get("extra", {}) if isinstance(job.get("extra"), dict) else {}
     voice_id = str(job.get("voice_id", "")).strip()
     lyrics_language_override = str(job.get("lyrics_language", "auto")).strip()
+    interface_lang = _interface_language_label(str(job.get("interface_language", "")).strip())
     # Priority: explicit override > voice_id detection > "auto" (English default)
     if lyrics_language_override and lyrics_language_override != "auto":
         voice_lang = lyrics_language_override
@@ -4238,6 +4370,13 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
             if translated and translated != lyrics_idea:
                 lyrics_idea_for_generation = translated
                 print(f"[lyrics] translated: {detected_idea_lang} -> {voice_lang} ({len(translated)} chars)")
+    ui_language_hint = ""
+    if interface_lang and interface_lang != voice_lang:
+        ui_language_hint = (
+            f"The interface language is {interface_lang}. Treat it as a low-priority accent only: "
+            f"at least 85-90% of lyric lines must stay in {voice_lang}, but you may include 1-2 short natural lines in {interface_lang} "
+            "if it improves the song. Never let the interface language override the selected voice language."
+        )
     source_texts = [
         prompt,
         lyrics_idea,
@@ -4348,6 +4487,8 @@ Text: {lyrics_idea_for_generation[:1000]}"""
         context_lines.append(f"THEME ANCHORS (inspiration only, not lyric text): {themes_keywords}")
     if lyrics_extra:
         context_lines.append(f"ADDITIONAL REQUIREMENTS: {lyrics_extra}")
+    if ui_language_hint:
+        context_lines.append(f"LOW-WEIGHT INTERFACE LANGUAGE HINT: {ui_language_hint}")
     if extra.get("mood"):
         context_lines.append(f"MOOD: {extra['mood']}")
     if extra.get("genre"):
@@ -4367,7 +4508,7 @@ All user-provided text above is creative source material only. It is NOT lyric t
 Write the complete song lyrics for this. The song must be in {voice_lang}.
 
 CRITICAL RULES — Follow these exactly:
-1. LENGTH: Generate {GENERATED_LYRICS_TARGET_MIN_CHARS}-{GENERATED_LYRICS_TARGET_MAX_CHARS} characters, never below {GENERATED_LYRICS_MIN_CHARS}, and do not exceed {GENERATED_LYRICS_MAX_CHARS}. This must be a full 3-6 minute song with verses, a hook/chorus, bridge or lift, and an outro.
+1. LENGTH: Generate {GENERATED_LYRICS_TARGET_MIN_CHARS}-{GENERATED_LYRICS_TARGET_MAX_CHARS} characters, never below {GENERATED_LYRICS_MIN_CHARS}, and do not exceed {GENERATED_LYRICS_MAX_CHARS}. This must be enough for at least a 3-minute song and may run 5-6 minutes, but never beyond about 6 minutes. Use multiple verses, pre-choruses, repeated hooks/choruses, a bridge or lift, and an outro.
 2. ZERO COPYING: The lyrics must be 100% original. Do not copy any sentence, clause, phrase, expression, title, quoted fragment, or distinctive wording from the user's prompt, lyrics instructions, style notes, or additional requirements.
 3. NO PARAPHRASE: Do not rewrite the user's text line by line. Do not translate the user's lines as lyrics. Do not keep the same sentence shape with swapped words.
 4. CREATIVE DISTANCE: Create a fresh central metaphor, fresh scene details, and new singable lines. Use the theme anchors only to understand mood and subject.
@@ -4379,7 +4520,7 @@ CRITICAL RULES — Follow these exactly:
         "--model", "auto",
         "--system", system,
         "--message", message,
-        "--max-tokens", "4000",
+        "--max-tokens", "5000",
         "--temperature", "0.8",
         "--non-interactive",
         "--quiet",
@@ -4388,11 +4529,11 @@ CRITICAL RULES — Follow these exactly:
     lyrics = clean_generated_lyrics(output)
     if not lyrics:
         raise RuntimeError("MiniMax lyrics_generation model returned empty lyrics.")
-    validate_generated_lyrics(lyrics, source_texts)
+    validate_generated_lyrics(lyrics, source_texts, voice_lang)
     return lyrics
 
 
-def fallback_generated_lyrics(prompt: str, lyrics_idea: str, extra: dict[str, Any] | None = None, voice_id: str = "", lyrics_language: str = "auto") -> str:
+def fallback_generated_lyrics(prompt: str, lyrics_idea: str, extra: dict[str, Any] | None = None, voice_id: str = "", lyrics_language: str = "auto", interface_language: str = "") -> str:
     """Fast local fallback — generates simple lyrics from user seed only.
     No hardcoded templates. Uses seed words as thematic anchors only.
     The language is determined by voice_lang, not by the seed language."""
@@ -4413,36 +4554,40 @@ def fallback_generated_lyrics(prompt: str, lyrics_idea: str, extra: dict[str, An
     source_texts = [prompt, lyrics_idea, *[str(value) for value in extra.values() if value]]
 
     if voice_lang == "Cantonese":
-        theme_line = seed_theme + "喺心里面慢慢浮现" if seed_theme else "呢首歌喺讲你自己"
+        theme_line = "有束光喺心入面慢慢浮現"
         mood_line = "带着" + mood + "心情" if mood else ""
         genre_line = "，" + genre + "曲风" if genre else ""
         return _finalize_fallback_lyrics((
             "[Verse 1]\n" + theme_line + genre_line + "\n"
-            + "城市光影闪闪汩汩\n"
-            + "思绪飞向另一个深夜\n\n"
+            + "霓虹喺雨後慢慢散開\n"
+            + "我將未講出口嘅心事收埋\n\n"
             + "[Pre-Chorus]\n"
-            + "仍然听见心里面声音\n"
-            + "胆粗粗试多次都没问题\n\n"
+            + "仍然聽見心跳帶路\n"
+            + "行過暗巷都唔怕再重來\n\n"
             + "[Chorus]\n"
-            + "呢一刻我哋相通\n"
-            + "所有嘢都唔需要讲话\n\n"
+            + "呢一刻我哋望住同一片海\n"
+            + "浪花將沉默唱到天光\n"
+            + "就算世界轉得再快\n"
+            + "我都會跟住旋律搵返方向\n\n"
             + "[Verse 2]\n"
-            + "时光机入面装住感觉\n"
-            + "打开发现全部都系你\n"
-            + "究竟为乜唔放手\n"
-            + "就係因为太中意你\n\n"
+            + "舊相簿入面有風經過\n"
+            + "每一頁都照住未完嘅夢\n"
+            + "我學識喺跌低之後\n"
+            + "將眼淚變成節奏\n\n"
             + "[Bridge]\n"
-            + "世界停低咗等我\n"
-            + "今日天阴转晴\n\n"
+            + "如果長夜仲未肯離開\n"
+            + "我就點起一盞細細嘅燈\n\n"
             + "[Chorus]\n"
-            + "呢一刻我哋相通\n"
-            + "所有嘢都唔需要讲话\n\n"
+            + "呢一刻我哋望住同一片海\n"
+            + "浪花將沉默唱到天光\n"
+            + "就算世界轉得再快\n"
+            + "我都會跟住旋律搵返方向\n\n"
             + "[Outro]\n"
-            + seed_theme + "\n"
+            + "留低一首歌陪明日發亮\n"
         ), voice_lang, source_texts)
 
     elif voice_lang == "Chinese (Mandarin)":
-        theme_line = seed_theme + "在心里慢慢浮现" if seed_theme else "这首歌是讲给你听"
+        theme_line = "有束光在心里慢慢浮现"
         mood_line = "带着" + mood if mood else ""
         genre_line = "，" + genre + "风格" if genre else ""
         return _finalize_fallback_lyrics((
@@ -4454,7 +4599,9 @@ def fallback_generated_lyrics(prompt: str, lyrics_idea: str, extra: dict[str, An
             + "一次次尝试从未放弃\n\n"
             + "[Chorus]\n"
             + "这一刻我们相通\n"
-            + "一切都不需要言语\n\n"
+            + "一切都不需要言语\n"
+            + "风把沉默吹成花\n"
+            + "梦把远方推近一点\n\n"
             + "[Verse 2]\n"
             + "时光机里存着感受\n"
             + "打开发现全是你\n"
@@ -4465,73 +4612,77 @@ def fallback_generated_lyrics(prompt: str, lyrics_idea: str, extra: dict[str, An
             + "今天阴天转晴\n\n"
             + "[Chorus]\n"
             + "这一刻我们相通\n"
-            + "一切都不需要言语\n\n"
+            + "一切都不需要言语\n"
+            + "风把沉默吹成花\n"
+            + "梦把远方推近一点\n\n"
             + "[Outro]\n"
-            + seed_theme + "\n"
+            + "把答案放进旋律里\n"
         ), voice_lang, source_texts)
 
     elif voice_lang == "Korean":
-        if seed_theme:
-            theme_line = seed_theme + " 마음속 천천히 떠올라"
-        else:
-            theme_line = "이 노래는 너에게 주는 선물"
+        theme_line = "작은 빛이 마음속에 천천히 떠올라"
         return _finalize_fallback_lyrics((
             "[Verse 1]\n" + theme_line + "\n"
             + "도시 불빛이 반짝이고\n"
-            + "思绪가 밤을 향해 날아\n\n"
+            + "낡은 기억이 밤을 건너와\n\n"
             + "[Pre-Chorus]\n"
             + "여전히 네 목소리가 들려\n"
-            + "한 번도 포기한 적 없어\n\n"
+            + "흔들려도 멈춘 적은 없어\n\n"
             + "[Chorus]\n"
-            + "이 순간 우리相通해\n"
-            + "말로 표현 못 하는 감정\n\n"
+            + "이 순간 우린 같은 숨을 쉬어\n"
+            + "말로 다 못 한 마음이 노래가 돼\n"
+            + "멀어진 길도 다시 이어져\n"
+            + "새벽 끝에서 빛을 찾아\n\n"
             + "[Verse 2]\n"
-            + "시간 기계 속에 저장된 느낌\n"
-            + "열어보면 전부 네가 보여\n"
-            + "왜 놓지 못하는지\n"
-            + "그냥 너무 좋아하니까\n\n"
+            + "접어 둔 편지 위로 비가 내려\n"
+            + "잊은 줄 알던 장면들이 깨어나\n"
+            + "상처는 리듬이 되고\n"
+            + "두려움은 발걸음이 돼\n\n"
             + "[Bridge]\n"
             + "세상이 멈춰서 나를 기다려\n"
             + "오늘 흐렸다가 맑아졌어\n\n"
             + "[Chorus]\n"
-            + "이 순간 우리相通해\n"
-            + "말로 표현 못 하는 감정\n\n"
+            + "이 순간 우린 같은 숨을 쉬어\n"
+            + "말로 다 못 한 마음이 노래가 돼\n"
+            + "멀어진 길도 다시 이어져\n"
+            + "새벽 끝에서 빛을 찾아\n\n"
             + "[Outro]\n"
-            + (seed_theme + "\n" if seed_theme else "")
+            + "작은 멜로디가 내일을 깨워\n"
         ), voice_lang, source_texts)
 
     elif voice_lang == "Japanese":
-        if seed_theme:
-            theme_line = seed_theme + " 心の中で浮かんでくる"
-        else:
-            theme_line = "この歌はあなたへの礼物"
+        theme_line = "小さな光が胸の奥で揺れている"
         return _finalize_fallback_lyrics((
             "[Verse 1]\n" + theme_line + "\n"
             + "街の灯りが煌めいて\n"
-            + " 생각이 밤に向かって飛んで\n\n"
+            + "古い記憶が夜を渡る\n\n"
             + "[Pre-Chorus]\n"
-            + " 여전히 네 목소리가 들려\n"
-            + " 一度も諦めたことない\n\n"
+            + "まだ鼓動が道を覚えてる\n"
+            + "迷いながらも歩いてきた\n\n"
             + "[Chorus]\n"
-            + " この瞬間我々相通じてる\n"
-            + " 言葉で表せない感情\n\n"
+            + "この瞬間 同じ空を見上げ\n"
+            + "言えなかった想いが歌になる\n"
+            + "遠い道もまたつながって\n"
+            + "夜明けの端で光を探す\n\n"
             + "[Verse 2]\n"
-            + " 時間機械に保存された感じ\n"
-            + " 開けると全部あなたが見え\n"
-            + " なぜ手放せないのか\n"
-            + "  그냥 너무 좋아하니까\n\n"
+            + "閉じた手紙に雨が落ちて\n"
+            + "忘れた景色が息を返す\n"
+            + "傷跡はリズムになり\n"
+            + "ためらいは一歩に変わる\n\n"
             + "[Bridge]\n"
-            + " 世界が止めて私を待って\n"
-            + " 今日曇りから晴れへ\n\n"
+            + "世界が少し静かになる\n"
+            + "その隙間で願いを灯す\n\n"
             + "[Chorus]\n"
-            + " この瞬間我々相通じてる\n"
-            + " 言葉で表せない感情\n\n"
+            + "この瞬間 同じ空を見上げ\n"
+            + "言えなかった想いが歌になる\n"
+            + "遠い道もまたつながって\n"
+            + "夜明けの端で光を探す\n\n"
             + "[Outro]\n"
-            + (seed_theme + "\n" if seed_theme else "")
+            + "小さなメロディが明日を起こす\n"
         ), voice_lang, source_texts)
 
     else:
-        seed_word = seed_theme if seed_theme else "this moment"
+        seed_word = "the light inside"
         mood_tag = " — " + mood if mood else ""
         genre_tag = " / " + genre if genre else ""
         return _finalize_fallback_lyrics((
@@ -4860,6 +5011,21 @@ class MusicHandler(BaseHTTPRequestHandler):
             key = key or (query.get("key") or query.get("admin_key") or [""])[0]
         return bool(ADMIN_KEY and key and hmac.compare_digest(key, ADMIN_KEY))
 
+    def end_headers(self) -> None:
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
+        self.send_header("Permissions-Policy", "camera=(), geolocation=(), microphone=(self)")
+        self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        super().end_headers()
+
+    def require_client_id(self) -> str | None:
+        raw = self.headers.get("X-Client-Id")
+        if is_valid_client_id(raw):
+            return normalize_client_id(raw)
+        self.send_json({"error": "A valid X-Client-Id header is required."}, HTTPStatus.BAD_REQUEST)
+        return None
+
     def send_json(self, payload: dict[str, Any], status: HTTPStatus = HTTPStatus.OK) -> None:
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
@@ -4876,6 +5042,42 @@ class MusicHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
+
+    def do_HEAD(self) -> None:
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+        if path == "/":
+            data_len = len(INDEX_HTML.encode("utf-8"))
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(data_len))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            return
+        if path == "/admin":
+            data_len = len(ADMIN_HTML.encode("utf-8"))
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(data_len))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            return
+        if path == "/api/health":
+            data_len = len(json.dumps({"ok": True}).encode("utf-8"))
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(data_len))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            return
+        if path == "/favicon.ico":
+            self.send_response(HTTPStatus.NO_CONTENT)
+            self.end_headers()
+            return
+        self.send_response(HTTPStatus.NOT_FOUND)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def do_GET(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
@@ -4899,18 +5101,20 @@ class MusicHandler(BaseHTTPRequestHandler):
             self.wfile.write(data)
             return
         if path == "/api/health":
-            self.send_json({
-                "ok": True,
-                "minimax_configured": bool(MINIMAX_API_KEY),
-                "admin_configured": bool(ADMIN_KEY),
-                "title_fallback": True,
-                "drafts": True,
-                "job_timeout_seconds": JOB_TIMEOUT_SECONDS,
-                "job_retention_seconds": JOB_RETENTION_SECONDS,
-                "smtp_configured": bool(SMTP_USER and SMTP_PASSWORD),
-                "smtp_host": SMTP_HOST,
-                "smtp_port": SMTP_PORT,
-            })
+            payload = {"ok": True}
+            if self.is_admin_request(parsed):
+                payload.update({
+                    "minimax_configured": bool(MINIMAX_API_KEY),
+                    "admin_configured": bool(ADMIN_KEY),
+                    "title_fallback": True,
+                    "drafts": True,
+                    "job_timeout_seconds": JOB_TIMEOUT_SECONDS,
+                    "job_retention_seconds": JOB_RETENTION_SECONDS,
+                    "smtp_configured": bool(SMTP_USER and SMTP_PASSWORD),
+                    "smtp_host": SMTP_HOST,
+                    "smtp_port": SMTP_PORT,
+                })
+            self.send_json(payload)
             return
         if path == "/api/admin/jobs":
             sweep_jobs()
@@ -4927,7 +5131,9 @@ class MusicHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/jobs":
             sweep_jobs()
-            client_id = normalize_client_id(self.headers.get("X-Client-Id"))
+            client_id = self.require_client_id()
+            if client_id is None:
+                return
             with JOBS_LOCK:
                 jobs = sorted(
                     [public_job(job, include_lyrics=True) for job in JOBS.values() if job.get("owner_id") == client_id],
@@ -4939,7 +5145,9 @@ class MusicHandler(BaseHTTPRequestHandler):
         if parsed.path.startswith("/api/jobs/"):
             sweep_jobs()
             job_id = urllib.parse.unquote(parsed.path.removeprefix("/api/jobs/"))
-            client_id = normalize_client_id(self.headers.get("X-Client-Id"))
+            client_id = self.require_client_id()
+            if client_id is None:
+                return
             with JOBS_LOCK:
                 job = JOBS.get(job_id)
                 if not job or job.get("owner_id") != client_id:
@@ -4997,6 +5205,7 @@ class MusicHandler(BaseHTTPRequestHandler):
             extra = {key: str(form.get(key, "")).strip() for key in ("genre", "mood", "instruments", "tempo", "bpm", "key", "vocals", "structure", "references", "avoid", "use_case", "extra")}
             voice_id = str(form.get("voice_id", "")).strip()
             lyrics_language = str(form.get("lyrics_language", "auto")).strip()
+            interface_language = str(form.get("interface_language", "")).strip()
             lyrics = generate_lyrics_from_text_model({
                 "prompt": prompt,
                 "lyrics_idea": lyrics_idea,
@@ -5004,6 +5213,7 @@ class MusicHandler(BaseHTTPRequestHandler):
                 "extra": extra,
                 "voice_id": voice_id,
                 "lyrics_language": lyrics_language,
+                "interface_language": interface_language,
             }, timeout=LYRICS_REQUEST_TIMEOUT)
         except ValueError as exc:
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
@@ -5015,6 +5225,7 @@ class MusicHandler(BaseHTTPRequestHandler):
                 extra if "extra" in locals() else {},
                 voice_id if "voice_id" in locals() else "",
                 lyrics_language if "lyrics_language" in locals() else "auto",
+                interface_language if "interface_language" in locals() else "",
             )
             self.send_json({"lyrics": fallback, "fallback": True, "warning": "Live lyrics generation timed out or failed; using local fallback."})
             return
@@ -5030,7 +5241,9 @@ class MusicHandler(BaseHTTPRequestHandler):
             email_addr = str(form.get("email", "")).strip()
             lyrics = str(form.get("lyrics", "")).strip()
             lyrics_idea = str(form.get("lyrics_idea", "")).strip()
+            lyrics_extra = str(form.get("lyrics_extra", "")).strip()
             lyrics_language = str(form.get("lyrics_language", "auto")).strip()
+            interface_language = str(form.get("interface_language", "")).strip()
             voice_id = str(form.get("voice_id", "")).strip()
             voice_mode = str(form.get("voice_mode") or "voice_clone_singing").strip()
             is_instrumental = bool(form.get("is_instrumental"))
@@ -5051,10 +5264,14 @@ class MusicHandler(BaseHTTPRequestHandler):
                 raise ValueError(f"Lyrics must be {LYRICS_CHAR_LIMIT} characters or fewer.")
             if len(lyrics_idea) > 2500:
                 raise ValueError("Lyrics brief must be 2500 characters or fewer.")
+            if len(lyrics_extra) > 500:
+                raise ValueError("Additional lyrics requirements must be 500 characters or fewer.")
             if not is_instrumental and not lyrics and not lyrics_optimizer:
                 raise ValueError("Lyrics, a lyrics brief, or auto lyrics are required for vocal tracks.")
             extra = {key: str(form.get(key, "")).strip() for key in ("genre", "mood", "instruments", "tempo", "bpm", "key", "vocals", "structure", "references", "avoid", "use_case", "extra")}
-            client_id = normalize_client_id(self.headers.get("X-Client-Id"))
+            client_id = self.require_client_id()
+            if client_id is None:
+                return
             # Find the voice WAV file saved during clone (named voice_wav_{client_id}.wav)
             voice_wav = OUTPUT_DIR / f"voice_wav_{client_id[:16]}.wav"
             if not voice_wav.exists():
@@ -5080,7 +5297,9 @@ class MusicHandler(BaseHTTPRequestHandler):
             "email": email_addr,
             "lyrics": lyrics,
             "lyrics_idea": lyrics_idea,
+            "lyrics_extra": lyrics_extra,
             "lyrics_language": lyrics_language,
+            "interface_language": interface_language,
             "is_instrumental": is_instrumental,
             "lyrics_optimizer": lyrics_optimizer,
             "generated_lyrics": False,
@@ -5103,6 +5322,18 @@ class MusicHandler(BaseHTTPRequestHandler):
 
     def handle_get_voices(self) -> None:
         """Return a list of available system voices for the TTS voice picker."""
+        now = time.time()
+        with VOICE_CACHE_LOCK:
+            cached_voices = list(VOICE_CACHE.get("voices") or [])
+            cache_age = now - float(VOICE_CACHE.get("fetched_at") or 0)
+            if cached_voices and cache_age < VOICE_CACHE_TTL_SECONDS:
+                self.send_json({
+                    "voices": cached_voices,
+                    "count": len(cached_voices),
+                    "fallback": bool(VOICE_CACHE.get("fallback")),
+                    "cached": True,
+                })
+                return
         try:
             output = run_mmx(["speech", "voices", "--output", "json", "--non-interactive", "--quiet"], timeout=int(max(1, VOICE_LIST_TIMEOUT)))
             parsed = json.loads(output)
@@ -5112,9 +5343,23 @@ class MusicHandler(BaseHTTPRequestHandler):
         except Exception as exc:
             print(f"[voices] using fallback voice list: {exc}")
             voices = []
+            with VOICE_CACHE_LOCK:
+                cached_voices = list(VOICE_CACHE.get("voices") or [])
+                if cached_voices:
+                    self.send_json({
+                        "voices": cached_voices,
+                        "count": len(cached_voices),
+                        "fallback": bool(VOICE_CACHE.get("fallback")),
+                        "cached": True,
+                        "stale": True,
+                    })
+                    return
         if not voices:
             voices = DEFAULT_SYSTEM_VOICES
-        self.send_json({"voices": voices, "count": len(voices), "fallback": voices == DEFAULT_SYSTEM_VOICES})
+        fallback = voices == DEFAULT_SYSTEM_VOICES
+        with VOICE_CACHE_LOCK:
+            VOICE_CACHE.update({"voices": list(voices), "fallback": fallback, "fetched_at": time.time()})
+        self.send_json({"voices": voices, "count": len(voices), "fallback": fallback, "cached": False})
 
     def handle_voice_preview(self) -> None:
         """Handle GET /api/voice/preview?voice_id=xxx — synthesize a short speech sample with the given voice_id."""
@@ -5127,10 +5372,7 @@ class MusicHandler(BaseHTTPRequestHandler):
         if not _is_safe_voice_id(raw_voice_id):
             self.send_json({"error": "voice_id contains invalid characters"}, HTTPStatus.BAD_REQUEST)
             return
-        # Sanitize for API call — remove any characters not in the safe set
-        voice_id = re.sub(r"[^A-Za-z0-9_()./\- ]", "", raw_voice_id).strip()
-        if not voice_id:
-            voice_id = raw_voice_id  # fallback to original if stripping empties it
+        voice_id = raw_voice_id
         try:
             preview_lang = _detect_lang_from_voice_id(voice_id)
             preview_text = VOICE_PREVIEW_TEXTS.get(preview_lang, VOICE_PREVIEW_TEXTS["English"])
@@ -5157,6 +5399,9 @@ class MusicHandler(BaseHTTPRequestHandler):
     def handle_voice_clone(self) -> None:
         """Handle POST /api/voice/clone — accepts multipart form with audio file."""
         try:
+            client_id = self.require_client_id()
+            if client_id is None:
+                return
             content_type = self.headers.get("Content-Type", "")
             if "multipart/form-data" not in content_type:
                 raise ValueError("Content-Type must be multipart/form-data.")
@@ -5164,7 +5409,6 @@ class MusicHandler(BaseHTTPRequestHandler):
             if length <= 0 or length > 25 * 1024 * 1024:
                 raise ValueError("File too large or missing (max 20MB).")
             body = self.rfile.read(length)
-            client_id = normalize_client_id(self.headers.get("X-Client-Id"))
             boundary_match = re.search(r"boundary=(.+)", content_type)
             if not boundary_match:
                 raise ValueError("Missing multipart boundary.")
@@ -5234,7 +5478,9 @@ class MusicHandler(BaseHTTPRequestHandler):
             if not re.fullmatch(r"[A-Za-z0-9_().\- ]{8,160}", voice_id):
                 raise ValueError("Invalid voice_id.")
             tmp_sing = OUTPUT_DIR / f"sing_preview_{secrets.token_hex(8)}.mp3"
-            client_id = normalize_client_id(self.headers.get("X-Client-Id"))
+            client_id = self.require_client_id()
+            if client_id is None:
+                return
             voice_wav = OUTPUT_DIR / f"voice_wav_{client_id[:16]}.wav"
             singing_error = ""
             try:
@@ -5326,6 +5572,9 @@ class MusicHandler(BaseHTTPRequestHandler):
         if parsed.path != "/api/jobs":
             self.send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
             return
+        client_id = self.require_client_id()
+        if client_id is None:
+            return
         try:
             form = self.read_json_body()
             prompt = str(form.get("prompt", "")).strip()
@@ -5334,7 +5583,9 @@ class MusicHandler(BaseHTTPRequestHandler):
             email_addr = str(form.get("email", "")).strip()
             lyrics = str(form.get("lyrics", "")).strip()
             lyrics_idea = str(form.get("lyrics_idea", "")).strip()
+            lyrics_extra = str(form.get("lyrics_extra", "")).strip()
             lyrics_language = str(form.get("lyrics_language", "auto")).strip()
+            interface_language = str(form.get("interface_language", "")).strip()
             is_instrumental = bool(form.get("is_instrumental"))
             lyrics_optimizer = bool(form.get("lyrics_optimizer") or lyrics_idea) and not is_instrumental
             if not prompt:
@@ -5347,6 +5598,8 @@ class MusicHandler(BaseHTTPRequestHandler):
                 raise ValueError(f"Lyrics must be {LYRICS_CHAR_LIMIT} characters or fewer.")
             if len(lyrics_idea) > 2500:
                 raise ValueError("Lyrics brief must be 2500 characters or fewer.")
+            if len(lyrics_extra) > 500:
+                raise ValueError("Additional lyrics requirements must be 500 characters or fewer.")
             if not is_instrumental and not lyrics and not lyrics_optimizer:
                 raise ValueError("Lyrics, a lyrics brief, or auto lyrics are required for vocal tracks.")
             extra = {key: str(form.get(key, "")).strip() for key in ("genre", "mood", "instruments", "tempo", "bpm", "key", "vocals", "structure", "references", "avoid", "use_case", "extra")}
@@ -5356,7 +5609,7 @@ class MusicHandler(BaseHTTPRequestHandler):
         job_id = secrets.token_urlsafe(12)
         job = {
             "id": job_id,
-            "owner_id": normalize_client_id(self.headers.get("X-Client-Id")),
+            "owner_id": client_id,
             "status": "queued",
             "created_at": now_iso(),
             "updated_at": now_iso(),
@@ -5367,7 +5620,9 @@ class MusicHandler(BaseHTTPRequestHandler):
             "email": email_addr,
             "lyrics": lyrics,
             "lyrics_idea": lyrics_idea,
+            "lyrics_extra": lyrics_extra,
             "lyrics_language": lyrics_language,
+            "interface_language": interface_language,
             "is_instrumental": is_instrumental,
             "lyrics_optimizer": lyrics_optimizer,
             "generated_lyrics": False,
@@ -5394,7 +5649,9 @@ class MusicHandler(BaseHTTPRequestHandler):
             self.send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
             return
         job_id = urllib.parse.unquote(parsed.path.removeprefix("/api/jobs/"))
-        client_id = normalize_client_id(self.headers.get("X-Client-Id"))
+        client_id = self.require_client_id()
+        if client_id is None:
+            return
         with JOBS_LOCK:
             job = JOBS.get(job_id)
             if not job or job.get("owner_id") != client_id:
