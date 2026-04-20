@@ -3362,6 +3362,121 @@ def clone_voice(audio_path: Path, custom_voice_id: str) -> dict[str, Any]:
     return clone_resp
 
 
+LANGS_REQUIRING_TRADITIONAL = {"Cantonese"}
+LANGS_REQUIRING_SIMPLIFIED = {"Chinese (Mandarin)", "Japanese", "Korean"}
+
+_LANG_CODE_MAP = {
+    "English": "English", "Chinese (Mandarin)": "Chinese", "Cantonese": "Chinese",
+    "Korean": "Korean", "Japanese": "Japanese", "Spanish": "Spanish",
+    "Portuguese": "Portuguese", "French": "French", "German": "German",
+    "Indonesian": "Indonesian", "Russian": "Russian", "Italian": "Italian",
+    "Arabic": "Arabic", "Hindi": "Hindi", "Vietnamese": "Vietnamese",
+    "Thai": "Thai", "Turkish": "Turkish", "Polish": "Polish", "Dutch": "Dutch",
+    "Swedish": "Swedish", "Norwegian": "Norwegian", "Danish": "Danish",
+    "Finnish": "Finnish", "Czech": "Czech", "Romanian": "Romanian",
+    "Hungarian": "Hungarian", "Ukrainian": "Ukrainian",
+}
+
+
+def _detect_text_language(text: str) -> str:
+    """Detect the primary language of a text string using simple heuristics + MiniMax."""
+    if not text or len(text.strip()) < 10:
+        return "English"
+    # Heuristic: check for character sets
+    chinese_chars = len(re.findall(r'[\u4e00-\u9fff]', text))
+    japanese_chars = len(re.findall(r'[\u3040-\u309f\u30a0-\u30ff]', text))
+    korean_chars = len(re.findall(r'[\uac00-\ud7af\u1100-\u11ff]', text))
+    arabic_chars = len(re.findall(r'[\u0600-\u06ff]', text))
+    russian_chars = len(re.findall(r'[\u0400-\u04ff]', text))
+    total_chars = len(text)
+    # If enough CJK characters, use MiniMax to be more accurate
+    if chinese_chars / total_chars > 0.3:
+        return "Chinese (Mandarin)"
+    elif korean_chars / total_chars > 0.3:
+        return "Korean"
+    elif japanese_chars / total_chars > 0.2:
+        return "Japanese"
+    elif arabic_chars / total_chars > 0.3:
+        return "Arabic"
+    elif russian_chars / total_chars > 0.3:
+        return "Russian"
+    # Use MiniMax for ambiguous cases (mixed or Latin-script texts)
+    prompt_text = text[:500]
+    detect_msg = f"""Detect the language of the following text. Reply with ONLY the language name from this list: English, Chinese (Mandarin), Cantonese, Korean, Japanese, Spanish, Portuguese, French, German, Indonesian, Russian, Italian, Arabic, Hindi, Vietnamese, Thai, Turkish, Polish, Dutch, Swedish, Norwegian, Danish, Finnish, Czech, Romanian, Hungarian, Ukrainian.
+
+Text: {prompt_text}"""
+    try:
+        result = run_mmx([
+            "text", "chat",
+            "--model", "auto",
+            "--system", "You are a language detection assistant. Reply with ONLY the language name, nothing else.",
+            "--message", detect_msg,
+            "--max-tokens", "20",
+            "--temperature", "0.1",
+            "--non-interactive", "--quiet", "--output", "text",
+        ], timeout=10)
+        result = result.strip()
+        # Match against known languages
+        for lang in _LANG_CODE_MAP:
+            if lang.lower() in result.lower() or result.lower() in lang.lower():
+                return lang
+        return "English"
+    except Exception:
+        return "English"
+
+
+def _translate_text(text: str, from_lang: str, to_lang: str) -> str:
+    """Translate text from one language to another using MiniMax."""
+    if not text or from_lang == to_lang:
+        return text
+    if to_lang == "Cantonese":
+        to_native = "Cantonese (traditional Chinese characters, spoken Cantonese expressions)"
+    elif to_lang == "Chinese (Mandarin)":
+        to_native = "simplified Chinese"
+    elif to_lang == "Japanese":
+        to_native = "Japanese"
+    elif to_lang == "Korean":
+        to_native = "Korean"
+    elif to_lang == "English":
+        to_native = "English"
+    else:
+        to_native = _LANG_CODE_MAP.get(to_lang, to_lang)
+    translate_msg = f"""Translate the following text into {to_native}.
+
+Rules:
+- Translate meaning and spirit, NOT word-for-word
+- Adapt idioms and expressions naturally to {to_native}
+- Keep the same tone and emotional quality
+- Output ONLY the translated text, no explanation, no quotes, no notes
+
+Text to translate:
+{text}"""
+    try:
+        result = run_mmx([
+            "text", "chat",
+            "--model", "auto",
+            "--system", f"You are a professional translator into {to_native}. Output ONLY the translated text.",
+            "--message", translate_msg,
+            "--max-tokens", "2000",
+            "--temperature", "0.7",
+            "--non-interactive", "--quiet", "--output", "text",
+        ], timeout=30)
+        # Clean up the result
+        result = result.strip()
+        result = re.sub(r'^["\']', '', result).strip()
+        result = re.sub(r'["\']$', '', result).strip()
+        prefixes = ("translation:", "translated text:", "here is the translation:")
+        lower_result = result.lower()
+        for prefix in prefixes:
+            if lower_result.startswith(prefix):
+                result = result[len(prefix):].strip()
+                lower_result = result.lower()
+        return result
+    except Exception as exc:
+        print(f"[translate] failed: {exc}")
+        return text  # fallback to original if translation fails
+
+
 def synthesize_speech(text: str, voice_id: str, output_path: Path, model: str = "speech-2.8-hd") -> Path:
     """Synthesize speech using a cloned or system voice_id, save to output_path."""
     output_path = Path(output_path)
@@ -3905,34 +4020,55 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
         voice_lang = _detect_lang_from_voice_id(voice_id)
     else:
         voice_lang = "English"
-    # Detect translation / transformation directives in lyrics_idea.
-    # These are instruction sentences that ask AI to translate, rewrite, or adapt
-    # existing lyrics rather than write new ones from scratch.
-    _TRANSLATION_PATTERNS = [
-        re.compile(r"translate", re.IGNORECASE),
-        re.compile(r"rewrite.*in|rewrite.*as", re.IGNORECASE),
-        re.compile(r"convert.*to", re.IGNORECASE),
-        re.compile(r"write.*lyrics? in", re.IGNORECASE),
-        re.compile(r"中文|韩语|日语|英语|西班牙语|法语|德语", re.IGNORECASE),
-        re.compile(r"粤语|普通话|普通话", re.IGNORECASE),
-        re.compile(r"한국어|日本語|English|Español|Français|Deutsch", re.IGNORECASE),
-    ]
-    lyrics_idea_has_directive = bool(
-        lyrics_idea and any(p.search(lyrics_idea) for p in _TRANSLATION_PATTERNS)
-    )
-    context = {
-        "music_style_prompt": prompt,
-        "lyrics_brief": lyrics_idea or "No separate lyrics brief was provided. Infer a complete lyric concept from the music style prompt.",
-        "genre": extra.get("genre", ""),
-        "mood": extra.get("mood", ""),
-        "vocal_style": extra.get("vocals", ""),
-        "structure": extra.get("structure", ""),
-        "avoid": extra.get("avoid", ""),
-        "use_case": extra.get("use_case", ""),
-        "extra_details": extra.get("extra", ""),
-        "lyrics_idea_has_directive": lyrics_idea_has_directive,
-    }
-    # Minimal system prompt — just language and songwriting role, no prescriptive structure rules
+
+    # ============================================================
+    # STEP 1: Language mismatch detection + translation
+    # If lyrics_idea language differs from voice_lang, translate first.
+    # This ensures the AI generates in the correct language.
+    # ============================================================
+    lyrics_idea_for_generation = lyrics_idea
+    if lyrics_idea and len(lyrics_idea) >= 10:
+        detected_idea_lang = _detect_text_language(lyrics_idea)
+        if detected_idea_lang != voice_lang:
+            print(f"[lyrics] language mismatch: idea={detected_idea_lang}, voice={voice_lang}. Translating first.")
+            translated = _translate_text(lyrics_idea, detected_idea_lang, voice_lang)
+            if translated and translated != lyrics_idea:
+                lyrics_idea_for_generation = translated
+                print(f"[lyrics] translated: {detected_idea_lang} -> {voice_lang} ({len(translated)} chars)")
+
+    # ============================================================
+    # STEP 2: Extract themes/keywords from lyrics_idea to avoid verbatim copying
+    # Instead of passing the raw lyrics_idea content, we pass extracted themes.
+    # ============================================================
+    themes_keywords = ""
+    if lyrics_idea_for_generation and len(lyrics_idea_for_generation) >= 20:
+        try:
+            theme_extract_msg = f"""Extract 5-8 KEYWORDS or SHORT PHRASES (themes, emotions, imagery, concepts) from the following lyrics idea.
+Return ONLY a comma-separated list of the most important themes/feelings/keywords — nothing else.
+Do NOT copy full sentences. Only extract individual words or short phrases (2-4 words max).
+
+Text: {lyrics_idea_for_generation[:1000]}"""
+            themes_keywords = run_mmx([
+                "text", "chat",
+                "--model", "auto",
+                "--system", "You are a creative writing assistant. Extract keywords and themes only. Output a comma-separated list, nothing else.",
+                "--message", theme_extract_msg,
+                "--max-tokens", "100",
+                "--temperature", "0.3",
+                "--non-interactive", "--quiet", "--output", "text",
+            ], timeout=15)
+            themes_keywords = themes_keywords.strip().strip('"').strip("'")
+            if len(themes_keywords) > 200:
+                themes_keywords = themes_keywords[:200]
+            print(f"[lyrics] extracted themes: {themes_keywords[:80]}")
+        except Exception as exc:
+            print(f"[lyrics] theme extraction failed: {exc}")
+            themes_keywords = ""
+
+    # ============================================================
+    # STEP 3: Build the generation prompt
+    # ============================================================
+    # System prompt — language-specific songwriting role
     if voice_lang == "Cantonese":
         system = (
             "You are a Cantonese songwriter. Write song lyrics in Cantonese using traditional Chinese characters and natural spoken Cantonese expressions. "
@@ -3973,17 +4109,16 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
             "Output only the raw lyrics — no explanation, no notes, no markdown fences. "
             "Write enough for a full song. Follow the brief closely."
         )
-    # Build a flat, plain-English message — no JSON nesting, so the model
-    # cannot confuse the brief with lyrics to be copied verbatim.
-    music_style = prompt.strip()
-    lyrics_brief_raw = lyrics_idea.strip()
 
-    # Plain-language creative context (no JSON that might confuse the model)
+    # Build context message — themes used as inspiration, NOT raw content to copy
+    music_style = prompt.strip()
     context_lines = []
     if music_style:
-        context_lines.append(f"MUSIC STYLE: {music_style}")
-    if lyrics_brief_raw:
-        context_lines.append(f"LYRIC PROMPT / INSTRUCTIONS (ideas, feelings, imagery, OR a task such as 'translate into Korean'):\n{lyrics_brief_raw}")
+        context_lines.append(f"MUSIC STYLE / TONE: {music_style}")
+    if themes_keywords:
+        context_lines.append(f"THEMES & KEYWORDS (use these as inspiration only): {themes_keywords}")
+    if lyrics_extra:
+        context_lines.append(f"ADDITIONAL REQUIREMENTS: {lyrics_extra}")
     if extra.get("mood"):
         context_lines.append(f"MOOD: {extra['mood']}")
     if extra.get("genre"):
@@ -3991,25 +4126,20 @@ def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -
     if extra.get("vocals"):
         context_lines.append(f"VOCAL STYLE: {extra['vocals']}")
     if extra.get("structure"):
-        context_lines.append(f"PREFERRED STRUCTURE: {extra['structure']}")
+        context_lines.append(f"STRUCTURE: {extra['structure']}")
     if extra.get("avoid"):
         context_lines.append(f"AVOID: {extra['avoid']}")
-    if lyrics_extra:
-        context_lines.append(f"ADDITIONAL REQUIREMENTS:")
-        context_lines.append(lyrics_extra)
     context_str = "\n".join(context_lines) if context_lines else "(No specific brief provided — create freely)"
 
-    # Minimal prompt — the system prompt sets language and songwriting context.
-    # No prescriptive rules that could cause formulaic output.
     message = f"""{context_str}
 
 Write the complete song lyrics for this. The song must be in {voice_lang}.
 
 CRITICAL RULES — Follow these exactly:
-1. LENGTH: Generate lyrics that are 800-1500 CHARACTERS long. This must be a FULL song with verses, a hook/chorus, and an outro — NOT a short fragment. A 3-5 minute pop/electronic song requires substantial lyrics.
-2. ZERO COPYING: The lyrics must be 100% ORIGINAL and CREATIVE. You are FORBIDDEN from copying any complete sentence, phrase, or paragraph from the LYRIC PROMPT / INSTRUCTIONS above. Even if the user's brief contains a chorus line or verse, you must REWRITE IT COMPLETELY in your own words and style. Do not reproduce any text from the instructions verbatim.
-3. CREATIVE INTERPRETATION: You may use the THEMES, EMOTIONS, IMAGERY, and KEYWORDS from the brief as inspiration, but you must generate all lyrical content from scratch. Write original sentences, original rhymes, and original expressions.
-4. OUTPUT: Only output the raw lyrics themselves — no explanation, no notes, no "Here are the lyrics:" prefix, no markdown fences, no quotes around the lyrics."""
+1. LENGTH: Generate lyrics that are 800-1500 CHARACTERS long. This must be a FULL song with verses, a hook/chorus, and an outro — NOT a short fragment.
+2. ZERO COPYING: The lyrics must be 100% ORIGINAL. You are FORBIDDEN from copying or reproducing any text from the user's brief (if any). Do not use any sentences, phrases, or expressions from the brief in your output. All lyrical content must be completely original.
+3. CREATIVE INTERPRETATION: Use the THEMES & KEYWORDS above as inspiration to write your own original lyrics. Do not reproduce the themes/keywords as a list — weave them naturally into the song.
+4. OUTPUT: Only output the raw lyrics themselves — no explanation, no notes, no "Here are the lyrics:" prefix, no markdown fences, no quotes."""
 
     output = run_mmx([
         "text", "chat",
