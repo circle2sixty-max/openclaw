@@ -370,7 +370,9 @@ INDEX_HTML = r"""<!doctype html>
     .voice-pill:hover { border-color: var(--accent); color: var(--text-primary); transform: translateY(-1px); }
     .voice-pill.selected { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); box-shadow: inset 0 0 0 1px rgba(29,185,84,0.16); }
     .voice-pill.playing { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); animation: pulse 1s ease-in-out infinite; }
-    .voice-pill .play-icon { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--bg-elevated); color: var(--accent); font-size: 9px; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+    .voice-pill .play-icon { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--bg-elevated); color: var(--accent); font-size: 9px; box-shadow: 0 2px 8px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,0,0,0.05); }
+    .light-theme .voice-pill .play-icon { background: rgba(255,255,255,0.9); box-shadow: 0 2px 8px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8); }
+    .light-theme .voice-pill .play-icon:hover { background: #ffffff; box-shadow: 0 4px 16px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,0,0,0.1); }
     .voice-pill .play-icon svg { width: 11px; height: 11px; fill: currentColor; }
     .voice-pill .voice-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .voice-empty { padding: 18px; text-align: center; color: var(--text-muted); font-size: 12px; }
