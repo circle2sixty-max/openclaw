@@ -198,7 +198,7 @@ JOBS: dict[str, dict[str, Any]] = {}
 JOBS_LOCK = threading.RLock()
 DRAFTS: dict[str, dict[str, Any]] = {}
 DRAFTS_LOCK = threading.RLock()
-VOICE_CACHE: dict[str, Any] = {"voices": [], "fallback": False, "fetched_at": 0.0}
+VOICE_CACHE: dict[str, Any] = {"voices": list(DEFAULT_SYSTEM_VOICES), "fallback": True, "fetched_at": 0.0}
 VOICE_CACHE_LOCK = threading.RLock()
 
 INDEX_HTML = r"""<!doctype html>
