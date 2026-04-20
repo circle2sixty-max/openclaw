@@ -1223,6 +1223,919 @@ INDEX_HTML = r"""<!doctype html>
         toastMusicStarted: "音乐生成已开始！", toastMusicReady: "音乐完成：", toastLyricsSuccess: "歌词生成成功！", toastLyricsError: "歌词生成失败。", toastVoiceCloneSuccess: "声音复刻成功！", toastVoiceCloneError: "声音复刻失败。",
         langMenuLabel: "界面语言", langMismatchWarn: "⚠️ 歌词语言与所选音色不匹配，歌词可能与这个音色不协调。", langMismatchTitle: "语言不匹配"
       }
+    ,
+      yue: {
+        subtitle: "當語言無法抵達時，讓音樂替你表達。給你嘅內心世界一種屬於自己嘅聲音。",
+        createTitle: "創建音樂", createDesc: "寫低感受、故事、歌詞或風格，Music Speaks 會將佢變成一首可以下載嘅歌。",
+        emailLabel: "電郵地址（可選）", emailHint: "可唔填。下載係獲取 MP3 的主要方式。填寫後可以收到電郵發送嘅 MP3。",
+        emailPlaceholder: "你的電郵",
+        titleLabel: "歌名（可選）", titleHint: "唔填寫時，Music Speaks 會根據歌詞分析生成歌名，並用作 MP3 檔案名。",
+        titlePlaceholder: "留空時，AI 會自動起歌名",
+        promptLabel: "音樂風格描述", promptHint: "寫清風格、情緒、樂器、速度和參考對象。",
+        promptPlaceholder: "例如：明亮自信的電子流行，製作精緻，副歌有記憶點",
+        lyricsIdeaLabel: "歌詞指令（可選）", lyricsIdeaHint: "描述你想要的内容，或俾 AI 指令如'翻譯成韓語'。所選音色的語種會自動應用。",
+        lyricsExtraLabel: "附加要求（可選）", lyricsExtraHint: "描述歌詞的附加要求：長度、情感基調、風格、情緒、節奏、結構等。",
+        lyricsExtraPlaceholder: "長度：3-5分鐘 / 情感：憂傷的 / 風格：詩意、口語化 / 情緒：暗黑",
+        lyricsIdeaPlaceholder: "寫下你想要的故事、情緒、画面或零散片段。你也可以寫指令。",
+        generateLyrics: "生成歌詞", generatingLyrics: "正在生成歌詞...", lyricsGenerated: "歌詞已填入下方，你可以編輯後再生成音樂。",
+        lyricsAssistNeedBrief: "請先填寫歌詞需求描述或音樂風格。", lyricsAssistFailed: "歌詞生成失敗。",
+        lyricsLabel: "完整歌詞（可選）", lyricsHint: "如果你已經有確定歌詞，貼在這裡。完整歌詞會優先於歌詞需求描述。",
+        lyricsPlaceholder: "[主歌]
+在這裡寫歌詞...
+[副歌]
+在這裡寫副歌...",
+        instrumental: "純音樂", instrumentalHint: "無人聲，歌詞會被忽略。",
+        autoLyrics: "自動生成歌詞", autoLyricsHint: "AI 根據描述寫歌詞。",
+        voiceCloneLabel: "聲紋復刻（可選）", voiceRecordBtn: "錄製我的聲音", voiceCloneHint: "錄製5段不同音調和風格的短句，約30秒。復刻聲音有效期7天。",
+        voicePreviewBtn: "預覽聲音", voiceUploading: "正在復刻你的聲音...", voiceReady: "聲音復刻完成！點擊預覽試聽。",
+        voiceError: "聲音復刻失敗。", voicePreviewGenerating: "正在生成預覽...", voicePreviewReady: "預覽已生成。", voicePreviewError: "預覽生成失敗。",
+        voiceSingingMode: "聲紋唱歌合成模式", voiceSingingModeHint: "優先嘗試 MiniMax voice_clone_singing；不可用時自動降級為聲音翻唱。",
+        voicePickerLabel: "人聲音色", voicePickerDefault: "點擊選擇，或在下方錄製自己的聲音", voicePickerLoading: "加載音色中...", voiceShowMore: "再顯示 {count} 個",
+        voicePreviewSample: "試聽此音色",
+        voiceCustomBtn: "我的聲音", voiceCustomDesc: "錄製並使用自己的聲音",
+        recModalTitle: "錄製您的聲音",
+        templates: "風格模板",
+        advanced: "更多參數", genre: "流派", mood: "情緒", instruments: "樂器", tempo: "節奏感", bpm: "BPM", key: "調性",
+        vocals: "人聲風格", structure: "歌曲結構", references: "參考對象", avoid: "避免元素", useCase: "使用場景", extra: "其他細節",
+        genrePlaceholder: "流行、雷鬼、爵士", moodPlaceholder: "溫暖、明亮、強烈", instrumentsPlaceholder: "鋼琴、吉他、鼓",
+        tempoPlaceholder: "快、中速、慢", bpmPlaceholder: "85", keyPlaceholder: "C 大調、A 小調",
+        vocalsPlaceholder: "溫暖男聲、明亮女聲、男女對唱", structurePlaceholder: "主歌-副歌-主歌-橋段-副歌",
+        referencesPlaceholder: "參考某首歌、某位歌手或某種感覺", avoidPlaceholder: "避免露骨內容",
+        useCasePlaceholder: "視頻背景、主題曲", extraPlaceholder: "其他補充要求",
+        submit: "生成音樂", jobsTitle: "生成任務", jobsDesc: "實時狀態。MP3 準備好後會出現下載按鈕。",
+        clearDraft: "清空草稿", clearDraftConfirm: "清空當前草稿？這不會刪除已經生成的音樂。",
+        draftSaved: "草稿已保存", draftRestored: "已恢復上次草稿", draftCleared: "草稿已清空", draftRestoreFailed: "無法恢復服務器草稿。",
+        empty: "暫無任務，填寫表單開始創作。", queued: "排隊中", running: "生成中", completed: "完成", error: "錯誤", unknown: "未知",
+        download: "下載 MP3", delete: "刪除", sent: "已發送到", instrumentalMode: "純音樂", vocalMode: "有人聲", deleteConfirm: "刪除此任務？", deleteFailed: "刪除失敗",
+        navCreate: "創建", navLibrary: "曲庫", navFavorites: "收藏", navHistory: "歷史", navPlaylists: "播放列表", playlistAll: "全部歌曲", playlistRecent: "最近播放",
+        libraryDesc: "你生成的所有歌曲。", favoritesDesc: "你喜歡的歌曲。", historyDesc: "最近生成的歌曲。",
+        toastMusicStarted: "音樂生成已開始！", toastMusicReady: "音樂完成：", toastLyricsSuccess: "歌詞生成成功！", toastLyricsError: "歌詞生成失敗。", toastVoiceCloneSuccess: "聲音復刻成功！", toastVoiceCloneError: "聲音復刻失敗。",
+        langMenuLabel: "界面語言", langMismatchWarn: "⚠️ 歌詞語言與所選音色不匹配，歌詞可能與這個音色不協調。", langMismatchTitle: "語言不匹配"
+      },
+      ko: {
+        subtitle: "말이 부족할 때, 음악이替你 표현해 드립니다. 당신의 내면 세계에属于自己的 소리를 주세요.",
+        createTitle: "음악 만들기", createDesc: "느낌, 이야기, 가사 또는 스타일을 적어주세요. Music Speaks가 노래로 만들어 드립니다.",
+        emailLabel: "이메일 주소 (선택)", emailHint: "선택사항. 다운로드가 MP3를 받는 주된 방법입니다.",
+        emailPlaceholder: "your@email.com",
+        titleLabel: "노래 제목 (선택)", titleHint: "비워두면 Music Speaks가 가사로부터 제목을 만들어 MP3 파일명으로 사용합니다.",
+        titlePlaceholder: "비워두면 AI가 제목을 지어줍니다",
+        promptLabel: "음악 스타일 설명", promptHint: "스타일, 분위기, 악기, 템포, 참고 대상을 적어주세요.",
+        promptPlaceholder: "밝고 자신감 있는 일렉트로닉 팝, 세련된 프로덕션, 강한 후렴",
+        lyricsIdeaLabel: "가사 지시 (선택)", lyricsIdeaHint: "원하는 내용을描述하거나 '한국어로 번역'과 같은 지시를 내리세요. 선택한 음성 언어가 자동으로 적용됩니다.",
+        lyricsExtraLabel: "추가 요구사항 (선택)", lyricsExtraHint: "길이, 감정基调, 스타일, 분위기, 템포, 구조 등 가사에 대한 추가 요구사항을描述하세요.",
+        lyricsExtraPlaceholder: "길이: 3-5분 / 감정: 슬픈, 희망적인 / 스타일: 시적인 / 분위기: 어두운",
+        lyricsIdeaPlaceholder: "원하는 이야기, 감정, 장면이나 단편을 적어주세요.",
+        generateLyrics: "가사 생성", generatingLyrics: "가사 생성 중...", lyricsGenerated: "가사가 아래에 추가되었습니다. 음악 생성 전 편집할 수 있습니다.",
+        lyricsAssistNeedBrief: "먼저 가사 요구사항이나 음악 스타일을 적어주세요.", lyricsAssistFailed: "가사 생성에 실패했습니다.",
+        lyricsLabel: "완전한 가사 (선택)", lyricsHint: "이미 완성된 가사가 있으면 여기에 붙여넣으세요. 완성된 가사가 가사 요구사항보다 우선합니다.",
+        lyricsPlaceholder: "[ verse]
+여기에 가사...
+[ hook]
+여기에 후렴...",
+        instrumental: "반주", instrumentalHint: "보컬 없음. 가사는 무시됩니다.",
+        autoLyrics: "자동 가사 생성", autoLyricsHint: "AI가 설명에서 가사를 작성합니다.",
+        voiceCloneLabel: "음성 복제 (선택)", voiceRecordBtn: "내 목소리 녹음", voiceCloneHint: "다양한 톤과 스타일의 짧은 구절 5개를 녹음합니다. 약 30초. 복제된 음성은 7일 동안 유효합니다.",
+        voicePreviewBtn: "음성 미리보기", voiceUploading: "음성 복제 중...", voiceReady: "음성 복제 완료! 미리보기를 클릭하여 들어보세요.",
+        voiceError: "음성 복제에 실패했습니다.", voicePreviewGenerating: "미리보기 생성 중...", voicePreviewReady: "미리보기 준비 완료.", voicePreviewError: "미리보기 생성에 실패했습니다.",
+        voiceSingingMode: "가창 합성 모드", voiceSingingModeHint: "우선 MiniMax voice_clone_singing을 시도합니다. 사용할 수 없으면 자동으로 음성 커버로降급합니다.",
+        voicePickerLabel: "보컬 스타일", voicePickerDefault: "선택하려면 클릭 - 이것이 가사 언어를 설정합니다", voicePickerLoading: "음성 로딩 중...", voiceShowMore: "{count}개 더 보기",
+        voicePreviewSample: "이 음성 샘플 듣기",
+        voiceCustomBtn: "내 목소리", voiceCustomDesc: "내 목소리를 녹음하고 사용합니다",
+        recModalTitle: "내 목소리 녹음",
+        templates: "스타일 템플릿",
+        advanced: "추가 매개변수", genre: "장르", mood: "분위기", instruments: "악기", tempo: "템포 느낌", bpm: "BPM", key: "키",
+        vocals: "보컬 스타일", structure: "노래 구조", references: "참조", avoid: "피해야 할 것", useCase: "사용 사례", extra: "추가 세부사항",
+        genrePlaceholder: "팝, 레게, 재즈", moodPlaceholder: "따뜻한, 밝은, 강렬한", instrumentsPlaceholder: "피아노, 기타, 드럼",
+        tempoPlaceholder: "빠른, 느린, 중간", bpmPlaceholder: "85", keyPlaceholder: "C major, A minor",
+        vocalsPlaceholder: "따뜻한 남성 보컬, 밝은 여성 보컬", structurePlaceholder: " verse-chorus-verse-bridge-chorus",
+        referencesPlaceholder: "어떤 노래, 가수 또는 느낌 참고", avoidPlaceholder: "노골적인 내용, 과도한 오토튜너 피하기",
+        useCasePlaceholder: "비디오 배경, 테마 송", extraPlaceholder: "추가 참고 요청사항",
+        submit: "음악 생성", jobsTitle: "작업", jobsDesc: "실시간 상태. MP3가 준비되면 다운로드 버튼이 나타납니다.",
+        clearDraft: "초안 지우기", clearDraftConfirm: "현재 초안을 지우시겠습니까? 생성된 음악은 삭제되지 않습니다.",
+        draftSaved: "초안 저장됨", draftRestored: "이전 초안 복원됨", draftCleared: "초안 지워짐", draftRestoreFailed: "서버 초안을 복원할 수 없습니다.",
+        empty: "아직 작업이 없습니다. 양식을 작성하여 시작하세요.", queued: "대기 중", running: "생성 중", completed: "완료", error: "오류", unknown: "알 수 없음",
+        download: "MP3 다운로드", delete: "삭제", sent: "보낸 대상", instrumentalMode: "반주", vocalMode: "보컬", deleteConfirm: "이 작업을 삭제하시겠습니까?", deleteFailed: "삭제 실패",
+        navCreate: "만들기", navLibrary: "라이브러리", navFavorites: "즐겨찾기", navHistory: "기록", navPlaylists: "재생목록", playlistAll: "모든 노래", playlistRecent: "최근 재생",
+        libraryDesc: "생성한 모든 노래가 여기에 있습니다.", favoritesDesc: "좋아하는 노래.", historyDesc: "최근 생성된 노래.",
+        toastMusicStarted: "음악 생성 시작!", toastMusicReady: "음악 준비 완료: ", toastLyricsSuccess: "가사 생성 성공!", toastLyricsError: "가사 생성 실패.", toastVoiceCloneSuccess: "음성 복제 성공!", toastVoiceCloneError: "음성 복제 실패.",
+        langMenuLabel: "인터페이스 언어", langMismatchWarn: "⚠️ 가사 언어와 선택한 음성 언어가 일치하지 않습니다. 가사가 이 음성과 어울리지 않을 수 있습니다.", langMismatchTitle: "언어 불일치"
+      },
+      ja: {
+        subtitle: "言葉が足りないとき、音楽が替你語ります。あなたの内面の世界に属于自己的音を。",
+        createTitle: "音楽作成", createDesc: "気持ち、ストーリー、歌詞、スタイルを書いてください。Music Speaksが曲にしてくれます。",
+        emailLabel: "メールアドレス（任意）", emailHint: "任意。ダウンロードがMP3を受け取る主な方法です。",
+        emailPlaceholder: "your@email.com",
+        titleLabel: "曲名（任意）", titleHint: "空欄の場合、Music Speaksが歌詞から曲名を付けてMP3のファイル名とします。",
+        titlePlaceholder: "空欄でAIが曲名を作成",
+        promptLabel: "音楽スタイル説明", promptHint: "スタイル、ムード、楽器、テンポ、参考情報を書いてください。",
+        promptPlaceholder: "明るくて自信のあるエレクトロニックポップ、精致なプロダクション、記憶に残るフック",
+        lyricsIdeaLabel: "歌詞指示（任意）", lyricsIdeaHint: " 원하는 내용을記述するか、'韓国語に翻訳'のような指示を出してください。選択した音声言語が自動的に適用されます。",
+        lyricsExtraLabel: "追加要件（任意）", lyricsExtraHint: "歌詞の追加要件：長さ、感情基调、スタイル、ムード、テンポ、構造などを記述してください。",
+        lyricsExtraPlaceholder: "長さ: 3-5分 / 感情: 悲しい、希望的な / スタイル: 詩的な / ムード: 暗い",
+        lyricsIdeaPlaceholder: "ほしいストーリー、感情、画面や片段を書いてください。",
+        generateLyrics: "歌詞生成", generatingLyrics: "歌詞生成中...", lyricsGenerated: "歌詞が 아래に追加されました。音楽生成前に編集できます。",
+        lyricsAssistNeedBrief: "まず歌詞 요구事項や音楽スタイルを書いてください。", lyricsAssistFailed: "歌詞生成に失敗しました。",
+        lyricsLabel: "完全な歌詞（任意）", lyricsHint: "すでに完全な歌詞があるなら、ここに貼り付けてください。完全な歌詞が歌詞指示より優先されます。",
+        lyricsPlaceholder: "[ verse]
+ここに歌詞...
+[ hook]
+ここにフック...",
+        instrumental: "伴奏", instrumentalHint: "ボーカルなし。歌詞は無視されます。",
+        autoLyrics: "自動歌詞生成", autoLyricsHint: "AIが説明から歌詞を書きます。",
+        voiceCloneLabel: "音声クローン（任意）", voiceRecordBtn: "声を録音", voiceCloneHint: "異なるトーンとスタイルの短い節5つを録音します 約30秒。クローンされた声は7日間有効です。",
+        voicePreviewBtn: "声プレビュー", voiceUploading: "声をクローン中...", voiceReady: "声のクローン完了！プレビューをクリックして试听。",
+        voiceError: "声のクローンに失敗しました。", voicePreviewGenerating: "プレビュー生成中...", voicePreviewReady: "プレビュー準備完了。", voicePreviewError: "プレビュー生成に失敗しました。",
+        voiceSingingMode: "歌唱合成モード", voiceSingingModeHint: "最初にMiniMax voice_clone_singingを試みます 利用できない場合、自動的に声カバーに降級します。",
+        voicePickerLabel: "ボーカルスタイル", voicePickerDefault: "クリックして選択 - これにより歌詞言語が設定されます", voicePickerLoading: "声読み込み中...", voiceShowMore: "さらに{count}個表示",
+        voicePreviewSample: "この声サンプルを聴く",
+        voiceCustomBtn: "私の声", voiceCustomDesc: "自分の声を録音して使用",
+        recModalTitle: "声を録音",
+        templates: "スタイルテンプレート",
+        advanced: "追加パラメータ", genre: "ジャンル", mood: "ムード", instruments: "楽器", tempo: "テンポ感", bpm: "BPM", key: "キー",
+        vocals: "ボーカルスタイル", structure: "曲構造", references: "参照", avoid: "避けるもの", useCase: "ユースケース", extra: "追加詳細",
+        genrePlaceholder: "ポップ、レゲエジャズ", moodPlaceholder: "温かい、明るい、强烈", instrumentsPlaceholder: "ピアノ、ギター、ドラム",
+        tempoPlaceholder: "速い、遅い、中間", bpmPlaceholder: "85", keyPlaceholder: "C major, A minor",
+        vocalsPlaceholder: "温かい男性ボーカル、明るい女性ボーカル", structurePlaceholder: "verse-chorus-verse-bridge-chorus",
+        referencesPlaceholder: "参考の曲、歌手、感覚", avoidPlaceholder: "露骨なコンテンツ、過度なオートチューンを避ける",
+        useCasePlaceholder: "動画背景、テーマ曲", extraPlaceholder: "追加のメモ",
+        submit: "音楽生成", jobsTitle: "ジョブ", jobsDesc: "リアルタイム状態。MP3の準備ができるとダウンロードボタンが表示されます。",
+        clearDraft: "下書きを消去", clearDraftConfirm: "現在の下書きを消去しますか？生成された音楽は削除されません。",
+        draftSaved: "下書き保存済み", draftRestored: "前の下書きが復元されました", draftCleared: "下書き消去済み", draftRestoreFailed: "サーバ了下書きを復元できませんでした。",
+        empty: "まだジョブがありません。フォームに記入して開始してください。", queued: "待機中", running: "生成中", completed: "完了", error: "エラー", unknown: "不明",
+        download: "MP3をダウンロード", delete: "削除", sent: "送信先", instrumentalMode: "伴奏", vocalMode: "ボーカル", deleteConfirm: "このジョブを削除しますか？", deleteFailed: "削除に失敗しました",
+        navCreate: "作成", navLibrary: "ライブラリ", navFavorites: "お気に入り", navHistory: "履歴", navPlaylists: "プレイリスト", playlistAll: "すべての曲", playlistRecent: "最近再生",
+        libraryDesc: "生成したすべての曲がここに表示されます。", favoritesDesc: "いいね！した曲。", historyDesc: "最近生成された曲。",
+        toastMusicStarted: "音楽生成開始！", toastMusicReady: "音楽準備完了: ", toastLyricsSuccess: "歌詞生成成功！", toastLyricsError: "歌詞生成失敗。", toastVoiceCloneSuccess: "声のクローン成功！", toastVoiceCloneError: "声のクローン失敗。",
+        langMenuLabel: "インターフェース言語", langMismatchWarn: "⚠️ 歌詞言語が選択した声の言語と一致しません。歌詞がこの声に合わない可能性があります。", langMismatchTitle: "言語の不一致"
+      },
+      es: {
+        subtitle: "Cuando las palabras no bastan, que la música hable por ti.",
+        createTitle: "Crear Música", createDesc: "Escribe un sentimiento, historia, letra o estilo. Music Speaks lo convierte en una canción descargable.",
+        emailLabel: "Correo electrónico (opcional)", emailHint: "Opcional. La descarga es la forma principal de obtener tu MP3.",
+        emailPlaceholder: "tu@email.com",
+        titleLabel: "Título de la canción (opcional)", titleHint: "Si está vacío, Music Speaks creará un título a partir de la letra.",
+        titlePlaceholder: "Déjalo vacío y la IA nombrará la canción",
+        promptLabel: "Estilo musical", promptHint: "Incluye estilo, estado de ánimo, instrumentos, tempo y referencias.",
+        promptPlaceholder: "Pop electrónico brillante y seguro, producción pulida, gancho memorable",
+        lyricsIdeaLabel: "Instrucciones de letra (opcional)", lyricsIdeaHint: "Describe lo que quieres o dale a la IA una tarea. El idioma de la voz seleccionada se aplica automáticamente.",
+        lyricsExtraLabel: "Requisitos adicionales (opcional)", lyricsExtraHint: "Describe requisitos adicionales: duración, tono emocional, estilo, estado de ánimo, tempo, estructura.",
+        lyricsExtraPlaceholder: "Duración: 3-5 min / Emoción: triste, esperanzado / Estilo: poético / Estado de ánimo: oscuro",
+        lyricsIdeaPlaceholder: "Escribe la historia, sentimientos, imágenes o fragmentos que quieras.",
+        generateLyrics: "Generar letra", generatingLyrics: "Generando letra...", lyricsGenerated: "Letra añadida abajo. Puedes editarla antes de generar música.",
+        lyricsAssistNeedBrief: "Añade primero una descripción o estilo musical.", lyricsAssistFailed: "La generación de letra ha fallado.",
+        lyricsLabel: "Letra completa (opcional)", lyricsHint: "Pega aquí la letra exacta si ya la tienes. La letra exacta tiene prioridad.",
+        lyricsPlaceholder: "[Verso]
+Tu letra aquí...
+[Estribillo]
+Tu estribillo...",
+        instrumental: "Instrumental", instrumentalHint: "Sin vocals. La letra será ignorada.",
+        autoLyrics: "Auto-generar letra", autoLyricsHint: "La IA escribe la letra según tu descripción.",
+        voiceCloneLabel: "Clon de voz (opcional)", voiceRecordBtn: "Grabar mi voz", voiceCloneHint: "Graba 5 frases cortas de diferentes tonos. Toma unos 30 segundos. La voz clonada expira en 7 días.",
+        voicePreviewBtn: "Vista previa de voz", voiceUploading: "Clonando tu voz...", voiceReady: "¡Voz clonada! Usa Vista previa para escuchar.",
+        voiceError: "El clon de voz ha fallado.", voicePreviewGenerating: "Generando vista previa...", voicePreviewReady: "Vista previa lista.", voicePreviewError: "Vista previa fallida.",
+        voiceSingingMode: "Modo de síntesis de canto", voiceSingingModeHint: "Intenta primero MiniMax voice_clone_singing. Si no está disponible, recurre a voice cover.",
+        voicePickerLabel: "Estilo de voz", voicePickerDefault: "Haz clic para seleccionar — esto establece el idioma de la letra", voicePickerLoading: "Cargando voces...", voiceShowMore: "Mostrar {count} más",
+        voicePreviewSample: "Escucha esta muestra de voz",
+        voiceCustomBtn: "Mi voz", voiceCustomDesc: "Graba y usa tu propia voz",
+        recModalTitle: "Graba tu voz",
+        templates: "Plantillas de estilo",
+        advanced: "Más parámetros", genre: "Género", mood: "Estado de ánimo", instruments: "Instrumentos", tempo: "Tempo", bpm: "BPM", key: "Tonalidad",
+        vocals: "Estilo vocal", structure: "Estructura de canción", references: "Referencias", avoid: "Evitar", useCase: "Caso de uso", extra: "Detalles extra",
+        genrePlaceholder: "pop, reggae, jazz", moodPlaceholder: "cálido, brillante, intenso", instrumentsPlaceholder: "piano, guitarra, batería",
+        tempoPlaceholder: "rápido, lento, moderado", bpmPlaceholder: "85", keyPlaceholder: "Do mayor, La menor",
+        vocalsPlaceholder: "vocal masculino cálido, vocal femenino brillante", structurePlaceholder: "verso-estribillo-verso-puente-estribillo",
+        referencesPlaceholder: "similar a...", avoidPlaceholder: "contenido explícito, auto-tune excesivo",
+        useCasePlaceholder: "fondo de video, canción temática", extraPlaceholder: "Notas adicionales",
+        submit: "Generar Música", jobsTitle: "Trabajos", jobsDesc: "Estado en tiempo real. El botón de descarga aparece cuando el MP3 está listo.",
+        clearDraft: "Borrar borrador", clearDraftConfirm: "¿Borrar el borrador actual? Esto no eliminará la música generada.",
+        draftSaved: "Borrador guardado", draftRestored: "Borrador anterior restaurado", draftCleared: "Borrador borrado", draftRestoreFailed: "No se pudo restaurar el borrador del servidor.",
+        empty: "Sin trabajos aún. Completa el formulario para empezar.", queued: "En cola", running: "Generando", completed: "Hecho", error: "Error", unknown: "Desconocido",
+        download: "Descargar MP3", delete: "Eliminar", sent: "Enviado a", instrumentalMode: "Instrumental", vocalMode: "Vocal", deleteConfirm: "¿Eliminar este trabajo?", deleteFailed: "Error al eliminar",
+        navCreate: "Crear", navLibrary: "Biblioteca", navFavorites: "Favoritos", navHistory: "Historial", navPlaylists: "Listas", playlistAll: "Todas las canciones", playlistRecent: "Reproducido recientemente",
+        libraryDesc: "Todas tus canciones generadas en un solo lugar.", favoritesDesc: "Tus canciones favoritas.", historyDesc: "Canciones generadas recientemente.",
+        toastMusicStarted: "¡Generación de música iniciada!", toastMusicReady: "Música lista: ", toastLyricsSuccess: "¡Letra generada con éxito!", toastLyricsError: "Generación de letra fallida.", toastVoiceCloneSuccess: "¡Voz clonada con éxito!", toastVoiceCloneError: "Clon de voz fallido.",
+        langMenuLabel: "Idioma de interfaz", langMismatchWarn: "⚠️ El idioma de la letra no coincide con el idioma de la voz seleccionada.", langMismatchTitle: "Desajuste de idioma"
+      },
+      ar: {
+        subtitle: "عندما لا تكفي الكلمات، دع الموسيقى تتحدث عنك.",
+        createTitle: "إنشاء موسيقى", createDesc: "اكتب شعورًا أو قصة أو كلمات أو أسلوبًا. سيحولها Music Speaks إلى أغنية.",
+        emailLabel: "البريد الإلكتروني (اختياري)", emailHint: "اختياري. التنزيل هو الطريقة الرئيسية للحصول على ملف MP3.",
+        emailPlaceholder: "your@email.com",
+        titleLabel: "عنوان الأغنية (اختياري)", titleHint: "إذا تركته فارغًا، سيقوم Music Speaks بإنشاء عنوان من الكلمات.",
+        titlePlaceholder: "اتركه فارغًا وسيسمي الذكاء الاصطناعي الأغنية",
+        promptLabel: "وصف الأسلوب الموسيقي", promptHint: "قم بتضمين الأسلوب والمزاج والآلات والسرعة والمراجع.",
+        promptPlaceholder: "موسيقى البوب الإلكترونية المشرقة والثقة، إنتاج أنيق، خطاف لا يُنسى",
+        lyricsIdeaLabel: "تعليمات الكلمات (اختياري)", lyricsIdeaHint: "صف ما تريد أو أعطِ الذكاء الاصطناعي تعليمات. يتم تطبيق لغة الصوت المحدد تلقائيًا.",
+        lyricsExtraLabel: "المتطلبات الإضافية (اختياري)", lyricsExtraHint: "صف المتطلبات الإضافية: المدة والنبرة العاطفية والأسلوب والمزاج والسرعة والهيكل.",
+        lyricsExtraPlaceholder: "المدة: 3-5 دقائق / العاطفة: حزين، متفائل / الأسلوب: شعري / المزاج: قاتم",
+        lyricsIdeaPlaceholder: "اكتب القصة والمشاعر والصور أو المقاطع التي تريدها.",
+        generateLyrics: "إنشاء كلمات", generatingLyrics: "جاري إنشاء الكلمات...", lyricsGenerated: "تمت إضافة الكلمات أدناه. يمكنك تعديلها قبل إنشاء الموسيقى.",
+        lyricsAssistNeedBrief: "أضف أولاً وصفًا أو أسلوبًا موسيقيًا.", lyricsAssistFailed: "فشل إنشاء الكلمات.",
+        lyricsLabel: "الكلمات الكاملة (اختياري)", lyricsHint: "الصق الكلمات الكاملة هنا إذا كانت متوفرة. الكلمات الكاملة لها الأولوية.",
+        lyricsPlaceholder: "[المقطع]\nكلماتك هنا...\n[اللازمة]\nلازمتك هنا...",
+        instrumental: "آلي", instrumentalHint: "بدون أصوات. سيتم تجاهل الكلمات.",
+        autoLyrics: "إنشاء تلقائي للكلمات", autoLyricsHint: "الذكاء الاصطناعي يكتب الكلمات بناءً على وصفك.",
+        voiceCloneLabel: "استنساخ الصوت (اختياري)", voiceRecordBtn: "تسجيل صوتي", voiceCloneHint: "سجل 5 جمل قصيرة بأصوات مختلفة. يستغرق حوالي 30 ثانية. تنتهي صلاحية الصوت المستنسخ بعد 7 أيام.",
+        voicePreviewBtn: "معاينة الصوت", voiceUploading: "جاري استنساخ صوتك...", voiceReady: "تم استنساخ الصوت! انقر على المعاينة للاستماع.",
+        voiceError: "فشل استنساخ الصوت.", voicePreviewGenerating: "جاري إنشاء المعاينة...", voicePreviewReady: "المعاينة جاهزة.", voicePreviewError: "فشلت المعاينة.",
+        voiceSingingMode: "وضع تركيب الغناء", voiceSingingModeHint: "جرب أولاً MiniMax voice_clone_singing. إذا لم يكن متوفرًا، استخدم voice cover.",
+        voicePickerLabel: "أسلوب الصوت", voicePickerDefault: "انقر للتحديد - هذا يحدد لغة الكلمات", voicePickerLoading: "جاري تحميل الأصوات...", voiceShowMore: "عرض {count} إضافية",
+        voicePreviewSample: "استمع إلى هذه العينة الصوتية",
+        voiceCustomBtn: "صوتي", voiceCustomDesc: "سجل واستخدم صوتك الخاص",
+        recModalTitle: "سجل صوتك",
+        templates: "قوالب الأنماط",
+        advanced: "معلمات إضافية", genre: "النوع", mood: "المزاج", instruments: "الآلات", tempo: "الإيقاع", bpm: "BPM", key: "المفتاح",
+        vocals: "أسلوب الصوت", structure: "هيكل الأغنية", references: "المراجع", avoid: "تجنب", useCase: "حالة الاستخدام", extra: "تفاصيل إضافية",
+        genrePlaceholder: "بوب، ريغي، جاز", moodPlaceholder: "دافئ، مشرق، مكثف", instrumentsPlaceholder: "بيانو، جيتار، طبول",
+        tempoPlaceholder: "سريع، بطيء، معتدل", bpmPlaceholder: "85", keyPlaceholder: "دو كبير، لا صغير",
+        vocalsPlaceholder: "صوت ذكر دافئ، صوت أنثوي مشرق", structurePlaceholder: "مقطع-لازمة-مقطع-جسر-لازمة",
+        referencesPlaceholder: "مشابه لـ...", avoidPlaceholder: "محتوى صريح، ضبط صوتي مفرط",
+        useCasePlaceholder: "خلفية فيديو، أغنية موضوعية", extraPlaceholder: "ملاحظات إضافية",
+        submit: "إنشاء موسيقى", jobsTitle: "المهام", jobsDesc: "الحالة في الوقت الفعلي. يظهر زر التنزيل عند جاهزية ملف MP3.",
+        clearDraft: "مسح المسودة", clearDraftConfirm: "مسح المسودة الحالية؟ لن يؤدي هذا إلى حذف الموسيقى المولدة.",
+        draftSaved: "تم حفظ المسودة", draftRestored: "تم استعادة المسودة السابقة", draftCleared: "تم مسح المسودة", draftRestoreFailed: "تعذر استعادة المسودة من الخادم.",
+        empty: "لا توجد مهام بعد. أكمل النموذج للبدء.", queued: "في الانتظار", running: "جاري الإنشاء", completed: "تم", error: "خطأ", unknown: "غير معروف",
+        download: "تحميل MP3", delete: "حذف", sent: "أرسل إلى", instrumentalMode: "آلي", vocalMode: "صوتي", deleteConfirm: "حذف هذه المهمة؟", deleteFailed: "فشل الحذف",
+        navCreate: "إنشاء", navLibrary: "المكتبة", navFavorites: "المفضلة", navHistory: "السجل", navPlaylists: "القوائم", playlistAll: "جميع الأغاني", playlistRecent: "تم تشغيلها مؤخرًا",
+        libraryDesc: "جميع أغانيك المولدة في مكان واحد.", favoritesDesc: "أغانيك المفضلة.", historyDesc: "الأغاني المولدة مؤخرًا.",
+        toastMusicStarted: "بدأ إنشاء الموسيقى!", toastMusicReady: "الموسيقى جاهزة: ", toastLyricsSuccess: "تم إنشاء الكلمات بنجاح!", toastLyricsError: "فشل إنشاء الكلمات.", toastVoiceCloneSuccess: "تم استنساخ الصوت بنجاح!", toastVoiceCloneError: "فشل استنساخ الصوت.",
+        langMenuLabel: "لغة الواجهة", langMismatchWarn: "⚠️ لغة الكلمات لا تتطابق مع لغة الصوت المحدد.", langMismatchTitle: "عدم تطابق اللغة"
+      },
+      hi: {
+        subtitle: "जब शब्द काफी नहीं होते, तो संगीत आपके लिए बोले।",
+        createTitle: "संगीत बनाएं", createDesc: "एक भावना, कहानी, गीत या शैली लिखें। Music Speaks इसे एक गाने में बदल देगा।",
+        emailLabel: "ईमेल पता (वैकल्पिक)", emailHint: "वैकल्पिक। डाउनलोड आपकी MP3 प्राप्त करने का मुख्य तरीका है।",
+        emailPlaceholder: "your@email.com",
+        titleLabel: "गाने का शीर्षक (वैकल्पिक)", titleHint: "यदि खाली छोड़ा जाए, तो Music Speaks गीत से शीर्षक बनाएगा।",
+        titlePlaceholder: "खाली छोड़ें और AI गाने का नाम देगा",
+        promptLabel: "संगीत शैली विवरण", promptHint: "शैली, मूड, वाद्ययंत्र, गति और संदर्भ शामिल करें।",
+        promptPlaceholder: "चमकीला और आत्मविश्वासी इलेक्ट्रॉनिक पॉप, परिष्कृत प्रोडक्शन, यादगार हुक",
+        lyricsIdeaLabel: "गीत निर्देश (वैकल्पिक)", lyricsIdeaHint: "जो चाहें वह वर्णन करें या AI को निर्देश दें। चयनित ध्वनि की भाषा स्वचालित रूप से लागू होती है।",
+        lyricsExtraLabel: "अतिरिक्त आवश्यकताएं (वैकल्पिक)", lyricsExtraHint: "अतिरिक्त आवश्यकताओं का वर्णन करें: अवधि, भावनात्मक स्वर, शैली, मूड, गति, संरचना।",
+        lyricsExtraPlaceholder: "अवधि: 3-5 मिनट / भावना: उदास, आशावान / शैली: काव्यात्मक / मूड: अंधेरा",
+        lyricsIdeaPlaceholder: "जो कहानी, भावनाएं, दृश्य या टुकड़े चाहते हैं वे लिखें।",
+        generateLyrics: "गीत बनाएं", generatingLyrics: "गीत बना रहे हैं...", lyricsGenerated: "गीत नीचे जोड़ा गया। संगीत बनाने से पहले संपादित कर सकते हैं।",
+        lyricsAssistNeedBrief: "पहले एक विवरण या संगीत शैली जोड़ें।", lyricsAssistFailed: "गीत बनाना विफल रहा।",
+        lyricsLabel: "पूरा गीत (वैकल्पिक)", lyricsHint: "यदि आपके पास पहले से पूरा गीत है तो यहां पेस्ट करें। पूरा गीत प्राथमिकता लेता है।",
+        lyricsPlaceholder: "[पहला]\nआपका गीत यहां...\n[कवर]\nआपका कवर यहां...",
+        instrumental: "वाद्य", instrumentalHint: "बिना वोकल के। गीत को अनदेखा किया जाएगा।",
+        autoLyrics: "स्वतः गीत बनाएं", autoLyricsHint: "AI आपके विवरण के अनुसार गीत लिखता है।",
+        voiceCloneLabel: "आवाज़ क्लोन (वैकल्पिक)", voiceRecordBtn: "मेरी आवाज़ रिकॉर्ड करें", voiceCloneHint: "विभिन्न स्वरों में 5 छोटे वाक्य रिकॉर्ड करें। लगभग 30 सेकंड। क्लोन की गई आवाज़ 7 दिनों में समाप्त हो जाती है।",
+        voicePreviewBtn: "आवाज़ पूर्वावलोकन", voiceUploading: "आपकी आवाज़ क्लोन हो रही है...", voiceReady: "आवाज़ क्लोन हो गई! सुनने के लिए पूर्वावलोकन पर क्लिक करें।",
+        voiceError: "आवाज़ क्लोन विफल।", voicePreviewGenerating: "पूर्वावलोकन बना रहे हैं...", voicePreviewReady: "पूर्वावलोकन तैयार।", voicePreviewError: "पूर्वावलोकन विफल।",
+        voiceSingingMode: "गायन संश्लेषण मोड", voiceSingingModeHint: "पहले MiniMax voice_clone_singing आज़माएं। यदि उपलब्ध नहीं है, तो voice cover पर जाएं।",
+        voicePickerLabel: "आवाज़ शैली", voicePickerDefault: "चुनने के लिए क्लिक करें - यह गीत की भाषा निर्धारित करता है", voicePickerLoading: "आवाज़ें लोड हो रही हैं...", voiceShowMore: "{count} और दिखाएं",
+        voicePreviewSample: "इस आवाज़ नमूने को सुनें",
+        voiceCustomBtn: "मेरी आवाज़", voiceCustomDesc: "अपनी आवाज़ रिकॉर्ड करें और उपयोग करें",
+        recModalTitle: "अपनी आवाज़ रिकॉर्ड करें",
+        templates: "शैली टेम्पलेट",
+        advanced: "अतिरिक्त पैरामीटर", genre: "शैली", mood: "मूड", instruments: "वाद्ययंत्र", tempo: "गति", bpm: "BPM", key: "कुंजी",
+        vocals: "वोकल शैली", structure: "गाने की संरचना", references: "संदर्भ", avoid: "बचें", useCase: "उपयोग मामला", extra: "अतिरिक्त विवरण",
+        genrePlaceholder: "पॉप, रेगे, जैज़", moodPlaceholder: "गर्म, चमकदार, तीव्र", instrumentsPlaceholder: "पियानो, गिटार, ड्रम",
+        tempoPlaceholder: "तेज़, धीमा, मध्यम", bpmPlaceholder: "85", keyPlaceholder: "सी मेजर, ए माइनर",
+        vocalsPlaceholder: "गर्म पुरुष वोकल, चमकदार महिला वोकल", structurePlaceholder: "वर्स-कवर-वर्स-ब्रिज-कवर",
+        referencesPlaceholder: "समान...", avoidPlaceholder: "स्पष्ट सामग्री, अत्यधिक ऑटो-ट्यून",
+        useCasePlaceholder: "वीडियो पृष्ठभूमि, थीम गाना", extraPlaceholder: "अतिरिक्त नोट्स",
+        submit: "संगीत बनाएं", jobsTitle: "कार्य", jobsDesc: "रीयल-टाइम स्थिति। MP3 तैयार होने पर डाउनलोड बटन दिखाई देता है।",
+        clearDraft: "ड्राफ्ट साफ़ करें", clearDraftConfirm: "वर्तमान ड्राफ्ट साफ़ करें? यह उत्पन्न संगीत को नहीं हटाएगा।",
+        draftSaved: "ड्राफ्ट सहेजा गया", draftRestored: "पिछला ड्राफ्ट पुनर्स्थापित", draftCleared: "ड्राफ्ट साफ़ किया गया", draftRestoreFailed: "सर्वर से ड्राफ्ट पुनर्स्थापित करने में विफल।",
+        empty: "अभी तक कोई कार्य नहीं। शुरू करने के लिए फॉर्म भरें।", queued: "कतार में", running: "बना रहे हैं", completed: "हो गया", error: "त्रुटि", unknown: "अज्ञात",
+        download: "MP3 डाउनलोड करें", delete: "हटाएं", sent: "को भेजा गया", instrumentalMode: "वाद्य", vocalMode: "वोकल", deleteConfirm: "इस कार्य को हटाएं?", deleteFailed: "हटाने में विफल",
+        navCreate: "बनाएं", navLibrary: "लाइब्रेरी", navFavorites: "पसंदीदा", navHistory: "इतिहास", navPlaylists: "प्लेलिस्ट", playlistAll: "सभी गाने", playlistRecent: "हाल ही में चलाया गया",
+        libraryDesc: "आपके सभी उत्पन्न गाने एक ही जगह।", favoritesDesc: "आपके पसंदीदा गाने।", historyDesc: "हाल ही में उत्पन्न गाने।",
+        toastMusicStarted: "संगीत निर्माण शुरू!", toastMusicReady: "संगीत तैयार: ", toastLyricsSuccess: "गीत सफलतापूर्वक बना!", toastLyricsError: "गीत बनाना विफल।", toastVoiceCloneSuccess: "आवाज़ क्लोन सफल!", toastVoiceCloneError: "आवाज़ क्लोन विफल।",
+        langMenuLabel: "इंटरफ़ेस भाषा", langMismatchWarn: "⚠️ गीत की भाषा चयनित आवाज़ की भाषा से मेल नहीं खाती।", langMismatchTitle: "भाषा बेमेल"
+      },
+      id: {
+        subtitle: "Ketika kata-kata tidak cukup, biarkan musik berbicara untuk Anda.",
+        createTitle: "Buat Musik", createDesc: "Tulis perasaan, cerita, lirik, atau gaya. Music Speaks akan mengubahnya menjadi lagu.",
+        emailLabel: "Alamat email (opsional)", emailHint: "Opsional. Unduhan adalah cara utama untuk mendapatkan MP3 Anda.",
+        emailPlaceholder: "your@email.com",
+        titleLabel: "Judul lagu (opsional)", titleHint: "Jika dikosongkan, Music Speaks akan membuat judul dari lirik.",
+        titlePlaceholder: "Kosongkan dan AI akan memberi nama lagu",
+        promptLabel: "Deskripsi gaya musik", promptHint: "Sertakan gaya, suasana, instrumen, tempo, dan referensi.",
+        promptPlaceholder: "Pop elektronik yang ceria dan percaya diri, produksi rapi, hook yang tak terlupakan",
+        lyricsIdeaLabel: "Petunjuk lirik (opsional)", lyricsIdeaHint: "Jelaskan apa yang Anda inginkan atau beri tahu AI. Bahasa suara yang dipilih diterapkan secara otomatis.",
+        lyricsExtraLabel: "Persyaratan tambahan (opsional)", lyricsExtraHint: "Jelaskan persyaratan tambahan: durasi, nada emosional, gaya, suasana, tempo, struktur.",
+        lyricsExtraPlaceholder: "Durasi: 3-5 menit / Emosi: sedih, penuh harapan / Gaya: puitis / Suasana: gelap",
+        lyricsIdeaPlaceholder: "Tulis cerita, perasaan, gambar, atau fragmen yang Anda inginkan.",
+        generateLyrics: "Buat lirik", generatingLyrics: "Membuat lirik...", lyricsGenerated: "Lirik ditambahkan di bawah. Anda dapat mengeditnya sebelum membuat musik.",
+        lyricsAssistNeedBrief: "Tambahkan deskripsi atau gaya musik terlebih dahulu.", lyricsAssistFailed: "Gagal membuat lirik.",
+        lyricsLabel: "Lirik lengkap (opsional)", lyricsHint: "Tempelkan lirik lengkap di sini jika sudah ada. Lirik lengkap lebih diutamakan.",
+        lyricsPlaceholder: "[ bait]\nLirik Anda di sini...\n[ refrain]\nRefrain Anda di sini...",
+        instrumental: "Instrumental", instrumentalHint: "Tanpa vokal. Lirik akan diabaikan.",
+        autoLyrics: "Buat lirik otomatis", autoLyricsHint: "AI menulis lirik berdasarkan deskripsi Anda.",
+        voiceCloneLabel: "Kloning suara (opsional)", voiceRecordBtn: "Rekam suara saya", voiceCloneHint: "Rekam 5 kalimat pendek dengan nada berbeda. Membutuhkan sekitar 30 detik. Suara yang dikloning akan kedaluwarsa dalam 7 hari.",
+        voicePreviewBtn: "Pratinjau suara", voiceUploading: "Mengkloning suara Anda...", voiceReady: "Suara dikloning! Klik Pratinjau untuk mendengarkan.",
+        voiceError: "Kloning suara gagal.", voicePreviewGenerating: "Membuat pratinjau...", voicePreviewReady: "Pratinjau siap.", voicePreviewError: "Pratinjau gagal.",
+        voiceSingingMode: "Mode sintesis nyanyian", voiceSingingModeHint: "Coba MiniMax voice_clone_singing terlebih dahulu. Jika tidak tersedia, gunakan voice cover.",
+        voicePickerLabel: "Gaya suara", voicePickerDefault: "Klik untuk memilih - ini menetapkan bahasa lirik", voicePickerLoading: "Memuat suara...", voiceShowMore: "Tampilkan {count} lagi",
+        voicePreviewSample: "Dengarkan sampel suara ini",
+        voiceCustomBtn: "Suara saya", voiceCustomDesc: "Rekam dan gunakan suara Anda sendiri",
+        recModalTitle: "Rekam suara Anda",
+        templates: "Template gaya",
+        advanced: "Parameter tambahan", genre: "Genre", mood: "Suasana", instruments: "Instrumen", tempo: "Tempo", bpm: "BPM", key: "Nada",
+        vocals: "Gaya vokal", structure: "Struktur lagu", references: "Referensi", avoid: "Hindari", useCase: "Kasus penggunaan", extra: "Detail tambahan",
+        genrePlaceholder: "pop, reggae, jazz", moodPlaceholder: "hangat, cerah, intens", instrumentsPlaceholder: "piano, gitar, drum",
+        tempoPlaceholder: "cepat, lambat, sedang", bpmPlaceholder: "85", keyPlaceholder: "C mayor, A minor",
+        vocalsPlaceholder: "vokal pria yang hangat, vokal wanita yang cerah", structurePlaceholder: "bait-refrain-bait-bridge-refrain",
+        referencesPlaceholder: "mirip dengan...", avoidPlaceholder: "konten eksplisit, auto-tune berlebihan",
+        useCasePlaceholder: "latar belakang video, lagu tematik", extraPlaceholder: "Catatan tambahan",
+        submit: "Buat Musik", jobsTitle: "Pekerjaan", jobsDesc: "Status waktu nyata. Tombol unduh muncul saat MP3 siap.",
+        clearDraft: "Hapus draf", clearDraftConfirm: "Hapus draf saat ini? Ini tidak akan menghapus musik yang dihasilkan.",
+        draftSaved: "Draf disimpan", draftRestored: "Draf sebelumnya dipulihkan", draftCleared: "Draf dihapus", draftRestoreFailed: "Tidak dapat memulihkan draf dari server.",
+        empty: "Belum ada pekerjaan. Isi formulir untuk memulai.", queued: "Dalam antrean", running: "Membuat", completed: "Selesai", error: "Kesalahan", unknown: "Tidak dikenal",
+        download: "Unduh MP3", delete: "Hapus", sent: "Dikirim ke", instrumentalMode: "Instrumental", vocalMode: "Vokal", deleteConfirm: "Hapus pekerjaan ini?", deleteFailed: "Gagal menghapus",
+        navCreate: "Buat", navLibrary: "Perpustakaan", navFavorites: "Favorit", navHistory: "Riwayat", navPlaylists: "Daftar putar", playlistAll: "Semua lagu", playlistRecent: "Baru diputar",
+        libraryDesc: "Semua lagu yang Anda hasilkan di satu tempat.", favoritesDesc: "Lagu favorit Anda.", historyDesc: "Lagu yang baru dihasilkan.",
+        toastMusicStarted: "Pembuatan musik dimulai!", toastMusicReady: "Musik siap: ", toastLyricsSuccess: "Lirik berhasil dibuat!", toastLyricsError: "Gagal membuat lirik.", toastVoiceCloneSuccess: "Kloning suara berhasil!", toastVoiceCloneError: "Kloning suara gagal.",
+        langMenuLabel: "Bahasa antarmuka", langMismatchWarn: "⚠️ Bahasa lirik tidak cocok dengan bahasa suara yang dipilih.", langMismatchTitle: "Ketidakcocokan bahasa"
+      },
+      vi: {
+        subtitle: "Khi lời nói là không đủ, hãy để âm nhạc thay bạn lên tiếng.",
+        createTitle: "Tạo nhạc", createDesc: "Viết một cảm xúc, câu chuyện, lời bài hát hoặc phong cách. Music Speaks sẽ chuyển nó thành một bài hát.",
+        emailLabel: "Địa chỉ email (tùy chọn)", emailHint: "Tùy chọn. Tải xuống là cách chính để nhận file MP3 của bạn.",
+        emailPlaceholder: "your@email.com",
+        titleLabel: "Tiêu đề bài hát (tùy chọn)", titleHint: "Nếu để trống, Music Speaks sẽ tạo tiêu đề từ lời bài hát.",
+        titlePlaceholder: "Để trống và AI sẽ đặt tên cho bài hát",
+        promptLabel: "Mô tả phong cách âm nhạc", promptHint: "Bao gồm phong cách, tâm trạng, nhạc cụ, tốc độ và tham chiếu.",
+        promptPlaceholder: "Pop điện tử sáng sủa và tự tin, sản xuất tinh tế, giai điệu đáng nhớ",
+        lyricsIdeaLabel: "Hướng dẫn lời bài hát (tùy chọn)", lyricsIdeaHint: "Mô tả những gì bạn muốn hoặc đưa ra chỉ dẫn cho AI. Ngôn ngữ của giọng nói được chọn sẽ được áp dụng tự động.",
+        lyricsExtraLabel: "Yêu cầu bổ sung (tùy chọn)", lyricsExtraHint: "Mô tả các yêu cầu bổ sung: thời lượng, giọng điệu cảm xúc, phong cách, tâm trạng, tốc độ, cấu trúc.",
+        lyricsExtraPlaceholder: "Thời lượng: 3-5 phút / Cảm xúc: buồn, lạc quan / Phong cách: thơ ca / Tâm trạng: u ám",
+        lyricsIdeaPlaceholder: "Viết câu chuyện, cảm xúc, hình ảnh hoặc đoạn trích bạn muốn.",
+        generateLyrics: "Tạo lời bài hát", generatingLyrics: "Đang tạo lời bài hát...", lyricsGenerated: "Lời bài hát đã được thêm bên dưới. Bạn có thể chỉnh sửa trước khi tạo nhạc.",
+        lyricsAssistNeedBrief: "Thêm mô tả hoặc phong cách âm nhạc trước.", lyricsAssistFailed: "Tạo lời bài hát thất bại.",
+        lyricsLabel: "Lời bài hát đầy đủ (tùy chọn)", lyricsHint: "Dán lời bài hát đầy đủ tại đây nếu bạn đã có. Lời bài hát đầy đủ được ưu tiên.",
+        lyricsPlaceholder: "[ verse]\nLời bài hát của bạn ở đây...\n[ hook]\nĐiệp khúc của bạn ở đây...",
+        instrumental: "Nhạc không lời", instrumentalHint: "Không có giọng hát. Lời bài hát sẽ bị bỏ qua.",
+        autoLyrics: "Tự động tạo lời bài hát", autoLyricsHint: "AI viết lời bài hát dựa trên mô tả của bạn.",
+        voiceCloneLabel: "Sao chép giọng nói (tùy chọn)", voiceRecordBtn: "Ghi âm giọng nói của tôi", voiceCloneHint: "Ghi 5 câu ngắn với các giọng điệu khác nhau. Mất khoảng 30 giây. Giọng nói được sao chép sẽ hết hạn sau 7 ngày.",
+        voicePreviewBtn: "Xem trước giọng nói", voiceUploading: "Đang sao chép giọng nói của bạn...", voiceReady: "Giọng nói đã được sao chép! Nhấp vào Xem trước để nghe.",
+        voiceError: "Sao chép giọng nói thất bại.", voicePreviewGenerating: "Đang tạo xem trước...", voicePreviewReady: "Xem trước đã sẵn sàng.", voicePreviewError: "Xem trước thất bại.",
+        voiceSingingMode: "Chế độ tổng hợp hát", voiceSingingModeHint: "Thử MiniMax voice_clone_singing trước. Nếu không có sẵn, hãy sử dụng voice cover.",
+        voicePickerLabel: "Phong cách giọng nói", voicePickerDefault: "Nhấp để chọn - điều này đặt ngôn ngữ lời bài hát", voicePickerLoading: "Đang tải giọng nói...", voiceShowMore: "Hiển thị thêm {count}",
+        voicePreviewSample: "Nghe mẫu giọng nói này",
+        voiceCustomBtn: "Giọng nói của tôi", voiceCustomDesc: "Ghi và sử dụng giọng nói của riêng bạn",
+        recModalTitle: "Ghi âm giọng nói của bạn",
+        templates: "Mẫu phong cách",
+        advanced: "Tham số bổ sung", genre: "Thể loại", mood: "Tâm trạng", instruments: "Nhạc cụ", tempo: "Nhịp độ", bpm: "BPM", key: "Khóa",
+        vocals: "Phong cách giọng hát", structure: "Cấu trúc bài hát", references: "Tham chiếu", avoid: "Tránh", useCase: "Trường hợp sử dụng", extra: "Chi tiết bổ sung",
+        genrePlaceholder: "pop, reggae, jazz", moodPlaceholder: "ấm áp, rực rỡ, mạnh mẽ", instrumentsPlaceholder: "piano, guitar, trống",
+        tempoPlaceholder: "nhanh, chậm, vừa", bpmPlaceholder: "85", keyPlaceholder: "Đô trưởng, La thứ",
+        vocalsPlaceholder: "giọng nam ấm áp, giọng nữ rực rỡ", structurePlaceholder: "verse-hook-verse-bridge-hook",
+        referencesPlaceholder: "tương tự như...", avoidPlaceholder: "nội dung explicit, auto-tune quá mức",
+        useCasePlaceholder: "nhạc nền video, bài hát chủ đề", extraPlaceholder: "Ghi chú bổ sung",
+        submit: "Tạo nhạc", jobsTitle: "Công việc", jobsDesc: "Trạng thái thời gian thực. Nút tải xuống xuất hiện khi MP3 sẵn sàng.",
+        clearDraft: "Xóa bản nháp", clearDraftConfirm: "Xóa bản nháp hiện tại? Điều này sẽ không xóa nhạc đã tạo.",
+        draftSaved: "Bản nháp đã được lưu", draftRestored: "Đã khôi phục bản nháp trước đó", draftCleared: "Đã xóa bản nháp", draftRestoreFailed: "Không thể khôi phục bản nháp từ máy chủ.",
+        empty: "Chưa có công việc nào. Điền vào biểu mẫu để bắt đầu.", queued: "Trong hàng đợi", running: "Đang tạo", completed: "Hoàn thành", error: "Lỗi", unknown: "Không xác định",
+        download: "Tải xuống MP3", delete: "Xóa", sent: "Đã gửi đến", instrumentalMode: "Nhạc không lời", vocalMode: "Có lời", deleteConfirm: "Xóa công việc này?", deleteFailed: "Xóa thất bại",
+        navCreate: "Tạo", navLibrary: "Thư viện", navFavorites: "Yêu thích", navHistory: "Lịch sử", navPlaylists: "Danh sách phát", playlistAll: "Tất cả bài hát", playlistRecent: "Phát gần đây",
+        libraryDesc: "Tất cả bài hát bạn đã tạo ở một nơi.", favoritesDesc: "Những bài hát bạn yêu thích.", historyDesc: "Những bài hát được tạo gần đây.",
+        toastMusicStarted: "Bắt đầu tạo nhạc!", toastMusicReady: "Nhạc đã sẵn sàng: ", toastLyricsSuccess: "Tạo lời bài hát thành công!", toastLyricsError: "Tạo lời bài hát thất bại.", toastVoiceCloneSuccess: "Sao chép giọng nói thành công!", toastVoiceCloneError: "Sao chép giọng nói thất bại.",
+        langMenuLabel: "Ngôn ngữ giao diện", langMismatchWarn: "⚠️ Ngôn ngữ lời bài hát không khớp với ngôn ngữ giọng nói đã chọn.", langMismatchTitle: "Không khớp ngôn ngữ"
+      },
+      th: {
+        subtitle: "เมื่อคำพูดไม่เพียงพอ ให้ดนตรีเป็นตัวแทนพูดแทนคุณ",
+        createTitle: "สร้างเพลง", createDesc: "เขียนความรู้สึก เรื่องราว เนื้อเพลง หรือสไตล์ Music Speaks จะแปลงมันเป็นเพลง",
+        emailLabel: "อีเมล (ไม่บังคับ)", emailHint: "ไม่บังคับ การดาวน์โหลดเป็นวิธีหลักในการรับไฟล์ MP3 ของคุณ",
+        emailPlaceholder: "your@email.com",
+        titleLabel: "ชื่อเพลง (ไม่บังคับ)", titleHint: "หากปล่อยว่าง Music Speaks จะสร้างชื่อจากเนื้อเพลง",
+        titlePlaceholder: "ปล่อยว่างและ AI จะตั้งชื่อเพลง",
+        promptLabel: "คำอธิบายสไตล์เพลง", promptHint: "รวมสไตล์ อารมณ์ เครื่องดนตรี จังหวะ และข้อมูลอ้างอิง",
+        promptPlaceholder: "ป็อปอิเล็กทรอนิกส์สดใสมั่นใจ การผลิตที่เรียบร้อย ฮุกที่น่าจดจำ",
+        lyricsIdeaLabel: "คำสั่งเนื้อเพลง (ไม่บังคับ)", lyricsIdeaHint: "อธิบายสิ่งที่คุณต้องการหรือสั่งให้ AI ทำ ภาษาของเสียงที่เลือกจะถูกใช้โดยอัตโนมัติ",
+        lyricsExtraLabel: "ข้อกำหนดเพิ่มเติม (ไม่บังคับ)", lyricsExtraHint: "อธิบายข้อกำหนดเพิ่มเติม: ระยะเวลา โทนอารมณ์ สไตล์ อารมณ์ จังหวะ โครงสร้าง",
+        lyricsExtraPlaceholder: "ระยะเวลา: 3-5 นาที / อารมณ์: เศร้า มีความหวัง / สไตล์: เชิงกวี / อารมณ์: มืดมน",
+        lyricsIdeaPlaceholder: "เขียนเรื่องราว ความรู้สึก ภาพ หรือตอนที่คุณต้องการ",
+        generateLyrics: "สร้างเนื้อเพลง", generatingLyrics: "กำลังสร้างเนื้อเพลง...", lyricsGenerated: "เนื้อเพลงถูกเพิ่มด้านล่าง คุณสามารถแก้ไขก่อนสร้างเพลง",
+        lyricsAssistNeedBrief: "เพิ่มคำอธิบายหรือสไตล์เพลงก่อน", lyricsAssistFailed: "การสร้างเนื้อเพลงล้มเหลว",
+        lyricsLabel: "เนื้อเพลงทั้งหมด (ไม่บังคับ)", lyricsHint: "วางเนื้อเพลงที่สมบูรณ์ที่นี่หากคุณมีแล้ว เนื้อเพลงที่สมบูรณ์มีความสำคัญมากกว่า",
+        lyricsPlaceholder: "[ verse]\nเนื้อเพลงของคุณที่นี่...\n[ hook]\nเนื้อเพลงส่วน hook ที่นี่...",
+        instrumental: "เครื่องดนตรี", instrumentalHint: "ไม่มีเสียงร้อง เนื้อเพลงจะถูกเพิกเฉย",
+        autoLyrics: "สร้างเนื้อเพลงอัตโนมัติ", autoLyricsHint: "AI เขียนเนื้อเพลงตามคำอธิบายของคุณ",
+        voiceCloneLabel: "โคลนเสียง (ไม่บังคับ)", voiceRecordBtn: "บันทึกเสียงฉัน", voiceCloneHint: "บันทึก 5 ประโยคสั้นด้วยน้ำเสียงที่แตกต่างกัน ใช้เวลาประมาณ 30 วินาที เสียงที่โคลนจะหมดอายุใน 7 วัน",
+        voicePreviewBtn: "ฟังตัวอย่างเสียง", voiceUploading: "กำลังโคลนเสียงของคุณ...", voiceReady: "เสียงถูกโคลนแล้ว! คลิกฟังตัวอย่างเพื่อฟัง",
+        voiceError: "การโคลนเสียงล้มเหลว", voicePreviewGenerating: "กำลังสร้างตัวอย่าง...", voicePreviewReady: "ตัวอย่างพร้อมแล้ว", voicePreviewError: "ตัวอย่างล้มเหลว",
+        voiceSingingMode: "โหมดการสังเคราะห์การร้อง", voiceSingingModeHint: "ลอง MiniMax voice_clone_singing ก่อน หากไม่พร้อมใช้งาน ให้ใช้ voice cover",
+        voicePickerLabel: "สไตล์เสียง", voicePickerDefault: "คลิกเพื่อเลือก - สิ่งนี้กำหนดภาษาของเนื้อเพลง", voicePickerLoading: "กำลังโหลดเสียง...", voiceShowMore: "ดูเพิ่มอีก {count}",
+        voicePreviewSample: "ฟังตัวอย่างเสียงนี้",
+        voiceCustomBtn: "เสียงของฉัน", voiceCustomDesc: "บันทึกและใช้เสียงของคุณเอง",
+        recModalTitle: "บันทึกเสียงของคุณ",
+        templates: "แม่แบบสไตล์",
+        advanced: "พารามิเตอร์เพิ่มเติม", genre: "แนวเพลง", mood: "อารมณ์", instruments: "เครื่องดนตรี", tempo: "จังหวะ", bpm: "BPM", key: "คีย์",
+        vocals: "สไตล์การร้อง", structure: "โครงสร้างเพลง", references: "ข้อมูลอ้างอิง", avoid: "หลีกเลี่ยง", useCase: "กรณีการใช้งาน", extra: "รายละเอียดเพิ่มเติม",
+        genrePlaceholder: "ป็อป, รีเก้, แจ็ซ", moodPlaceholder: "อบอุ่น, สดใส, ดุดัน", instrumentsPlaceholder: "เปียโน, กีตาร์, กลอง",
+        tempoPlaceholder: "เร็ว, ช้า, ปานกลาง", bpmPlaceholder: "85", keyPlaceholder: "C Major, A Minor",
+        vocalsPlaceholder: "เสียงร้องชายอบอุ่น, เสียงร้องหญิงสดใส", structurePlaceholder: "verse-hook-verse-bridge-hook",
+        referencesPlaceholder: "คล้ายกับ...", avoidPlaceholder: "เนื้อหาที่ชัดเจน, auto-tune มากเกินไป",
+        useCasePlaceholder: "เพลงประกอบวิดีโอ, เพลงธีม", extraPlaceholder: "หมายเหตุเพิ่มเติม",
+        submit: "สร้างเพลง", jobsTitle: "งาน", jobsDesc: "สถานะแบบเรียลไทม์ ปุ่มดาวน์โหลดจะปรากฏเมื่อ MP3 พร้อม",
+        clearDraft: "ล้างแบบร่าง", clearDraftConfirm: "ล้างแบบร่างปัจจุบัน? สิ่งนี้จะไม่ลบเพลงที่สร้างแล้ว",
+        draftSaved: "แบบร่างถูกบันทึก", draftRestored: "แบบร่างก่อนหน้าถูกกู้คืน", draftCleared: "แบบร่างถูกล้าง", draftRestoreFailed: "ไม่สามารถกู้คืนแบบร่างจากเซิร์ฟเวอร์",
+        empty: "ยังไม่มีงาน กรอกแบบฟอร์มเพื่อเริ่มต้น", queued: "ในคิว", running: "กำลังสร้าง", completed: "เสร็จสิ้น", error: "ข้อผิดพลาด", unknown: "ไม่รู้จัก",
+        download: "ดาวน์โหลด MP3", delete: "ลบ", sent: "ส่งถึง", instrumentalMode: "เครื่องดนตรี", vocalMode: "เสียงร้อง", deleteConfirm: "ลบงานนี้?", deleteFailed: "การลบล้มเหลว",
+        navCreate: "สร้าง", navLibrary: "คลังเพลง", navFavorites: "รายการโปรด", navHistory: "ประวัติ", navPlaylists: "เพลย์ลิสต์", playlistAll: "ทั้งหมด", playlistRecent: "เล่นล่าสุด",
+        libraryDesc: "เพลงทั้งหมดที่คุณสร้างในที่เดียว", favoritesDesc: "เพลงโปรดของคุณ", historyDesc: "เพลงที่สร้างล่าสุด",
+        toastMusicStarted: "เริ่มสร้างเพลง!", toastMusicReady: "เพลงพร้อม: ", toastLyricsSuccess: "สร้างเนื้อเพลงสำเร็จ!", toastLyricsError: "การสร้างเนื้อเพลงล้มเหลว", toastVoiceCloneSuccess: "โคลนเสียงสำเร็จ!", toastVoiceCloneError: "การโคลนเสียงล้มเหลว",
+        langMenuLabel: "ภาษาอินเตอร์เฟซ", langMismatchWarn: "⚠️ ภาษาของเนื้อเพลงไม่ตรงกับภาษาของเสียงที่เลือก", langMismatchTitle: "ภาษาไม่ตรงกัน"
+      },
+      tr: {
+        subtitle: "Sözcükler yetersiz kaldığında, müzik sizin adınıza konuşsun.",
+        createTitle: "Müzik Oluştur", createDesc: "Bir duygu, hikaye, söz veya stil yazın. Music Speaks bunu bir şarkıya dönüştürür.",
+        emailLabel: "E-posta adresi (isteğe bağlı)", emailHint: "İsteğe bağlı. İndirme, MP3 dosyanızı almanın ana yoludur.",
+        emailPlaceholder: "your@email.com",
+        titleLabel: "Şarkı başlığı (isteğe bağlı)", titleHint: "Boş bırakırsanız, Music Speaks sözlerden bir başlık oluşturacaktır.",
+        titlePlaceholder: "Boş bırakın ve AI şarkıya isim versin",
+        promptLabel: "Müzik stili açıklaması", promptHint: "Stil, ruh hali, enstrümanlar, tempo ve referansları ekleyin.",
+        promptPlaceholder: "Kendinden emin, parlak elektronik pop, rafine prodüksiyon, akılda kalıcı hook",
+        lyricsIdeaLabel: "Söz yönergesi (isteğe bağlı)", lyricsIdeaHint: "Ne istediğinizi açıklayın veya AI'a talimat verin. Seçilen sesin dili otomatik olarak uygulanır.",
+        lyricsExtraLabel: "Ek gereksinimler (isteğe bağlı)", lyricsExtraHint: "Ek gereksinimleri açıklayın: süre, duygusal ton, stil, ruh hali, tempo, yapı.",
+        lyricsExtraPlaceholder: "Süre: 3-5 dakika / Duygu: üzgün, umutlu / Stil: şiirsel / Ruh hali: karanlık",
+        lyricsIdeaPlaceholder: "İstediğiniz hikayeyi, duyguları, imgeleri veya fragmanları yazın.",
+        generateLyrics: "Söz oluştur", generatingLyrics: "Sözler oluşturuluyor...", lyricsGenerated: "Sözler aşağıya eklendi. Müzik oluşturmadan önce düzenleyebilirsiniz.",
+        lyricsAssistNeedBrief: "Önce bir açıklama veya müzik stili ekleyin.", lyricsAssistFailed: "Söz oluşturma başarısız oldu.",
+        lyricsLabel: "Tam sözler (isteğe bağlı)", lyricsHint: "Zaten tam sözleriniz varsa buraya yapıştırın. Tam sözler önceliklidir.",
+        lyricsPlaceholder: "[ verse]\nSözleriniz buraya...\n[ hook]\nHook sözleriniz buraya...",
+        instrumental: "Enstrümantal", instrumentalHint: "Vokalsiz. Sözler görmezden gelinecek.",
+        autoLyrics: "Otomatik söz oluştur", autoLyricsHint: "AI açıklamalarınıza göre söz yazar.",
+        voiceCloneLabel: "Ses klonlama (isteğe bağlı)", voiceRecordBtn: "Sesimi kaydet", voiceCloneHint: "Farklı tonlarda 5 kısa cümle kaydedin. Yaklaşık 30 saniye sürer. Klonlanan ses 7 gün içinde süresi dolacaktır.",
+        voicePreviewBtn: "Ses önizleme", voiceUploading: "Sesiniz klonlanıyor...", voiceReady: "Ses klonlandı! Dinlemek için Önizle'ye tıklayın.",
+        voiceError: "Ses klonlama başarısız.", voicePreviewGenerating: "Önizleme oluşturuluyor...", voicePreviewReady: "Önizleme hazır.", voicePreviewError: "Önizleme başarısız.",
+        voiceSingingMode: "Şan sentezi modu", voiceSingingModeHint: "Önce MiniMax voice_clone_singing deneyin. Kullanılamıyorsa voice cover'a düşün.",
+        voicePickerLabel: "Ses stili", voicePickerDefault: "Seçmek için tıklayın - bu, söz dilini belirler", voicePickerLoading: "Sesler yükleniyor...", voiceShowMore: "{count} tane daha göster",
+        voicePreviewSample: "Bu ses örneğini dinle",
+        voiceCustomBtn: "Sesim", voiceCustomDesc: "Kendi sesinizi kaydedin ve kullanın",
+        recModalTitle: "Sesinizi kaydedin",
+        templates: "Stil şablonları",
+        advanced: "Ek parametreler", genre: "Tür", mood: "Ruh hali", instruments: "Enstrümanlar", tempo: "Tempo", bpm: "BPM", key: "Anahtar",
+        vocals: "Vokal stili", structure: "Şarkı yapısı", references: "Referanslar", avoid: "Kaçının", useCase: "Kullanım durumu", extra: "Ek detaylar",
+        genrePlaceholder: "pop, reggae, caz", moodPlaceholder: "sıcak, parlak, yoğun", instrumentsPlaceholder: "piyano, gitar, davul",
+        tempoPlaceholder: "hızlı, yavaş, orta", bpmPlaceholder: "85", keyPlaceholder: "Do majör, La minör",
+        vocalsPlaceholder: "sıcak erkek vokal, parlak kadın vokal", structurePlaceholder: "verse-hook-verse-bridge-hook",
+        referencesPlaceholder: "...benzeri", avoidPlaceholder: "açık içerik, aşırı auto-tune",
+        useCasePlaceholder: "video arka planı, tema şarkısı", extraPlaceholder: "Ek notlar",
+        submit: "Müzik Oluştur", jobsTitle: "İşler", jobsDesc: "Gerçek zamanlı durum. MP3 hazır olduğunda indirme düğmesi görünür.",
+        clearDraft: "Taslağı temizle", clearDraftConfirm: "Mevcut taslağı temizle? Bu, oluşturulan müziği silmez.",
+        draftSaved: "Taslak kaydedildi", draftRestored: "Önceki taslak geri yüklendi", draftCleared: "Taslak temizlendi", draftRestoreFailed: "Taslak sunucudan geri yüklenemedi.",
+        empty: "Henüz iş yok. Başlamak için formu doldurun.", queued: "Sırada", running: "Oluşturuluyor", completed: "Tamamlandı", error: "Hata", unknown: "Bilinmeyen",
+        download: "MP3 indir", delete: "Sil", sent: "Gönderildi", instrumentalMode: "Enstrümantal", vocalMode: "Vokal", deleteConfirm: "Bu işi sil?", deleteFailed: "Silme başarısız",
+        navCreate: "Oluştur", navLibrary: "Kütüphane", navFavorites: "Favoriler", navHistory: "Geçmiş", navPlaylists: "Çalma listeleri", playlistAll: "Tüm şarkılar", playlistRecent: "Son çalınan",
+        libraryDesc: "Tüm oluşturduğunuz şarkılar tek yerde.", favoritesDesc: "Favori şarkılarınız.", historyDesc: "Yeni oluşturulan şarkılar.",
+        toastMusicStarted: "Müzik oluşturma başladı!", toastMusicReady: "Müzik hazır: ", toastLyricsSuccess: "Sözler başarıyla oluşturuldu!", toastLyricsError: "Söz oluşturma başarısız.", toastVoiceCloneSuccess: "Ses klonlama başarılı!", toastVoiceCloneError: "Ses klonlama başarısız.",
+        langMenuLabel: "Arayüz dili", langMismatchWarn: "⚠️ Sözlerin dili seçilen sesin diliyle eşleşmiyor.", langMismatchTitle: "Dil uyuşmazlığı"
+      },
+      pl: {
+        subtitle: "Gdy słowa nie wystarczają, niech muzyka przemówi w Twoim imieniu.",
+        createTitle: "Twórz muzykę", createDesc: "Napisz uczucie, historię, tekst lub styl. Music Speaks zamieni to w piosenkę.",
+        emailLabel: "Adres e-mail (opcjonalnie)", emailHint: "Opcjonalnie. Pobieranie to główny sposób na uzyskanie pliku MP3.",
+        emailPlaceholder: "your@email.com",
+        titleLabel: "Tytuł piosenki (opcjonalnie)", titleHint: "Jeśli pozostawisz puste, Music Speaks utworzy tytuł na podstawie tekstu.",
+        titlePlaceholder: "Zostaw puste, a AI nazwie piosenkę",
+        promptLabel: "Opis stylu muzycznego", promptHint: "Uwzględnij styl, nastrój, instrumenty, tempo i referencje.",
+        promptPlaceholder: "Jasny i pewny siebie elektroniczny pop, dopracowana produkcja, pamiętny hook",
+        lyricsIdeaLabel: "Instrukcje tekstu (opcjonalnie)", lyricsIdeaHint: "Opisz, czego chcesz, lub daj instrukcje AI. Język wybranego głosu zostanie automatycznie zastosowany.",
+        lyricsExtraLabel: "Dodatkowe wymagania (opcjonalnie)", lyricsExtraHint: "Opisz dodatkowe wymagania: czas trwania, ton emocjonalny, styl, nastrój, tempo, strukturę.",
+        lyricsExtraPlaceholder: "Czas trwania: 3-5 min / Emocja: smutna, pełna nadziei / Styl: poetycki / Nastrój: ponury",
+        lyricsIdeaPlaceholder: "Napisz historię, uczucia, obrazy lub fragmenty, które chcesz.",
+        generateLyrics: "Generuj tekst", generatingLyrics: "Generowanie tekstu...", lyricsGenerated: "Tekst dodany poniżej. Możesz go edytować przed wygenerowaniem muzyki.",
+        lyricsAssistNeedBrief: "Najpierw dodaj opis lub styl muzyczny.", lyricsAssistFailed: "Generowanie tekstu nie powiodło się.",
+        lyricsLabel: "Pełny tekst (opcjonalnie)", lyricsHint: "Wklej tutaj pełny tekst, jeśli już go masz. Pełny tekst ma pierwszeństwo.",
+        lyricsPlaceholder: "[ zwrotka]\nTwój tekst tutaj...\n[ refren]\nTwój refren tutaj...",
+        instrumental: "Instrumentalna", instrumentalHint: "Bez wokalu. Tekst będzie ignorowany.",
+        autoLyrics: "Automatycznie generuj tekst", autoLyricsHint: "AI pisze tekst na podstawie Twojego opisu.",
+        voiceCloneLabel: "Klonowanie głosu (opcjonalnie)", voiceRecordBtn: "Nagraj mój głos", voiceCloneHint: "Nagraj 5 krótkich zdań w różnych tonacjach. Trwa to około 30 sekund. Sklonowany głos wygaśnie po 7 dniach.",
+        voicePreviewBtn: "Podgląd głosu", voiceUploading: "Klonowanie Twojego głosu...", voiceReady: "Głos sklonowany! Kliknij Podgląd, aby posłuchać.",
+        voiceError: "Klonowanie głosu nie powiodło się.", voicePreviewGenerating: "Generowanie podglądu...", voicePreviewReady: "Podgląd gotowy.", voicePreviewError: "Podgląd nieudany.",
+        voiceSingingMode: "Tryb syntezy śpiewu", voiceSingingModeHint: "Najpierw wypróbuj MiniMax voice_clone_singing. Jeśli niedostępny, użyj voice cover.",
+        voicePickerLabel: "Styl głosu", voicePickerDefault: "Kliknij, aby wybrać - to ustawia język tekstu", voicePickerLoading: "Ładowanie głosów...", voiceShowMore: "Pokaż {count} więcej",
+        voicePreviewSample: "Posłuchaj tego przykładu głosu",
+        voiceCustomBtn: "Mój głos", voiceCustomDesc: "Nagraj i używaj własnego głosu",
+        recModalTitle: "Nagraj swój głos",
+        templates: "Szablony stylów",
+        advanced: "Dodatkowe parametry", genre: "Gatunek", mood: "Nastrój", instruments: "Instrumenty", tempo: "Tempo", bpm: "BPM", key: "Tonacja",
+        vocals: "Styl wokalny", structure: "Struktura piosenki", references: "Referencje", avoid: "Unikaj", useCase: "Przypadek użycia", extra: "Dodatkowe szczegóły",
+        genrePlaceholder: "pop, reggae, jazz", moodPlaceholder: "ciepły, jasny, intensywny", instrumentsPlaceholder: "fortepian, gitara, perkusja",
+        tempoPlaceholder: "szybkie, wolne, umiarkowane", bpmPlaceholder: "85", keyPlaceholder: "C-dur, A-moll",
+        vocalsPlaceholder: "ciepły wokal męski, jasny wokal żeński", structurePlaceholder: "zwrotka-refren-zwrotka-most-refren",
+        referencesPlaceholder: "podobne do...", avoidPlaceholder: "treści explicit, nadmierny auto-tune",
+        useCasePlaceholder: "muzyka do wideo, piosenka tematyczna", extraPlaceholder: "Dodatkowe uwagi",
+        submit: "Generuj muzykę", jobsTitle: "Zadania", jobsDesc: "Status w czasie rzeczywistym. Przycisk pobierania pojawia się, gdy MP3 jest gotowy.",
+        clearDraft: "Wyczyść szkic", clearDraftConfirm: "Wyczyścić bieżący szkic? Nie usunie to wygenerowanej muzyki.",
+        draftSaved: "Szkic zapisany", draftRestored: "Poprzedni szkic przywrócony", draftCleared: "Szkic wyczyszczony", draftRestoreFailed: "Nie można przywrócić szkicu z serwera.",
+        empty: "Brak zadań. Wypełnij formularz, aby rozpocząć.", queued: "W kolejce", running: "Generowanie", completed: "Gotowe", error: "Błąd", unknown: "Nieznany",
+        download: "Pobierz MP3", delete: "Usuń", sent: "Wysłano do", instrumentalMode: "Instrumentalna", vocalMode: "Wokalna", deleteConfirm: "Usunąć to zadanie?", deleteFailed: "Usuwanie nie powiodło się",
+        navCreate: "Twórz", navLibrary: "Biblioteka", navFavorites: "Ulubione", navHistory: "Historia", navPlaylists: "Playlisty", playlistAll: "Wszystkie piosenki", playlistRecent: "Ostatnio odtwarzane",
+        libraryDesc: "Wszystkie wygenerowane piosenki w jednym miejscu.", favoritesDesc: "Twoje ulubione piosenki.", historyDesc: "Ostatnio wygenerowane piosenki.",
+        toastMusicStarted: "Rozpoczęto generowanie muzyki!", toastMusicReady: "Muzyka gotowa: ", toastLyricsSuccess: "Tekst pomyślnie wygenerowany!", toastLyricsError: "Generowanie tekstu nie powiodło się.", toastVoiceCloneSuccess: "Głos pomyślnie sklonowany!", toastVoiceCloneError: "Klonowanie głosu nie powiodło się.",
+        langMenuLabel: "Język interfejsu", langMismatchWarn: "⚠️ Język tekstu nie pasuje do języka wybranego głosu.", langMismatchTitle: "Niezgodność języków"
+      },
+      nl: {
+        subtitle: "Wanneer woorden niet volstaan, laat muziek voor je spreken.",
+        createTitle: "Muziek maken", createDesc: "Schrijf een gevoel, verhaal, liedtekst of stijl. Music Speaks zet dit om in een lied.",
+        emailLabel: "E-mailadres (optioneel)", emailHint: "Optioneel. Downloaden is de belangrijkste manier om je MP3 te ontvangen.",
+        emailPlaceholder: "your@email.com",
+        titleLabel: "Liedtitel (optioneel)", titleHint: "Als je het leeg laat, maakt Music Speaks een titel op basis van de tekst.",
+        titlePlaceholder: "Laat leeg en AI geeft het lied een naam",
+        promptLabel: "Muziekstijl beschrijving", promptHint: "Includeer stijl, stemming, instrumenten, tempo en referenties.",
+        promptPlaceholder: "Licht en zelfverzekerd elektronisch pop, verfijnde productie, gedenkwaardige hook",
+        lyricsIdeaLabel: "Tekst instructies (optioneel)", lyricsIdeaHint: "Beschrijf wat je wilt of geef AI instructies. De taal van de geselecteerde stem wordt automatisch toegepast.",
+        lyricsExtraLabel: "Extra vereisten (optioneel)", lyricsExtraHint: "Beschrijf extra vereisten: duur, emotionele toon, stijl, stemming, tempo, structuur.",
+        lyricsExtraPlaceholder: "Duur: 3-5 min / Emotie: verdrietig, hoopvol / Stijl: poëtisch / Stemming: donker",
+        lyricsIdeaPlaceholder: "Schrijf het verhaal, gevoelens, beelden of fragmenten die je wilt.",
+        generateLyrics: "Genereer tekst", generatingLyrics: "Tekst genereren...", lyricsGenerated: "Tekst hieronder toegevoegd. Je kunt deze bewerken voordat je muziek genereert.",
+        lyricsAssistNeedBrief: "Voeg eerst een beschrijving of muziekstijl toe.", lyricsAssistFailed: "Tekst genereren mislukt.",
+        lyricsLabel: "Volledige tekst (optioneel)", lyricsHint: "Plak de volledige tekst hier als je deze al hebt. Volledige tekst heeft voorrang.",
+        lyricsPlaceholder: "[ couplet]\nJe tekst hier...\n[ refrein]\nJe refrein hier...",
+        instrumental: "Instrumentaal", instrumentalHint: "Zonder vocalen. De tekst wordt genegeerd.",
+        autoLyrics: "Automatisch tekst genereren", autoLyricsHint: "AI schrijft tekst op basis van je beschrijving.",
+        voiceCloneLabel: "Stem klonen (optioneel)", voiceRecordBtn: "Neem mijn stem op", voiceCloneHint: "Neem 5 korte zinnen op in verschillende tonen. Duurt ongeveer 30 seconden. De gekloonde stem vervalt na 7 dagen.",
+        voicePreviewBtn: "Stem preview", voiceUploading: "Je stem klonen...", voiceReady: "Stem gekloond! Klik op Preview om te luisteren.",
+        voiceError: "Stem klonen mislukt.", voicePreviewGenerating: "Preview genereren...", voicePreviewReady: "Preview klaar.", voicePreviewError: "Preview mislukt.",
+        voiceSingingMode: "Zang synthese modus", voiceSingingModeHint: "Probeer eerst MiniMax voice_clone_singing. Als niet beschikbaar, gebruik voice cover.",
+        voicePickerLabel: "Stemstijl", voicePickerDefault: "Klik om te selecteren - dit stelt de teksttaal in", voicePickerLoading: "Stemmen laden...", voiceShowMore: "Toon {count} meer",
+        voicePreviewSample: "Luister naar dit stemmonster",
+        voiceCustomBtn: "Mijn stem", voiceCustomDesc: "Neem je eigen stem op en gebruik deze",
+        recModalTitle: "Neem je stem op",
+        templates: "Stijl templates",
+        advanced: "Extra parameters", genre: "Genre", mood: "Stemming", instruments: "Instrumenten", tempo: "Tempo", bpm: "BPM", key: "Toonaard",
+        vocals: "Vocale stijl", structure: "Liedstructuur", references: "Referenties", avoid: "Vermijd", useCase: "Gebruik", extra: "Extra details",
+        genrePlaceholder: "pop, reggae, jazz", moodPlaceholder: "warm, helder, intens", instrumentsPlaceholder: "piano, gitaar, drums",
+        tempoPlaceholder: "snel, langzaam, gematigd", bpmPlaceholder: "85", keyPlaceholder: "C-groot, A-klein",
+        vocalsPlaceholder: "warme mannelijke vocal, heldere vrouwelijke vocal", structurePlaceholder: "couplet-refrein-couplet-brug-refrein",
+        referencesPlaceholder: "vergelijkbaar met...", avoidPlaceholder: "expliciete inhoud, overmatige auto-tune",
+        useCasePlaceholder: "videobackground, themanummer", extraPlaceholder: "Extra notities",
+        submit: "Muziek maken", jobsTitle: "Taken", jobsDesc: "Real-time status. Download knop verschijnt wanneer MP3 klaar is.",
+        clearDraft: "Concept wissen", clearDraftConfirm: "Huidig concept wissen? Dit verwijdert de gegenereerde muziek niet.",
+        draftSaved: "Concept opgeslagen", draftRestored: "Vorig concept hersteld", draftCleared: "Concept gewist", draftRestoreFailed: "Kon concept niet van server herstellen.",
+        empty: "Nog geen taken. Vul het formulier in om te beginnen.", queued: "In de wachtrij", running: "Genereren", completed: "Klaar", error: "Fout", unknown: "Onbekend",
+        download: "Download MP3", delete: "Verwijder", sent: "Verzonden naar", instrumentalMode: "Instrumentaal", vocalMode: "Vocaal", deleteConfirm: "Deze taak verwijderen?", deleteFailed: "Verwijderen mislukt",
+        navCreate: "Maken", navLibrary: "Bibliotheek", navFavorites: "Favorieten", navHistory: "Geschiedenis", navPlaylists: "Afspeellijsten", playlistAll: "Alle liedjes", playlistRecent: "Recent afgespeeld",
+        libraryDesc: "Al je gegenereerde liedjes op één plek.", favoritesDesc: "Je favoriete liedjes.", historyDesc: "Recent gegenereerde liedjes.",
+        toastMusicStarted: "Muziekgeneratie gestart!", toastMusicReady: "Muziek klaar: ", toastLyricsSuccess: "Tekst succesvol gegenereerd!", toastLyricsError: "Tekst genereren mislukt.", toastVoiceCloneSuccess: "Stem succesvol gekloond!", toastVoiceCloneError: "Stem klonen mislukt.",
+        langMenuLabel: "Interface taal", langMismatchWarn: "⚠️ De teksttaal komt niet overeen met de taal van de geselecteerde stem.", langMismatchTitle: "Taal mismatch"
+      },
+      sv: {
+        subtitle: "När ord inte räcker till, låt musiken tala för dig.",
+        createTitle: "Skapa musik", createDesc: "Skriv en känsla, historia, låttext eller stil. Music Speaks gör den till en låt.",
+        emailLabel: "E-postadress (valfritt)", emailHint: "Valfritt. Nedladdning är huvudvägen att få din MP3.",
+        emailPlaceholder: "your@email.com",
+        titleLabel: "Låttitel (valfritt)", titleHint: "Om du lämnar tomt skapar Music Speaks en titel från låttexten.",
+        titlePlaceholder: "Lämna tomt så namnger AI låten",
+        promptLabel: "Musikstil beskrivning", promptHint: "Inkludera stil, stämning, instrument, tempo och referenser.",
+        promptPlaceholder: "Ljus och självsäker elektronisk pop, raffinerad produktion, minnesvärd hook",
+        lyricsIdeaLabel: "Låttext instruktioner (valfritt)", lyricsIdeaHint: "Beskriv vad du vill eller ge AI instruktioner. Språket för den valda rösten appliceras automatiskt.",
+        lyricsExtraLabel: "Extra krav (valfritt)", lyricsExtraHint: "Beskriv extra krav: längd, känslomässig ton, stil, stämning, tempo, struktur.",
+        lyricsExtraPlaceholder: "Längd: 3-5 min / Känsla: ledsen, hoppfull / Stil: poetisk / Stämning: mörk",
+        lyricsIdeaPlaceholder: "Skriv historien, känslor, bilder eller fragment du vill ha.",
+        generateLyrics: "Skapa låttext", generatingLyrics: "Skapar låttext...", lyricsGenerated: "Låttext tillagd nedan. Du kan redigera den innan du skapar musik.",
+        lyricsAssistNeedBrief: "Lägg till en beskrivning eller musikstil först.", lyricsAssistFailed: "Skapande av låttext misslyckades.",
+        lyricsLabel: "Full låttext (valfritt)", lyricsHint: "Klistra in full låttext här om du har den. Full låttext har förtur.",
+        lyricsPlaceholder: "[ vers]\nDin låttext här...\n[ refäng]\nDin refäng här...",
+        instrumental: "Instrumental", instrumentalHint: "Utan sång. Låttexten ignoreras.",
+        autoLyrics: "Auto-generera låttext", autoLyricsHint: "AI skriver låttext baserat på din beskrivning.",
+        voiceCloneLabel: "Röstkloning (valfritt)", voiceRecordBtn: "Spela in min röst", voiceCloneHint: "Spela in 5 korta meningar i olika toner. Tar cirka 30 sekunder. Den klonade rösten går ut efter 7 dagar.",
+        voicePreviewBtn: "Röst förhandsvisning", voiceUploading: "Klonar din röst...", voiceReady: "Röst klonad! Klicka på Förhandsvisning för att lyssna.",
+        voiceError: "Röstkloning misslyckades.", voicePreviewGenerating: "Skapar förhandsvisning...", voicePreviewReady: "Förhandsvisning klar.", voicePreviewError: "Förhandsvisning misslyckades.",
+        voiceSingingMode: "Sång-syntesläge", voiceSingingModeHint: "Försök först MiniMax voice_clone_singing. Om inte tillgänglig, använd voice cover.",
+        voicePickerLabel: "Röststil", voicePickerDefault: "Klicka för att välja - detta ställer in låttextspråket", voicePickerLoading: "Laddar röster...", voiceShowMore: "Visa {count} till",
+        voicePreviewSample: "Lyssna på detta röstprov",
+        voiceCustomBtn: "Min röst", voiceCustomDesc: "Spela in och använd din egen röst",
+        recModalTitle: "Spela in din röst",
+        templates: "Stilmallar",
+        advanced: "Extra parametrar", genre: "Genre", mood: "Stämning", instruments: "Instrument", tempo: "Tempo", bpm: "BPM", key: "Tonart",
+        vocals: "Vokal stil", structure: "Låtstruktur", references: "Referenser", avoid: "Undvik", useCase: "Användningsfall", extra: "Extra detaljer",
+        genrePlaceholder: "pop, reggae, jazz", moodPlaceholder: "varm, ljus, intensiv", instrumentsPlaceholder: "piano, gitarr, trummor",
+        tempoPlaceholder: "snabb, långsam, måttlig", bpmPlaceholder: "85", keyPlaceholder: "C-dur, A-moll",
+        vocalsPlaceholder: "varm mansröst, ljus kvinnoröst", structurePlaceholder: "vers-refäng-vers-bro-refäng",
+        referencesPlaceholder: "liknande...", avoidPlaceholder: "explicit innehåll, överdriven auto-tune",
+        useCasePlaceholder: "videobakgrund, temalåt", extraPlaceholder: "Ytterligare anteckningar",
+        submit: "Skapa musik", jobsTitle: "Uppgifter", jobsDesc: "Real-tids status. Nedladdningsknappen visas när MP3 är redo.",
+        clearDraft: "Rensa utkast", clearDraftConfirm: "Rensa aktuellt utkast? Detta tar inte bort genererad musik.",
+        draftSaved: "Utkast sparat", draftRestored: "Tidigare utkast återställd", draftCleared: "Utkast rensat", draftRestoreFailed: "Kunde inte återställa utkast från server.",
+        empty: "Inga uppgifter ännu. Fyll i formuläret för att börja.", queued: "I kö", running: "Skapar", completed: "Klart", error: "Fel", unknown: "Okänd",
+        download: "Ladda ner MP3", delete: "Ta bort", sent: "Skickat till", instrumentalMode: "Instrumental", vocalMode: "Vokal", deleteConfirm: "Ta bort denna uppgift?", deleteFailed: "Borttagning misslyckades",
+        navCreate: "Skapa", navLibrary: "Bibliotek", navFavorites: "Favoriter", navHistory: "Historik", navPlaylists: "Spellistor", playlistAll: "Alla låtar", playlistRecent: "Nyligen spelad",
+        libraryDesc: "Alla dina genererade låtar på ett ställe.", favoritesDesc: "Dina favoritlåtar.", historyDesc: "Nyligen genererade låtar.",
+        toastMusicStarted: "Musikgenerering påbörjad!", toastMusicReady: "Musik redo: ", toastLyricsSuccess: "Låttext skapad framgångsrikt!", toastLyricsError: "Skapande av låttext misslyckades.", toastVoiceCloneSuccess: "Röstkloning framgångsrik!", toastVoiceCloneError: "Röstkloning misslyckades.",
+        langMenuLabel: "Gränssnittsspråk", langMismatchWarn: "⚠️ Låttextspråket matchar inte språket för den valda rösten.", langMismatchTitle: "Språk mismatch"
+      },
+      no: {
+        subtitle: "Når ord ikke er nok, la musikken snakke for deg.",
+        createTitle: "Lag musikk", createDesc: "Skriv en følelse, historie, sangtekst eller stil. Music Speaks gjør den om til en sang.",
+        emailLabel: "E-postadresse (valgfritt)", emailHint: "Valgfritt. Nedlasting er hovedveien til å få MP3-filen din.",
+        emailPlaceholder: "your@email.com",
+        titleLabel: "Sangtittel (valgfritt)", titleHint: "Hvis du lar den stå tom, lager Music Speaks en tittel fra sangteksten.",
+        titlePlaceholder: "La den stå tom og AI gir sangen et navn",
+        promptLabel: "Musikkstil beskrivelse", promptHint: "Inkluder stil, humør, instrumenter, tempo og referanser.",
+        promptPlaceholder: "Lys og selvsikker elektronisk pop, raffinert produksjon, minneverdig hook",
+        lyricsIdeaLabel: "Sangtekst instruksjoner (valgfritt)", lyricsIdeaHint: "Beskriv hva du vil eller gi AI instruksjoner. Språket til den valgte stemmen brukes automatisk.",
+        lyricsExtraLabel: "Ekstra krav (valgfritt)", lyricsExtraHint: "Beskriv ekstra krav: varighet, emosjonell tone, stil, humør, tempo, struktur.",
+        lyricsExtraPlaceholder: "Varighet: 3-5 min / Følelse: trist, håpefull / Stil: poetisk / Humør: mørkt",
+        lyricsIdeaPlaceholder: "Skriv historien, følelsene, bildene eller fragmentene du vil ha.",
+        generateLyrics: "Generer sangtekst", generatingLyrics: "Genererer sangtekst...", lyricsGenerated: "Sangtekst lagt til nedenfor. Du kan redigere den før du genererer musikk.",
+        lyricsAssistNeedBrief: "Legg til en beskrivelse eller musikkstil først.", lyricsAssistFailed: "Generering av sangtekst mislyktes.",
+        lyricsLabel: "Full sangtekst (valgfritt)", lyricsHint: "Lim inn full sangtekst her hvis du har den. Full sangtekst har forrang.",
+        lyricsPlaceholder: "[ vers]\nDin sangtekst her...\n[ refeng]\nDin refeng her...",
+        instrumental: "Instrumental", instrumentalHint: "Uten vokal. Sangteksten ignoreres.",
+        autoLyrics: "Auto-generer sangtekst", autoLyricsHint: "AI skriver sangtekst basert på din beskrivelse.",
+        voiceCloneLabel: "Stemmekloning (valgfritt)", voiceRecordBtn: "Ta opp stemmen min", voiceCloneHint: "Ta opp 5 korte setninger i forskjellige toner. Tar omtrent 30 sekunder. Den klonede stemmen utløper etter 7 dager.",
+        voicePreviewBtn: "Stemme forhåndsvisning", voiceUploading: "Kloner stemmen din...", voiceReady: "Stemme klonet! Klikk på Forhåndsvisning for å lytte.",
+        voiceError: "Stemmekloning mislyktes.", voicePreviewGenerating: "Lager forhåndsvisning...", voicePreviewReady: "Forhåndsvisning klar.", voicePreviewError: "Forhåndsvisning mislyktes.",
+        voiceSingingMode: "Sang-syntesemodus", voiceSingingModeHint: "Prøv først MiniMax voice_clone_singing. Hvis ikke tilgjengelig, bruk voice cover.",
+        voicePickerLabel: "Stemmestil", voicePickerDefault: "Klikk for å velge - dette setter sangtekstspråket", voicePickerLoading: "Laster stemmer...", voiceShowMore: "Vis {count} til",
+        voicePreviewSample: "Lytt til dette stemmeeksempelet",
+        voiceCustomBtn: "Min stemme", voiceCustomDesc: "Ta opp og bruk din egen stemme",
+        recModalTitle: "Ta opp stemmen din",
+        templates: "Stilmaler",
+        advanced: "Ekstra parametere", genre: "Sjanger", mood: "Humør", instruments: "Instrumenter", tempo: "Tempo", bpm: "BPM", key: "Nøkkel",
+        vocals: "Vokal stil", structure: "Sangstruktur", references: "Referanser", avoid: "Unngå", useCase: "Brukstilfelle", extra: "Ekstra detaljer",
+        genrePlaceholder: "pop, reggae, jazz", moodPlaceholder: "varm, lys, intens", instrumentsPlaceholder: "piano, gitar, trommer",
+        tempoPlaceholder: "rask, langsom, moderat", bpmPlaceholder: "85", keyPlaceholder: "C-dur, A-moll",
+        vocalsPlaceholder: "varm mannsstemme, lys kvinnestemme", structurePlaceholder: "vers-refeng-vers-bro-refeng",
+        referencesPlaceholder: "lignende...", avoidPlaceholder: "eksplisitt innhold, overdreven auto-tune",
+        useCasePlaceholder: "videobakgrunn, temasang", extraPlaceholder: "Ekstra notater",
+        submit: "Lag musikk", jobsTitle: "Oppgaver", jobsDesc: "Sanntids status. Nedlastingsknappen vises når MP3 er klar.",
+        clearDraft: "Slett utkast", clearDraftConfirm: "Slette nåværende utkast? Dette sletter ikke generert musikk.",
+        draftSaved: "Utkast lagret", draftRestored: "Forrige utkast gjenopprettet", draftCleared: "Utkast slettet", draftRestoreFailed: "Kunne ikke gjenopprette utkast fra server.",
+        empty: "Ingen oppgaver ennå. Fyll ut skjema for å begynne.", queued: "I kø", running: "Genererer", completed: "Ferdig", error: "Feil", unknown: "Ukjent",
+        download: "Last ned MP3", delete: "Slett", sent: "Sendt til", instrumentalMode: "Instrumental", vocalMode: "Vokal", deleteConfirm: "Slette denne oppgaven?", deleteFailed: "Sletting mislyktes",
+        navCreate: "Lag", navLibrary: "Bibliotek", navFavorites: "Favoritter", navHistory: "Historikk", navPlaylists: "Spillelister", playlistAll: "Alle sanger", playlistRecent: "Nylig spilt",
+        libraryDesc: "Alle sangene dine generert på ett sted.", favoritesDesc: "Dine favorittsanger.", historyDesc: "Nylig genererte sanger.",
+        toastMusicStarted: "Musikkgenerering startet!", toastMusicReady: "Musikk klar: ", toastLyricsSuccess: "Sangtekst generert!", toastLyricsError: "Generering av sangtekst mislyktes.", toastVoiceCloneSuccess: "Stemmekloning vellykket!", toastVoiceCloneError: "Stemmekloning mislyktes.",
+        langMenuLabel: "Grensesnittspråk", langMismatchWarn: "⚠️ Sangtekstspråket matcher ikke språket til den valgte stemmen.", langMismatchTitle: "Språkmismatch"
+      },
+      da: {
+        subtitle: "Når ord ikke er nok, lad musikken tale for dig.",
+        createTitle: "Skab musik", createDesc: "Skriv en følelse, historie, sangtekst eller stil. Music Speaks gør den til en sang.",
+        emailLabel: "E-mailadresse (valgfrit)", emailHint: "Valgfrit. Download er hovedvejen til at få din MP3.",
+        emailPlaceholder: "your@email.com",
+        titleLabel: "Sangtitel (valgfrit)", titleHint: "Hvis du efterlader det tomt, opretter Music Speaks en titel fra sangteksten.",
+        titlePlaceholder: "Efterlad tomt og AI giver sangen et navn",
+        promptLabel: "Musikstil beskrivelse", promptHint: "Inkluder stil, humør, instrumenter, tempo og referencer.",
+        promptPlaceholder: "Lys og selvsikker elektronisk pop, raffineret produktion, mindeværdig hook",
+        lyricsIdeaLabel: "Sangtekst instruktioner (valgfrit)", lyricsIdeaHint: "Beskriv hvad du vil eller giv AI instruktioner. Sproget for den valgte stemme anvendes automatisk.",
+        lyricsExtraLabel: "Ekstra krav (valgfrit)", lyricsExtraHint: "Beskriv ekstra krav: varighed, følelsesmæssig tone, stil, humør, tempo, struktur.",
+        lyricsExtraPlaceholder: "Varighed: 3-5 min / Følelse: trist, håbefuld / Stil: poetisk / Humør: mørkt",
+        lyricsIdeaPlaceholder: "Skriv historien, følelserne, billederne eller fragmenterne du vil have.",
+        generateLyrics: "Generer sangtekst", generatingLyrics: "Genererer sangtekst...", lyricsGenerated: "Sangtekst tilføjet nedenfor. Du kan redigere den før du genererer musik.",
+        lyricsAssistNeedBrief: "Tilføj først en beskrivelse eller musikstil.", lyricsAssistFailed: "Generering af sangtekst mislykkedes.",
+        lyricsLabel: "Fuld sangtekst (valgfrit)", lyricsHint: "Indsæt fuld sangtekst her hvis du har den. Fuld sangtekst har forrang.",
+        lyricsPlaceholder: "[ vers]\nDin sangtekst her...\n[ omkvæd]\nDit omkvæd her...",
+        instrumental: "Instrumental", instrumentalHint: "Uden vokal. Sangteksten ignoreres.",
+        autoLyrics: "Auto-generer sangtekst", autoLyricsHint: "AI skriver sangtekst baseret på din beskrivelse.",
+        voiceCloneLabel: "Stemmekloning (valgfrit)", voiceRecordBtn: "Optag min stemme", voiceCloneHint: "Optag 5 korte sætninger i forskellige toner. Det tager cirka 30 sekunder. Den klonede stemme udløber efter 7 dage.",
+        voicePreviewBtn: "Stemme forhåndsvisning", voiceUploading: "Kloner din stemme...", voiceReady: "Stemme klonet! Klik på Forhåndsvisning for at lytte.",
+        voiceError: "Stemmekloning mislykkedes.", voicePreviewGenerating: "Laver forhåndsvisning...", voicePreviewReady: "Forhåndsvisning klar.", voicePreviewError: "Forhåndsvisning mislykkedes.",
+        voiceSingingMode: "Sang-syntese tilstand", voiceSingingModeHint: "Prøv først MiniMax voice_clone_singing. Hvis ikke tilgængelig, brug voice cover.",
+        voicePickerLabel: "Stemmestil", voicePickerDefault: "Klik for at vælge - dette indstiller sangtekstssproget", voicePickerLoading: "Indlæser stemmer...", voiceShowMore: "Vis {count} mere",
+        voicePreviewSample: "Lyt til dette stemmeeksempel",
+        voiceCustomBtn: "Min stemme", voiceCustomDesc: "Optag og brug din egen stemme",
+        recModalTitle: "Optag din stemme",
+        templates: "Stilskabeloner",
+        advanced: "Ekstra parametre", genre: "Genre", mood: "Humør", instruments: "Instrumenter", tempo: "Tempo", bpm: "BPM", key: "Nøgle",
+        vocals: "Vokal stil", structure: "Sangstruktur", references: "Referencer", avoid: "Undgå", useCase: "Anvendelsesområde", extra: "Ekstra detaljer",
+        genrePlaceholder: "pop, reggae, jazz", moodPlaceholder: "varm, lys, intens", instrumentsPlaceholder: "klaver, guitar, trommer",
+        tempoPlaceholder: "hurtig, langsom, moderat", bpmPlaceholder: "85", keyPlaceholder: "C-dur, A-mol",
+        vocalsPlaceholder: "varm mandlig vokal, lys kvindelig vokal", structurePlaceholder: "vers-omkvæd-vers-bro-omkvæd",
+        referencesPlaceholder: "lignende...", avoidPlaceholder: "eksplicit indhold, overdreven auto-tune",
+        useCasePlaceholder: "videobaggrund, temasang", extraPlaceholder: "Yderligere noter",
+        submit: "Skab musik", jobsTitle: "Opgaver", jobsDesc: "Real-tid status. Download knappen vises når MP3 er klar.",
+        clearDraft: "Slet kladde", clearDraftConfirm: "Slete nuværende kladde? Dette sletter ikke genereret musik.",
+        draftSaved: "Kladde gemt", draftRestored: "Forrige kladde genoprettet", draftCleared: "Kladde slettet", draftRestoreFailed: "Kunne ikke genoprette kladde fra server.",
+        empty: "Ingen opgaver endnu. Udfyld formularen for at begynde.", queued: "I kø", running: "Genererer", completed: "Færdig", error: "Fejl", unknown: "Ukendt",
+        download: "Download MP3", delete: "Slet", sent: "Sendt til", instrumentalMode: "Instrumental", vocalMode: "Vokal", deleteConfirm: "Slet denne opgave?", deleteFailed: "Sletning mislykkedes",
+        navCreate: "Skab", navLibrary: "Bibliotek", navFavorites: "Favoritter", navHistory: "Historik", navPlaylists: "Afspilningslister", playlistAll: "Alle sange", playlistRecent: "Nyligt afspillet",
+        libraryDesc: "Alle dine genererede sange på ét sted.", favoritesDesc: "Dine yndlingssange.", historyDesc: "Nyligt genererede sange.",
+        toastMusicStarted: "Musikgenerering startet!", toastMusicReady: "Musik klar: ", toastLyricsSuccess: "Sangtekst genereret!", toastLyricsError: "Generering af sangtekst mislykkedes.", toastVoiceCloneSuccess: "Stemmekloning vellykket!", toastVoiceCloneError: "Stemmekloning mislykkedes.",
+        langMenuLabel: "Grænsefladesprog", langMismatchWarn: "⚠️ Sangtekstssproget matcher ikke sproget for den valgte stemme.", langMismatchTitle: "Sprog mismatch"
+      },
+      fi: {
+        subtitle: "Kun sanat eivät riitä, anna musiikin puhua puolestasi.",
+        createTitle: "Luo musiikkia", createDesc: "Kirjoita tunne, tarina, sanoitukset tai tyyli. Music Speaks muuttaa ne lauluksi.",
+        emailLabel: "Sähköpostiosoite (valinnainen)", emailHint: "Valinnainen. Lataaminen on pääasiallinen tapa saada MP3-tiedostosi.",
+        emailPlaceholder: "your@email.com",
+        titleLabel: "Laulun otsikko (valinnainen)", titleHint: "Jos jätät tyhjäksi, Music Speaks luo otsikon sanoitusten perusteella.",
+        titlePlaceholder: "Jätä tyhjäksi ja AI nimeää laulun",
+        promptLabel: "Musiikkityylin kuvaus", promptHint: "Sisällytä tyyli, tunnelma, soittimet, tempo ja viitteet.",
+        promptPlaceholder: "Kirkas ja itsevarma elektroninen pop, hienostunut tuotanto, mieleenpainuva hook",
+        lyricsIdeaLabel: "Sanoitusohjeet (valinnainen)", lyricsIdeaHint: "Kuvaile mitä haluat tai anna AI:lle ohjeita. Valitun äänen kieli otetaan automaattisesti käyttöön.",
+        lyricsExtraLabel: "Lisävaatimukset (valinnainen)", lyricsExtraHint: "Kuvaile lisävaatimukset: kesto, tunneääni, tyyli, tunnelma, tempo, rakenne.",
+        lyricsExtraPlaceholder: "Kesto: 3-5 min / Tunne: surullinen, toiveikas / Tyyli: runollinen / Tunnelma: synkkä",
+        lyricsIdeaPlaceholder: "Kirjoita haluamasi tarina, tunteet, kuvat tai katkelmat.",
+        generateLyrics: "Luo sanoitukset", generatingLyrics: "Luodaan sanoituksia...", lyricsGenerated: "Sanoitukset lisätty alla. Voit muokata niitä ennen musiikin luomista.",
+        lyricsAssistNeedBrief: "Lisää ensin kuvaus tai musiikkityyli.", lyricsAssistFailed: "Sanoitusten luominen epäonnistui.",
+        lyricsLabel: "Täydet sanoitukset (valinnainen)", lyricsHint: "Liitä täydet sanoitukset tähän, jos sinulla on ne. Täydet sanoitukset ovat etusijalla.",
+        lyricsPlaceholder: "[ säkeistö]\nSanoituksesi tässä...\n[ kertosäe]\nKertosäe tässä...",
+        instrumental: "Instrumentaali", instrumentalHint: "Ilman laulua. Sanoitukset ohitetaan.",
+        autoLyrics: "Automaattiset sanoitukset", autoLyricsHint: "AI kirjoittaa sanoitukset kuvauksesi perusteella.",
+        voiceCloneLabel: "Äänen kloonaus (valinnainen)", voiceRecordBtn: "Nauhoita ääneni", voiceCloneHint: "Nauhoita 5 lyhyttä lausetta eri sävyillä. Kestää noin 30 sekuntia. Kloonattu ääni vanhenee 7 päivässä.",
+        voicePreviewBtn: "Äänen esikatselu", voiceUploading: "Kloonataan ääntäsi...", voiceReady: "Ääni kloonattu! Klikkaa Esikatselu kuunnellaksesi.",
+        voiceError: "Äänen kloonaus epäonnistui.", voicePreviewGenerating: "Luodaan esikatselua...", voicePreviewReady: "Esikatselu valmis.", voicePreviewError: "Esikatselu epäonnistui.",
+        voiceSingingMode: "Laulun synteesitila", voiceSingingModeHint: "Kokeile ensin MiniMax voice_clone_singing. Jos ei ole saatavilla, käytä voice coveria.",
+        voicePickerLabel: "Äänityyli", voicePickerDefault: "Klikkaa valitaksesi - tämä asettaa sanoitusten kielen", voicePickerLoading: "Ladataan ääniä...", voiceShowMore: "Näytä {count} lisää",
+        voicePreviewSample: "Kuuntele tätä ääninäytettä",
+        voiceCustomBtn: "Ääneni", voiceCustomDesc: "Nauhoita ja käytä omaa ääntäsi",
+        recModalTitle: "Nauhoita äänesi",
+        templates: "Tyylimallit",
+        advanced: "Lisäparametrit", genre: "Genre", mood: "Tunnelma", instruments: "Soittimet", tempo: "Tempo", bpm: "BPM", key: "Avain",
+        vocals: "Laulutyyli", structure: "Laulun rakenne", references: "Viitteet", avoid: "Vältä", useCase: "Käyttötapaus", extra: "Lisätiedot",
+        genrePlaceholder: "pop, reggae, jazz", moodPlaceholder: "lämmin, kirkas, intensiivinen", instrumentsPlaceholder: "piano, kitara, rummut",
+        tempoPlaceholder: "nopea, hidas, kohtalainen", bpmPlaceholder: "85", keyPlaceholder: "C-duuri, A-molli",
+        vocalsPlaceholder: "lämmin miesääni, kirkas naisääni", structurePlaceholder: "säkeistö-kertosäe-säkeistö-silta-kertosäe",
+        referencesPlaceholder: "samankaltainen kuin...", avoidPlaceholder: "eksplisiittinen sisältö, liiallinen auto-tune",
+        useCasePlaceholder: "videotausta, teemalaulu", extraPlaceholder: "Lisämuistiinpanot",
+        submit: "Luo musiikkia", jobsTitle: "Työt", jobsDesc: "Reaaliaikainen tila. Latauspainike ilmestyy, kun MP3 on valmis.",
+        clearDraft: "Poista luonnos", clearDraftConfirm: "Poista nykyinen luonnos? Tämä ei poista luotua musiikkia.",
+        draftSaved: "Luonnos tallennettu", draftRestored: "Edellinen luonnos palautettu", draftCleared: "Luonnos poistettu", draftRestoreFailed: "Luonnosta ei voitu palauttaa palvelimelta.",
+        empty: "Ei töitä vielä. Täytä lomake aloittaaksesi.", queued: "Jonossa", running: "Luodaan", completed: "Valmis", error: "Virhe", unknown: "Tuntematon",
+        download: "Lataa MP3", delete: "Poista", sent: "Lähetetty", instrumentalMode: "Instrumentaali", vocalMode: "Laulu", deleteConfirm: "Poista tämä työ?", deleteFailed: "Poisto epäonnistui",
+        navCreate: "Luo", navLibrary: "Kirjasto", navFavorites: "Suosikit", navHistory: "Historia", navPlaylists: "Soittolistat", playlistAll: "Kaikki laulut", playlistRecent: "Äskettäin soitettu",
+        libraryDesc: "Kaikki luomasi laulut yhdessä paikassa.", favoritesDesc: "Suosikkilaulusi.", historyDesc: "Äskettäin luodut laulut.",
+        toastMusicStarted: "Musiikin luonti alkanut!", toastMusicReady: "Musiikki valmis: ", toastLyricsSuccess: "Sanoitukset luotu onnistuneesti!", toastLyricsError: "Sanoitusten luonti epäonnistui.", toastVoiceCloneSuccess: "Äänen kloonaus onnistui!", toastVoiceCloneError: "Äänen kloonaus epäonnistui.",
+        langMenuLabel: "Käyttöliittymän kieli", langMismatchWarn: "⚠️ Sanoitusten kieli ei vastaa valitun äänen kieltä.", langMismatchTitle: "Kielten epä-täsmääminen"
+      },
+      cs: {
+        subtitle: "Když slova nestačí, nechť za vás mluví hudba.",
+        createTitle: "Vytvořit hudbu", createDesc: "Napište pocit, příběh, text nebo styl. Music Speaks to promění v píseň.",
+        emailLabel: "E-mailová adresa (volitelné)", emailHint: "Volitelné. Stažení je hlavní způsob, jak získat váš MP3 soubor.",
+        emailPlaceholder: "your@email.com",
+        titleLabel: "Název písně (volitelné)", titleHint: "Pokud necháte prázdné, Music Speaks vytvoří název z textu.",
+        titlePlaceholder: "Nechte prázdné a AI pojmenuje píseň",
+        promptLabel: "Popis hudebního stylu", promptHint: "Zahrňte styl, náladu, nástroje, tempo a reference.",
+        promptPlaceholder: "Světlý a sebevědomý elektronický pop, propracovaná produkce, nezapomenutelný hook",
+        lyricsIdeaLabel: "Instrukce k textu (volitelné)", lyricsIdeaHint: "Popište, co chcete, nebo dejte AI instrukce. Jazyk vybraného hlasu se automaticky aplikuje.",
+        lyricsExtraLabel: "Dodatečné požadavky (volitelné)", lyricsExtraHint: "Popište dodatečné požadavky: délka, emocionální tón, styl, nálada, tempo, struktura.",
+        lyricsExtraPlaceholder: "Délka: 3-5 min / Emoce: smutná, optimistická / Styl: poetický / Nálada: temná",
+        lyricsIdeaPlaceholder: "Napište příběh, pocity, obrazy nebo útržky, které chcete.",
+        generateLyrics: "Generovat text", generatingLyrics: "Generování textu...", lyricsGenerated: "Text přidán níže. Můžete ho upravit před vytvořením hudby.",
+        lyricsAssistNeedBrief: "Nejprve přidejte popis nebo hudební styl.", lyricsAssistFailed: "Generování textu selhalo.",
+        lyricsLabel: "Plný text (volitelné)", lyricsHint: "Vložte sem plný text, pokud ho máte. Plný text má přednost.",
+        lyricsPlaceholder: "[ sloka]\nVáš text zde...\n[ refrén]\nVáš refrén zde...",
+        instrumental: "Instrumentální", instrumentalHint: "Bez vokálu. Text bude ignorován.",
+        autoLyrics: "Automaticky generovat text", autoLyricsHint: "AI napíše text na základě vašeho popisu.",
+        voiceCloneLabel: "Klonování hlasu (volitelné)", voiceRecordBtn: "Nahrát můj hlas", voiceCloneHint: "Nahrajte 5 krátkých vět v různých tónech. Trvá to přibližně 30 sekund. Klonovaný hlas vyprší za 7 dní.",
+        voicePreviewBtn: "Náhled hlasu", voiceUploading: "Klonování vašeho hlasu...", voiceReady: "Hlas naklonován! Klikněte na Náhled pro poslech.",
+        voiceError: "Klonování hlasu selhalo.", voicePreviewGenerating: "Vytváření náhledu...", voicePreviewReady: "Náhled připraven.", voicePreviewError: "Náhled selhal.",
+        voiceSingingMode: "Režim syntézy zpěvu", voiceSingingModeHint: "Nejprve vyzkoušejte MiniMax voice_clone_singing. Pokud není dostupný, použijte voice cover.",
+        voicePickerLabel: "Styl hlasu", voicePickerDefault: "Klikněte pro výběr - toto nastaví jazyk textu", voicePickerLoading: "Načítání hlasů...", voiceShowMore: "Zobrazit {count} dalších",
+        voicePreviewSample: "Poslechněte si tento hlasový vzorek",
+        voiceCustomBtn: "Můj hlas", voiceCustomDesc: "Nahrajte a používejte svůj vlastní hlas",
+        recModalTitle: "Nahrát svůj hlas",
+        templates: "Šablony stylů",
+        advanced: "Dodatečné parametry", genre: "Žánr", mood: "Nálada", instruments: "Nástroje", tempo: "Tempo", bpm: "BPM", key: "Tónina",
+        vocals: "Vokální styl", structure: "Struktura písně", references: "Reference", avoid: "Vyhnout se", useCase: "Případ užití", extra: "Dodatečné detaily",
+        genrePlaceholder: "pop, reggae, jazz", moodPlaceholder: "teplý, jasný, intenzivní", instrumentsPlaceholder: "piano, kytara, bicí",
+        tempoPlaceholder: "rychlé, pomalé, střední", bpmPlaceholder: "85", keyPlaceholder: "C dur, A moll",
+        vocalsPlaceholder: "teplý mužský vokál, jasný ženský vokál", structurePlaceholder: "sloka-refrén-sloka-most-refrén",
+        referencesPlaceholder: "podobné jako...", avoidPlaceholder: "explicitní obsah, nadměrný auto-tune",
+        useCasePlaceholder: "video pozadí, tematická píseň", extraPlaceholder: "Dodatečné poznámky",
+        submit: "Vytvořit hudbu", jobsTitle: "Úkoly", jobsDesc: "Stav v reálném čase. Tlačítko stažení se objeví, když je MP3 připraveno.",
+        clearDraft: "Smazat koncept", clearDraftConfirm: "Smazat aktuální koncept? Toto neodstraní vytvořenou hudbu.",
+        draftSaved: "Koncept uložen", draftRestored: "Předchozí koncept obnoven", draftCleared: "Koncept smazán", draftRestoreFailed: "Koncept se nepodařilo obnovit ze serveru.",
+        empty: "Zatím žádné úkoly. Vyplňte formulář pro začátek.", queued: "Ve frontě", running: "Vytváření", completed: "Hotovo", error: "Chyba", unknown: "Neznámý",
+        download: "Stáhnout MP3", delete: "Smazat", sent: "Odesláno do", instrumentalMode: "Instrumentální", vocalMode: "Vokální", deleteConfirm: "Smazat tento úkol?", deleteFailed: "Smazání selhalo",
+        navCreate: "Vytvořit", navLibrary: "Knihovna", navFavorites: "Oblíbené", navHistory: "Historie", navPlaylists: "Seznamy skladeb", playlistAll: "Všechny písně", playlistRecent: "Nedávno přehrávané",
+        libraryDesc: "Všechny vaše vytvořené písně na jednom místě.", favoritesDesc: "Vaše oblíbené písně.", historyDesc: "Nedávno vytvořené písně.",
+        toastMusicStarted: "Vytváření hudby zahájeno!", toastMusicReady: "Hudba připravena: ", toastLyricsSuccess: "Text úspěšně vytvořen!", toastLyricsError: "Vytvoření textu selhalo.", toastVoiceCloneSuccess: "Klonování hlasu úspěšné!", toastVoiceCloneError: "Klonování hlasu selhalo.",
+        langMenuLabel: "Jazyk rozhraní", langMismatchWarn: "⚠️ Jazyk textu neodpovídá jazyku vybraného hlasu.", langMismatchTitle: "Neshoda jazyků"
+      },
+      ro: {
+        subtitle: "Când cuvintele nu sunt suficiente, lăsați muzica să vorbească pentru dvs.",
+        createTitle: "Creează muzică", createDesc: "Scrieți o emoție, poveste, versuri sau stil. Music Speaks le va transforma într-o melodie.",
+        emailLabel: "Adresă de e-mail (opțional)", emailHint: "Opțional. Descărcarea este modalitatea principală de a obține fișierul MP3.",
+        emailPlaceholder: "your@email.com",
+        titleLabel: "Titlul melodiei (opțional)", titleHint: "Dacă îl lăsați gol, Music Speaks va crea un titlu din versuri.",
+        titlePlaceholder: "Lăsați gol și AI va numi melodia",
+        promptLabel: "Descriere stil muzical", promptHint: "Includeți stilul, dispoziția, instrumentele, tempo-ul și referințele.",
+        promptPlaceholder: "Pop electronic luminos și încrezător, producție rafinată, hook memorabil",
+        lyricsIdeaLabel: "Instrucțiuni versuri (opțional)", lyricsIdeaHint: "Descrieți ce doriți sau dați instrucțiuni AI. Limba vocii selectate se aplică automat.",
+        lyricsExtraLabel: "Cerințe suplimentare (opțional)", lyricsExtraHint: "Descrieți cerințele suplimentare: durată, ton emoțional, stil, dispoziție, tempo, structură.",
+        lyricsExtraPlaceholder: "Durată: 3-5 minute / Emoție: trist, plin de speranță / Stil: poetic / Dispoziție: întunecat",
+        lyricsIdeaPlaceholder: "Scrieți povestea, sentimentele, imaginile sau fragmentele pe care le doriți.",
+        generateLyrics: "Generează versuri", generatingLyrics: "Se generează versurile...", lyricsGenerated: "Versuri adăugate mai jos. Le puteți edita înainte de a genera muzica.",
+        lyricsAssistNeedBrief: "Adăugați mai întâi o descriere sau stil muzical.", lyricsAssistFailed: "Generarea versurilor a eșuat.",
+        lyricsLabel: "Versuri complete (opțional)", lyricsHint: "Lipiți versurile complete aici dacă le aveți. Versurile complete au prioritate.",
+        lyricsPlaceholder: "[ strofă]\nVersurile tale aici...\n[ refren]\nRefrenul tău aici...",
+        instrumental: "Instrumental", instrumentalHint: "Fără voce. Versurile vor fi ignorate.",
+        autoLyrics: "Generare automată versuri", autoLyricsHint: "AI scrie versuri în funcție de descrierea ta.",
+        voiceCloneLabel: "Clonare voce (opțional)", voiceRecordBtn: "Înregistrează-mi vocea", voiceCloneHint: "Înregistrați 5 propoziții scurte cu tonuri diferite. durează aproximativ 30 de secunde. Vocea clonată expiră în 7 zile.",
+        voicePreviewBtn: "Previzualizare voce", voiceUploading: "Se clonează vocea ta...", voiceReady: "Voce clonată! Faceți clic pe Previzualizare pentru a asculta.",
+        voiceError: "Clonarea vocii a eșuat.", voicePreviewGenerating: "Se creează previzualizarea...", voicePreviewReady: "Previzualizare pregătită.", voicePreviewError: "Previzualizare eșuată.",
+        voiceSingingMode: "Mod sinteză cântare", voiceSingingModeHint: "Încercați mai întâi MiniMax voice_clone_singing. Dacă nu este disponibil, folosiți voice cover.",
+        voicePickerLabel: "Stil voce", voicePickerDefault: "Faceți clic pentru a selecta - aceasta stabilește limba versurilor", voicePickerLoading: "Se încarcă vocile...", voiceShowMore: "Afișați {count} mai multe",
+        voicePreviewSample: "Ascultați această mostră de voce",
+        voiceCustomBtn: "Vocea mea", voiceCustomDesc: "Înregistrați și folosiți propria voce",
+        recModalTitle: "Înregistrați vocea dvs.",
+        templates: "Șabloane de stil",
+        advanced: "Parametri suplimentari", genre: "Gen", mood: "Dispoziție", instruments: "Instrumente", tempo: "Tempo", bpm: "BPM", key: "Cheie",
+        vocals: "Stil vocal", structure: "Structura melodiei", references: "Referințe", avoid: "Evitați", useCase: "Caz de utilizare", extra: "Detalii suplimentare",
+        genrePlaceholder: "pop, reggae, jazz", moodPlaceholder: "căldură, strălucitor, intens", instrumentsPlaceholder: "pian, chitară, tobe",
+        tempoPlaceholder: "rapid, lent, moderat", bpmPlaceholder: "85", keyPlaceholder: "Do major, La minor",
+        vocalsPlaceholder: "vocal masculin călduros, vocal feminin strălucitor", structurePlaceholder: "strofă-refren-strofă-punte-refren",
+        referencesPlaceholder: "similar cu...", avoidPlaceholder: "conținut explicit, auto-tune excesiv",
+        useCasePlaceholder: "fundal video, melodie tematică", extraPlaceholder: "Note suplimentare",
+        submit: "Creează muzică", jobsTitle: "Activități", jobsDesc: "Stare în timp real. Butonul de descărcare apare când MP3 este pregătit.",
+        clearDraft: "Șterge ciornă", clearDraftConfirm: "Ștergeți ciorna actuală? Aceasta nu va șterge muzica generată.",
+        draftSaved: "Ciornă salvată", draftRestored: "Ciorna anterioară restaurată", draftCleared: "Ciornă ștearsă", draftRestoreFailed: "Nu s-a putut restaura ciorna de pe server.",
+        empty: "Nicio activitate încă. Completați formularul pentru a începe.", queued: "În coadă", running: "Se generează", completed: "Terminat", error: "Eroare", unknown: "Necunoscut",
+        download: "Descarcă MP3", delete: "Șterge", sent: "Trimis la", instrumentalMode: "Instrumental", vocalMode: "Vocal", deleteConfirm: "Ștergeți această activitate?", deleteFailed: "Ștergerea a eșuat",
+        navCreate: "Creează", navLibrary: "Bibliotecă", navFavorites: "Favorite", navHistory: "Istoric", navPlaylists: "Playlist-uri", playlistAll: "Toate melodiile", playlistRecent: "Redat recent",
+        libraryDesc: "Toate melodiile generate într-un singur loc.", favoritesDesc: "Melodiile tale preferate.", historyDesc: "Melodii generate recent.",
+        toastMusicStarted: "Generarea muzicii a început!", toastMusicReady: "Muzică pregătită: ", toastLyricsSuccess: "Versuri generate cu succes!", toastLyricsError: "Generarea versurilor a eșuat.", toastVoiceCloneSuccess: "Clonarea vocii cu succes!", toastVoiceCloneError: "Clonarea vocii a eșuat.",
+        langMenuLabel: "Limba interfeței", langMismatchWarn: "⚠️ Limba versurilor nu se potrivește cu limba vocii selectate.", langMismatchTitle: "Nepotrivire de limbă"
+      },
+      hu: {
+        subtitle: "Amikor a szavak nem elegendőek, hadd szóljon a zene helyetted.",
+        createTitle: "Zene létrehozása", createDesc: "Írj egy érzést, történetet, dalszöveget vagy stílust. A Music Speaks dallá alakítja.",
+        emailLabel: "E-mail cím (opcionális)", emailHint: "Opcionális. A letöltés a legfőbb módja az MP3 fájl fogadásának.",
+        emailPlaceholder: "your@email.com",
+        titleLabel: "Dal címe (opcionális)", titleHint: "Ha üresen hagyod, a Music Speaks a dalszövegből hozza létre a címet.",
+        titlePlaceholder: "Hagyd üresen és az AI elnevezi a dalt",
+        promptLabel: "Zenei stílus leírása", promptHint: "Add meg a stílust, hangulatot, hangszereket, tempót és referenciákat.",
+        promptPlaceholder: "Világos és magabiztos elektronikus pop, kifinomult produkció, felejthetetlen hook",
+        lyricsIdeaLabel: "Dalszöveg utasítások (opcionális)", lyricsIdeaHint: "Írd le mit szeretnél, vagy adj utasításokat az AI-nak. A kiválasztott hang nyelve automatikusan alkalmazásra kerül.",
+        lyricsExtraLabel: "További követelmények (opcionális)", lyricsExtraHint: "Írd le a további követelményeket: hossz, érzelmi tónus, stílus, hangulat, tempo, struktúra.",
+        lyricsExtraPlaceholder: "Hossz: 3-5 perc / Érzés: szomorú, reményteli / Stílus: költői / Hangulat: sötét",
+        lyricsIdeaPlaceholder: "Írd meg a kívánt történetet, érzéseket, képeket vagy töredékeket.",
+        generateLyrics: "Dalszöveg létrehozása", generatingLyrics: "Dalszöveg létrehozása...", lyricsGenerated: "Dalszöveg hozzáadva lent. Szerkesztheted, mielőtt létrehoznád a zenét.",
+        lyricsAssistNeedBrief: "Először adj hozzá egy leírást vagy zenei stílust.", lyricsAssistFailed: "A dalszöveg létrehozása sikertelen.",
+        lyricsLabel: "Teljes dalszöveg (opcionális)", lyricsHint: "Illeszd be a teljes dalszöveget ide, ha már megvan. A teljes dalszöveg élvez prioritást.",
+        lyricsPlaceholder: "[ versszak]\nA te dalszöveged itt...\n[ kórus]\nA kórusod itt...",
+        instrumental: "Instrumentális", instrumentalHint: "Vokál nélkül. A dalszöveg figyelmen kívül lesz hagyva.",
+        autoLyrics: "Automatikus dalszöveg", autoLyricsHint: "Az AI a leírásod alapján ír dalszöveget.",
+        voiceCloneLabel: "Hang klónozás (opcionális)", voiceRecordBtn: "Rögzítsd a hangom", voiceCloneHint: "Rögzíts 5 rövid mondatot különböző hangszínekkel. Ez kb. 30 másodpercet vesz igénybe. A klónozott hang 7 nap múlva lejár.",
+        voicePreviewBtn: "Hang előnézet", voiceUploading: "Hangod klónozása...", voiceReady: "Hang klónozva! Kattints az Előnézetre a meghallgatáshoz.",
+        voiceError: "A hang klónozása sikertelen.", voicePreviewGenerating: "Előnézet létrehozása...", voicePreviewReady: "Előnézet kész.", voicePreviewError: "Előnézet sikertelen.",
+        voiceSingingMode: "Ének szintézis mód", voiceSingingModeHint: "Először próbáld a MiniMax voice_clone_singing-et. Ha nem elérhető, használd a voice cover-t.",
+        voicePickerLabel: "Hang stílus", voicePickerDefault: "Kattints a kiválasztáshoz - ez beállítja a dalszöveg nyelvét", voicePickerLoading: "Hangok betöltése...", voiceShowMore: "Még {count} megjelenítése",
+        voicePreviewSample: "Hallgasd meg ezt a hangmintát",
+        voiceCustomBtn: "A hangom", voiceCustomDesc: "Rögzítsd és használd a saját hangod",
+        recModalTitle: "Rögzítsd a hangod",
+        templates: "Stílus sablonok",
+        advanced: "További paraméterek", genre: "Műfaj", mood: "Hangulat", instruments: "Hangszerek", tempo: "Tempo", bpm: "BPM", key: "Hangnem",
+        vocals: "Vokális stílus", structure: "Dal struktúra", references: "Referenciák", avoid: "Kerülendő", useCase: "Felhasználási eset", extra: "További részletek",
+        genrePlaceholder: "pop, reggae, jazz", moodPlaceholder: "meleg, világos, intenzív", instrumentsPlaceholder: "zongora, gitár, dob",
+        tempoPlaceholder: "gyors, lassú, közepes", bpmPlaceholder: "85", keyPlaceholder: "C-dúr, A-moll",
+        vocalsPlaceholder: "meleg férfi vokál, világos női vokál", structurePlaceholder: "vers-kórus-vers-híd-kórus",
+        referencesPlaceholder: "hasonló mint...", avoidPlaceholder: "explicit tartalom, túlzott auto-tune",
+        useCasePlaceholder: "videó háttér, tematikus dal", extraPlaceholder: "További jegyzetek",
+        submit: "Zene létrehozása", jobsTitle: "Feladatok", jobsDesc: "Valós idejű állapot. A letöltés gomb megjelenik, amikor az MP3 kész.",
+        clearDraft: "Vázlat törlése", clearDraftConfirm: "Törlöd a jelenlegi vázlatot? Ez nem törli a létrehozott zenét.",
+        draftSaved: "Vázlat mentve", draftRestored: "Előző vázlat visszaállítva", draftCleared: "Vázlat törölve", draftRestoreFailed: "A vázlat visszaállítása a szerverről sikertelen.",
+        empty: "Még nincs feladat. Töltsd ki az űrlapot a kezdéshez.", queued: "Sorban", running: "Létrehozás", completed: "Kész", error: "Hiba", unknown: "Ismeretlen",
+        download: "MP3 letöltése", delete: "Törlés", sent: "Elküldve", instrumentalMode: "Instrumentális", vocalMode: "Vokális", deleteConfirm: "Törlöd ezt a feladatot?", deleteFailed: "Törlés sikertelen",
+        navCreate: "Létrehoz", navLibrary: "Könyvtár", navFavorites: "Kedvencek", navHistory: "Előzmények", navPlaylists: "Lejátszási listák", playlistAll: "Összes dal", playlistRecent: "Nemrég lejátszott",
+        libraryDesc: "Az összes létrehozott dalod egy helyen.", favoritesDesc: "A kedvenc dalaid.", historyDesc: "Nemrég létrehozott dalok.",
+        toastMusicStarted: "Zene létrehozása megkezdődött!", toastMusicReady: "Zene kész: ", toastLyricsSuccess: "Dalszöveg sikeresen létrehozva!", toastLyricsError: "Dalszöveg létrehozása sikertelen.", toastVoiceCloneSuccess: "Hang klónozás sikeres!", toastVoiceCloneError: "Hang klónozás sikertelen.",
+        langMenuLabel: "Felület nyelve", langMismatchWarn: "⚠️ A dalszöveg nyelve nem egyezik a kiválasztott hang nyelvével.", langMismatchTitle: "Nyelv eltérés"
+      },
+      uk: {
+        subtitle: "Коли слів недостатньо, нехай музика говорить замість вас.",
+        createTitle: "Створити музику", createDesc: "Напишіть почуття, історію, слова або стиль. Music Speaks перетворить це на пісню.",
+        emailLabel: "Електронна пошта (необов'язково)", emailHint: "Необов'язково. Завантаження - основний спосіб отримати ваш MP3.",
+        emailPlaceholder: "your@email.com",
+        titleLabel: "Назва пісні (необов'язково)", titleHint: "Якщо залишити порожнім, Music Speaks створить назву з тексту пісні.",
+        titlePlaceholder: "Залиште порожнім і AI назве пісню",
+        promptLabel: "Опис музичного стилю", promptHint: "Вкажіть стиль, настрій, інструменти, темп та посилання.",
+        promptPlaceholder: "Яскравий і впевнений електронний поп, вишукана продукція, незабутній хук",
+        lyricsIdeaLabel: "Інструкції для тексту (необов'язково)", lyricsIdeaHint: "Опишіть, що ви хочете, або дайте інструкції AI. Мова вибраного голосу застосовується автоматично.",
+        lyricsExtraLabel: "Додаткові вимоги (необов'язково)", lyricsExtraHint: "Опишіть додаткові вимоги: тривалість, емоційний тон, стиль, настрій, темп, структуру.",
+        lyricsExtraPlaceholder: "Тривалість: 3-5 хв / Емоція: сумна, сповнена надії / Стиль: поетичний / Настрій: темний",
+        lyricsIdeaPlaceholder: "Напишіть бажану історію, почуття, образи або уривки.",
+        generateLyrics: "Створити текст", generatingLyrics: "Створення тексту...", lyricsGenerated: "Текст додано нижче. Ви можете редагувати його перед створенням музики.",
+        lyricsAssistNeedBrief: "Спочатку додайте опис або музичний стиль.", lyricsAssistFailed: "Створення тексту не вдалося.",
+        lyricsLabel: "Повний текст (необов'язково)", lyricsHint: "Вставте повний текст сюди, якщо він у вас є. Повний текст має пріоритет.",
+        lyricsPlaceholder: "[ куплет]\nВаш текст тут...\n[ приспів]\nВаш приспів тут...",
+        instrumental: "Інструментальна", instrumentalHint: "Без вокалу. Текст буде ігноровано.",
+        autoLyrics: "Автоматичне створення тексту", autoLyricsHint: "AI пише текст на основі вашого опису.",
+        voiceCloneLabel: "Клонування голосу (необов'язково)", voiceRecordBtn: "Записати мій голос", voiceCloneHint: "Запишіть 5 коротких речень різними тонами. Це займає близько 30 секунд. Клонований голос спливає через 7 днів.",
+        voicePreviewBtn: "Попередній перегляд голосу", voiceUploading: "Клонування вашого голосу...", voiceReady: "Голос клоновано! Натисніть Попередній перегляд, щоб послухати.",
+        voiceError: "Клонування голосу не вдалося.", voicePreviewGenerating: "Створення попереднього перегляду...", voicePreviewReady: "Попередній перегляд готовий.", voicePreviewError: "Попередній перегляд не вдався.",
+        voiceSingingMode: "Режим синтезу співу", voiceSingingModeHint: "Спробуйте спочатку MiniMax voice_clone_singing. Якщо недоступний, використайте voice cover.",
+        voicePickerLabel: "Стиль голосу", voicePickerDefault: "Натисніть для вибору - це встановлює мову тексту", voicePickerLoading: "Завантаження голосів...", voiceShowMore: "Показати ще {count}",
+        voicePreviewSample: "Прослухайте цей зразок голосу",
+        voiceCustomBtn: "Мій голос", voiceCustomDesc: "Запишіть і використовуйте власний голос",
+        recModalTitle: "Запишіть свій голос",
+        templates: "Шаблони стилів",
+        advanced: "Додаткові параметри", genre: "Жанр", mood: "Настрій", instruments: "Інструменти", tempo: "Темп", bpm: "BPM", key: "Тональність",
+        vocals: "Вокальний стиль", structure: "Структура пісні", references: "Посилання", avoid: "Уникайте", useCase: "Випадок використання", extra: "Додаткові деталі",
+        genrePlaceholder: "поп, реггі, джаз", moodPlaceholder: "теплий, яскравий, інтенсивний", instrumentsPlaceholder: "фортепіано, гітара, барабани",
+        tempoPlaceholder: "швидкий, повільний, помірний", bpmPlaceholder: "85", keyPlaceholder: "До мажор, Ля мінор",
+        vocalsPlaceholder: "теплий чоловічий вокал, яскравий жіночий вокал", structurePlaceholder: "куплет-приспів-куплет-місток-приспів",
+        referencesPlaceholder: "схоже на...", avoidPlaceholder: "відвертий вміст, надмірний auto-tune",
+        useCasePlaceholder: "відеофон, тематична пісня", extraPlaceholder: "Додаткові нотатки",
+        submit: "Створити музику", jobsTitle: "Завдання", jobsDesc: "Стан у реальному часі. Кнопка завантаження з'являється, коли MP3 готовий.",
+        clearDraft: "Очистити чернетку", clearDraftConfirm: "Очистити поточну чернетку? Це не видалить створену музику.",
+        draftSaved: "Чернетку збережено", draftRestored: "Попередню чернетку відновлено", draftCleared: "Чернетку очищено", draftRestoreFailed: "Не вдалося відновити чернетку з сервера.",
+        empty: "Завдань ще немає. Заповніть форму, щоб почати.", queued: "У черзі", running: "Створення", completed: "Готово", error: "Помилка", unknown: "Невідомо",
+        download: "Завантажити MP3", delete: "Видалити", sent: "Надіслано до", instrumentalMode: "Інструментальна", vocalMode: "Вокальна", deleteConfirm: "Видалити це завдання?", deleteFailed: "Видалення не вдалося",
+        navCreate: "Створити", navLibrary: "Бібліотека", navFavorites: "Обране", navHistory: "Історія", navPlaylists: "Списки відтворення", playlistAll: "Усі пісні", playlistRecent: "Нещодавно відтворене",
+        libraryDesc: "Усі ваші створені пісні в одному місці.", favoritesDesc: "Ваші улюблені пісні.", historyDesc: "Нещодавно створені пісні.",
+        toastMusicStarted: "Створення музики розпочато!", toastMusicReady: "Музика готова: ", toastLyricsSuccess: "Текст успішно створено!", toastLyricsError: "Створення тексту не вдалося.", toastVoiceCloneSuccess: "Клонування голосу успішне!", toastVoiceCloneError: "Клонування голосу не вдалося.",
+        langMenuLabel: "Мова інтерфейсу", langMismatchWarn: "⚠️ Мова тексту не відповідає мові вибраного голосу.", langMismatchTitle: "Невідповідність мови"
+      },
     };
 
     const TEMPLATES = {
@@ -3839,6 +4752,10 @@ def synthesize_speech(text: str, voice_id: str, output_path: Path, model: str = 
         status_msg = base_resp.get("status_msg", "")
         if status_code == 2054 or "not exist" in status_msg.lower() or "not found" in status_msg.lower():
             raise RuntimeError(f"This voice is not available for preview: {voice_id}")
+        # Check for quota/usage limit errors
+        status_msg_lower = status_msg.lower()
+        if any(token in status_msg_lower for token in ("limit", "quota", "usage", "exceed", "rate")):
+            raise RuntimeError("Voice preview is temporarily unavailable due to high demand. Please try again in a few minutes.")
         print(f"[TTS] unexpected resp: {resp}")
         raise RuntimeError(f"No audio in TTS response: {status_msg or str(resp)}")
     audio_bytes = bytes.fromhex(audio_hex)
@@ -4341,185 +5258,23 @@ def fallback_song_title(job: dict[str, Any], lyrics: str) -> str:
 
 
 def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -> str:
-    prompt = str(job.get("prompt", "")).strip()
+    voice_id = str(job.get("voice_id", "")).strip()
+    voice_lang = _detect_lang_from_voice_id(voice_id) if voice_id else "English"
+
+    system_prompt = f"You are a {voice_lang} songwriter. Write song lyrics in {voice_lang}. Create original lyrics for a 3-5 minute song. Output ONLY the raw lyrics, no explanation, no markdown fences."
+
     lyrics_idea = str(job.get("lyrics_idea", "")).strip()
     lyrics_extra = str(job.get("lyrics_extra", "")).strip()
-    extra = job.get("extra", {}) if isinstance(job.get("extra"), dict) else {}
-    voice_id = str(job.get("voice_id", "")).strip()
-    lyrics_language_override = str(job.get("lyrics_language", "auto")).strip()
-    interface_lang = _interface_language_label(str(job.get("interface_language", "")).strip())
-    # Priority: explicit override > voice_id detection > "auto" (English default)
-    if lyrics_language_override and lyrics_language_override != "auto":
-        voice_lang = lyrics_language_override
-    elif voice_id:
-        voice_lang = _detect_lang_from_voice_id(voice_id)
-    else:
-        voice_lang = "English"
 
-    # ============================================================
-    # STEP 1: Language mismatch detection + translation
-    # If lyrics_idea language differs from voice_lang, translate first.
-    # This ensures the AI generates in the correct language.
-    # ============================================================
-    lyrics_idea_for_generation = lyrics_idea
-    if lyrics_idea and len(lyrics_idea) >= 10:
-        detected_idea_lang = _detect_text_language(lyrics_idea)
-        if detected_idea_lang != voice_lang:
-            print(f"[lyrics] language mismatch: idea={detected_idea_lang}, voice={voice_lang}. Translating first.")
-            translated = _translate_text(lyrics_idea, detected_idea_lang, voice_lang)
-            if translated and translated != lyrics_idea:
-                lyrics_idea_for_generation = translated
-                print(f"[lyrics] translated: {detected_idea_lang} -> {voice_lang} ({len(translated)} chars)")
-    ui_language_hint = ""
-    if interface_lang and interface_lang != voice_lang:
-        ui_language_hint = (
-            f"The interface language is {interface_lang}. Treat it as a low-priority accent only: "
-            f"at least 85-90% of lyric lines must stay in {voice_lang}, but you may include 1-2 short natural lines in {interface_lang} "
-            "if it improves the song. Never let the interface language override the selected voice language."
-        )
-    source_texts = [
-        prompt,
-        lyrics_idea,
-        lyrics_idea_for_generation,
-        lyrics_extra,
-        *[str(value) for value in extra.values() if value],
-    ]
-
-    # ============================================================
-    # STEP 2: Extract themes/keywords from lyrics_idea to avoid verbatim copying
-    # Instead of passing the raw lyrics_idea content, we pass extracted themes.
-    # ============================================================
-    themes_keywords = ""
-    if lyrics_idea_for_generation and len(lyrics_idea_for_generation) >= 20:
-        try:
-            theme_extract_msg = f"""Extract 5-8 ABSTRACT THEME ANCHORS from the following lyrics idea.
-Return ONLY a comma-separated list of generic motifs, emotions, imagery, and concepts — nothing else.
-Do NOT preserve the user's wording. Do NOT copy sentences, clauses, lyric fragments, slogans, or distinctive expressions.
-Use one- to three-word labels only, such as: longing, rain at night, courage, distant city, second chance.
-
-Text: {lyrics_idea_for_generation[:1000]}"""
-            themes_keywords = run_mmx([
-                "text", "chat",
-                "--model", "auto",
-                "--system", "You extract abstract writing themes. Never reuse source wording. Output a comma-separated list only.",
-                "--message", theme_extract_msg,
-                "--max-tokens", "100",
-                "--temperature", "0.3",
-                "--non-interactive", "--quiet", "--output", "text",
-            ], timeout=15)
-            themes_keywords = themes_keywords.strip().strip('"').strip("'")
-            safe_theme_parts: list[str] = []
-            for part in re.split(r"[,，;\n]+", themes_keywords):
-                part = part.strip(" \t\"'“”‘’`.-")
-                if not part or re.search(r"[。！？!?]", part):
-                    continue
-                words = re.findall(r"[A-Za-z0-9_']+", part)
-                cjk_chars = re.findall(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]", part)
-                if len(words) > 3 or len(cjk_chars) > 8:
-                    continue
-                safe_theme_parts.append(part)
-            themes_keywords = ", ".join(safe_theme_parts[:8])
-            if len(themes_keywords) > 200:
-                themes_keywords = themes_keywords[:200]
-            print(f"[lyrics] extracted themes: {themes_keywords[:80]}")
-        except Exception as exc:
-            print(f"[lyrics] theme extraction failed: {exc}")
-            themes_keywords = ""
-
-    # ============================================================
-    # STEP 3: Build the generation prompt
-    # ============================================================
-    # System prompt — language-specific songwriting role
-    if voice_lang == "Cantonese":
-        system = (
-            "You are a Cantonese songwriter. Write song lyrics in Cantonese using traditional Chinese characters and natural spoken Cantonese expressions. "
-            "Output only the raw lyrics — no explanation, no notes, no markdown fences. "
-            "Write enough for a full song. Use only the high-level emotion, story, and imagery as inspiration."
-        )
-    elif voice_lang == "Chinese (Mandarin)":
-        system = (
-            "You are a Mandarin Chinese songwriter. Write song lyrics in simplified Chinese. "
-            "Output only the raw lyrics — no explanation, no notes, no markdown fences. "
-            "Write enough for a full song. Use only the high-level emotion, story, and imagery as inspiration."
-        )
-    elif voice_lang == "Korean":
-        system = (
-            "You are a Korean songwriter. Write song lyrics in Korean. "
-            "Output only the raw lyrics — no explanation, no notes, no markdown fences. "
-            "Write enough for a full song. Use only the high-level emotion, story, and imagery as inspiration."
-        )
-    elif voice_lang == "Japanese":
-        system = (
-            "You are a Japanese songwriter. Write song lyrics in Japanese. "
-            "Output only the raw lyrics — no explanation, no notes, no markdown fences. "
-            "Write enough for a full song. Use only the high-level emotion, story, and imagery as inspiration."
-        )
-    else:
-        lang_label = {
-            "Spanish": "Spanish", "French": "French", "German": "German",
-            "Portuguese": "Portuguese", "Italian": "Italian", "Russian": "Russian",
-            "Arabic": "Arabic", "Hindi": "Hindi", "Indonesian": "Indonesian",
-            "Vietnamese": "Vietnamese", "Thai": "Thai", "Turkish": "Turkish",
-            "Polish": "Polish", "Dutch": "Dutch", "Swedish": "Swedish",
-            "Norwegian": "Norwegian", "Danish": "Danish", "Finnish": "Finnish",
-            "Czech": "Czech", "Romanian": "Romanian", "Hungarian": "Hungarian",
-            "Ukrainian": "Ukrainian",
-        }.get(voice_lang, "English")
-        system = (
-            f"You are a {lang_label} songwriter. Write song lyrics in {lang_label}. "
-            "Output only the raw lyrics — no explanation, no notes, no markdown fences. "
-            "Write enough for a full song. Use only the high-level emotion, story, and imagery as inspiration."
-        )
-    originality_system_rules = (
-        " The user's text is inspiration only, not lyric source material. "
-        "Do not quote, copy, translate verbatim, paraphrase line-by-line, or lightly edit any user sentence, clause, phrase, lyric fragment, title, or distinctive expression. "
-        "First infer the feeling and theme silently, then compose new lyric lines from scratch with different imagery and wording. "
-        "Avoid exact three-word sequences from user text; for CJK text, avoid exact six-character sequences."
-    )
-    system = system + originality_system_rules
-
-    # Build context message — themes used as inspiration, NOT raw content to copy
-    music_style = prompt.strip()
-    context_lines = []
-    if music_style:
-        context_lines.append(f"MUSIC STYLE / TONE: {music_style}")
-    if themes_keywords:
-        context_lines.append(f"THEME ANCHORS (inspiration only, not lyric text): {themes_keywords}")
+    user_prompt = f"Create original song lyrics based on this brief: {lyrics_idea}. The lyrics must be in {voice_lang}."
     if lyrics_extra:
-        context_lines.append(f"ADDITIONAL REQUIREMENTS: {lyrics_extra}")
-    if ui_language_hint:
-        context_lines.append(f"LOW-WEIGHT INTERFACE LANGUAGE HINT: {ui_language_hint}")
-    if extra.get("mood"):
-        context_lines.append(f"MOOD: {extra['mood']}")
-    if extra.get("genre"):
-        context_lines.append(f"GENRE: {extra['genre']}")
-    if extra.get("vocals"):
-        context_lines.append(f"VOCAL STYLE: {extra['vocals']}")
-    if extra.get("structure"):
-        context_lines.append(f"STRUCTURE: {extra['structure']}")
-    if extra.get("avoid"):
-        context_lines.append(f"AVOID: {extra['avoid']}")
-    context_str = "\n".join(context_lines) if context_lines else "(No specific brief provided — create freely)"
-
-    message = f"""{context_str}
-
-All user-provided text above is creative source material only. It is NOT lyric text to copy, rewrite, quote, or translate verbatim.
-
-Write the complete song lyrics for this. The song must be in {voice_lang}.
-
-CRITICAL RULES — Follow these exactly:
-1. LENGTH: Generate {GENERATED_LYRICS_TARGET_MIN_CHARS}-{GENERATED_LYRICS_TARGET_MAX_CHARS} characters, never below {GENERATED_LYRICS_MIN_CHARS}, and do not exceed {GENERATED_LYRICS_MAX_CHARS}. This must be enough for at least a 3-minute song and may run 5-6 minutes, but never beyond about 6 minutes. Use multiple verses, pre-choruses, repeated hooks/choruses, a bridge or lift, and an outro.
-2. ZERO COPYING: The lyrics must be 100% original. Do not copy any sentence, clause, phrase, expression, title, quoted fragment, or distinctive wording from the user's prompt, lyrics instructions, style notes, or additional requirements.
-3. NO PARAPHRASE: Do not rewrite the user's text line by line. Do not translate the user's lines as lyrics. Do not keep the same sentence shape with swapped words.
-4. CREATIVE DISTANCE: Create a fresh central metaphor, fresh scene details, and new singable lines. Use the theme anchors only to understand mood and subject.
-5. SELF-CHECK: Before outputting, silently compare the lyrics against the user's source text. If any line shares a three-word sequence or six CJK characters with the source, rewrite that line.
-6. OUTPUT: Only output the raw lyrics themselves — no explanation, no notes, no "Here are the lyrics:" prefix, no markdown fences, no quotes."""
+        user_prompt += f" {lyrics_extra}"
 
     output = run_mmx([
         "text", "chat",
         "--model", "auto",
-        "--system", system,
-        "--message", message,
+        "--system", system_prompt,
+        "--message", user_prompt,
         "--max-tokens", "5000",
         "--temperature", "0.8",
         "--non-interactive",
@@ -4529,7 +5284,6 @@ CRITICAL RULES — Follow these exactly:
     lyrics = clean_generated_lyrics(output)
     if not lyrics:
         raise RuntimeError("MiniMax lyrics_generation model returned empty lyrics.")
-    validate_generated_lyrics(lyrics, source_texts, voice_lang)
     return lyrics
 
 
