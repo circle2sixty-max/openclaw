@@ -2386,6 +2386,13 @@ INDEX_HTML = r"""<!doctype html>
       if (!confirm(t("deleteConfirm"))) return;
       const res = await fetch(`/api/jobs/${encodeURIComponent(id)}`, {method: "DELETE", headers: headers()});
       if (!res.ok) alert(t("deleteFailed"));
+      // If the deleted job is currently playing, stop the player
+      if (currentTrack && currentTrack.id === id) {
+        audioPlayer.pause();
+        audioPlayer.src = "";
+        currentTrack = null;
+        updatePlayerUI();
+      }
       await loadJobs();
     }
     function collectPayload() {
