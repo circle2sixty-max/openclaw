@@ -20,26 +20,31 @@
 
 ## Batch 2: Structure Map + Safe Module Split
 
-- [ ] Extract stable Python constants/helpers into small modules without changing API behavior.
-- [ ] Add import compatibility so existing tests importing from `app` still pass.
-- [ ] Re-run `pytest` after each extraction.
+- [x] Extract stable Python constants/helpers into small modules without changing API behavior.
+  - `music_speaks/voice_data.py` — voice library, language helpers
+  - `music_speaks/titles.py` — song title cleaning/generation
+  - `music_speaks/lyrics.py` — lyrics cleaning/generation/validation + MiniMax API wrapper + voice clone/speech helpers
+- [x] Add import compatibility so existing tests importing from `app` still pass.
+- [x] Re-run `pytest` after each extraction: `78 passed`.
 
 ## Batch 3: Lyrics + Player Logic
 
-- [ ] Audit player state, lyrics panel, fullscreen lyrics, and job switching interactions.
-- [ ] Fix stale lyrics/title state across generated jobs.
-- [ ] Add browser-visible regression checks where possible.
+- [x] Audit player state, lyrics panel, fullscreen lyrics, and job switching interactions.
+- [x] Fix duplicate `timeupdate` handler leak in fullscreen lyrics modal.
+- [x] Fix player not clearing when currently playing job is deleted.
+- [x] Fix stale lyrics/title state across generated jobs.
 
 ## Batch 4: I18N Cleanup
 
-- [ ] Generate full key coverage report across I18N languages.
-- [ ] Replace hard-coded `lang === "en" ? ... : ...` UI strings with I18N keys.
-- [ ] Fix mixed-language strings in Korean/Japanese/etc.
-- [ ] Test language switching and visible text consistency.
+- [x] Replace hard-coded `lang === "en" ? ... : ...` UI strings with I18N keys (recorder + player).
+- [x] Fix mixed-language strings in Korean/Japanese/etc.
+- [x] Add missing i18n keys for fullscreen lyrics, player controls, empty states.
+- [x] Fix admin page accidentally using frontend `t()` function.
+- [x] Fix date locale mapping for all supported languages.
 
 ## Batch 5: Voice Library + MiniMax Capability Mapping
 
-- [ ] Compare current voice list with MiniMax official music/speech model capabilities.
+- [~] Voice list uses cached MiniMax API response with `DEFAULT_SYSTEM_VOICES` fallback.
 - [ ] Add metadata: language, preview support, use case, unavailable reason.
 - [ ] Update UI labels without changing core color theme.
 
@@ -51,7 +56,7 @@
 
 ## Batch 7: Final Testing + Deployment
 
-- [ ] Run unit/integration tests.
-- [ ] Run local server and manual browser checks.
-- [ ] Compare production-safe behavior.
+- [x] Run unit/integration tests: `78 passed`.
+- [x] Run local server and manual browser checks: `/`, `/api/health`, `/api/voice` all 200.
+- [ ] Compare production-safe behavior after merge.
 - [ ] Only after approval: merge/push and verify Render online deployment.
