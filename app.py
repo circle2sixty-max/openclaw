@@ -2591,6 +2591,9 @@ INDEX_HTML = r"""<!doctype html>
           throw new Error(errMsg);
         }
         lyrics.value = data.lyrics || "";
+        if (data.song_title && !document.getElementById("songTitle").value.trim()) {
+          document.getElementById("songTitle").value = data.song_title;
+        }
         saveDraftSoon();
         setLyricsAssistMessage(t("lyricsGenerated") + " (" + lyrics.value.length + "字)");
         showToast(t("toastLyricsSuccess"), "success");
@@ -6147,7 +6150,7 @@ class MusicHandler(BaseHTTPRequestHandler):
             voice_id = str(form.get("voice_id", "")).strip()
             lyrics_language = str(form.get("lyrics_language", "auto")).strip()
             interface_language = str(form.get("interface_language", "")).strip()
-            lyrics = generate_lyrics_from_text_model({
+            job_for_generation = {
                 "prompt": prompt,
                 "lyrics_idea": lyrics_idea,
                 "lyrics_extra": lyrics_extra,
@@ -6155,7 +6158,21 @@ class MusicHandler(BaseHTTPRequestHandler):
                 "voice_id": voice_id,
                 "lyrics_language": lyrics_language,
                 "interface_language": interface_language,
-            }, timeout=LYRICS_REQUEST_TIMEOUT)
+            }
+            lyrics = generate_lyrics_from_text_model(job_for_generation, timeout=LYRICS_REQUEST_TIMEOUT)
+            requested_title = clean_song_title(str(form.get("song_title", "")).strip())
+            title_error = None
+            if requested_title:
+                song_title = requested_title
+                generated_title = False
+            else:
+                try:
+                    song_title = generate_title_from_text_model(job_for_generation, lyrics, timeout=min(45, LYRICS_REQUEST_TIMEOUT))
+                    generated_title = True
+                except Exception as exc:
+                    song_title = fallback_song_title(job_for_generation, lyrics)
+                    title_error = str(exc)
+                    generated_title = False
         except ValueError as exc:
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
             return
@@ -6170,7 +6187,7 @@ class MusicHandler(BaseHTTPRequestHandler):
             )
             self.send_json({"lyrics": fallback, "fallback": True, "warning": "Live lyrics generation timed out or failed; using local fallback."})
             return
-        self.send_json({"lyrics": lyrics})
+        self.send_json({"lyrics": lyrics, "song_title": song_title, "generated_title": generated_title, "title_error": title_error})
 
     def handle_jobs_voice(self) -> None:
         """Handle POST /api/jobs/voice — create a music job that uses a cloned voice."""
