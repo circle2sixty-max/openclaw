@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 DEFAULT_SYSTEM_VOICES = [
     "Chinese (Mandarin)_Reliable_Executive",
@@ -52,13 +53,26 @@ VOICE_PREVIEW_TEXTS = {
 VOICE_PREVIEW_LANGUAGES = tuple(sorted(VOICE_PREVIEW_TEXTS, key=len, reverse=True))
 VOICE_ID_SAFE_RE = re.compile(r"^[A-Za-z0-9_()./\- （）]+$")
 
+VOICE_USE_CASE_RULES = (
+    (("anchor", "announcer", "host", "radio", "flight attendant"), "Broadcast / host"),
+    (("executive", "trustworthy", "reliable", "diligent", "gentleman"), "Business / explainer"),
+    (("narrator", "butler", "elder", "senior", "wise", "intellectual"), "Narration / storytelling"),
+    (("princess", "queen", "knight", "warrior", "robot", "santa", "grinch", "rudolph", "pig", "elf", "armor", "spirit"), "Character / cinematic"),
+    (("whisper", "soft", "warm", "gentle", "lady", "woman", "bestie", "sweet", "graceful", "sentimental", "serene", "soothing", "charming"), "Warm / intimate"),
+    (("boy", "girl", "youth", "teen", "student", "friend", "bloke", "boyfriend", "sister"), "Youthful / social"),
+)
 
-def _detect_lang_from_voice_id(voice_id: str) -> str:
+
+def _voice_language_details(voice_id: str) -> tuple[str, str]:
     value = str(voice_id or "").strip()
     for lang in VOICE_PREVIEW_LANGUAGES:
         if value == lang or value.startswith(f"{lang}_") or value.startswith(f"{lang} "):
-            return lang
-    return "English"
+            return lang, "prefix"
+    return "English", "default"
+
+
+def _detect_lang_from_voice_id(voice_id: str) -> str:
+    return _voice_language_details(voice_id)[0]
 
 
 UI_LANGUAGE_LABELS = {
@@ -111,3 +125,79 @@ def _is_safe_voice_id(voice_id: str) -> bool:
         return False
     return True
 
+
+def normalize_voice_display_name(voice_id: str, group_key: str = "") -> str:
+    name = str(voice_id or "")
+    if group_key and group_key != "__other__":
+        if name.startswith(group_key + "_"):
+            name = name[len(group_key) + 1 :]
+        elif name.startswith(group_key):
+            name = name[len(group_key) :].lstrip("_ -")
+    name = (
+        name.replace("_", " ")
+        .replace("（F)", " Female")
+        .replace("（M)", " Male")
+    )
+    name = re.sub(r"([a-z])([A-Z])", r"\1 \2", name)
+    name = re.sub(r"\s+", " ", name).strip()
+    return name.title() or str(voice_id or "").replace("_", " ")
+
+
+def infer_voice_use_case(voice_id: str, display_name: str = "") -> str:
+    sample = f"{voice_id} {display_name}".lower()
+    for tokens, label in VOICE_USE_CASE_RULES:
+        if any(token in sample for token in tokens):
+            return label
+    return "General music / spoken demo"
+
+
+def build_voice_metadata(
+    voice_id: str,
+    *,
+    preview_supported: bool = True,
+    unavailable_reason: str = "",
+    source: str = "catalog",
+    display_name: str = "",
+    language: str = "",
+    use_case: str = "",
+    language_source: str = "",
+) -> dict[str, Any]:
+    voice = str(voice_id or "").strip()
+    detected_language, detected_language_source = _voice_language_details(voice)
+    resolved_language = str(language or detected_language).strip() or "English"
+    resolved_language_source = str(language_source or detected_language_source).strip() or detected_language_source
+    resolved_display_name = str(display_name or normalize_voice_display_name(voice, resolved_language)).strip()
+    resolved_reason = str(unavailable_reason or "").strip()
+    resolved_preview = bool(preview_supported) and not resolved_reason
+    resolved_use_case = str(use_case or infer_voice_use_case(voice, resolved_display_name)).strip()
+    return {
+        "id": voice,
+        "language": resolved_language,
+        "language_source": resolved_language_source,
+        "display_name": resolved_display_name,
+        "preview_supported": resolved_preview,
+        "use_case": resolved_use_case,
+        "unavailable_reason": resolved_reason,
+        "source": source,
+    }
+
+
+def build_voice_metadata_map(
+    voices: list[str] | tuple[str, ...],
+    *,
+    preview_supported: bool = True,
+    fallback: bool = False,
+    source: str = "catalog",
+) -> dict[str, dict[str, Any]]:
+    resolved_source = "fallback" if fallback else source
+    metadata: dict[str, dict[str, Any]] = {}
+    for entry in voices or []:
+        voice = str(entry or "").strip()
+        if not voice:
+            continue
+        metadata[voice] = build_voice_metadata(
+            voice,
+            preview_supported=preview_supported,
+            source=resolved_source,
+        )
+    return metadata

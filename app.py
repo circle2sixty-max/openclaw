@@ -61,14 +61,24 @@ from music_speaks.voice_data import (
     DEFAULT_SYSTEM_VOICES,
     UI_LANGUAGE_LABELS,
     VOICE_PREVIEW_TEXTS,
+    build_voice_metadata_map,
     _detect_lang_from_voice_id,
     _interface_language_label,
     _is_safe_voice_id,
 )
 
+import music_speaks.lyrics as lyrics_runtime
+
 from music_speaks.lyrics import (
+    VoiceCloneSingingUnavailable,
+    build_music_option_args,
     clean_generated_lyrics,
+    clone_voice,
+    fallback_generated_lyrics,
     generate_lyrics_from_text_model,
+    generate_voice_cover_audio,
+    synthesize_speech,
+    synthesize_voice_clone_singing,
 )  # noqa: F401 – re-export for tests
 
 from music_speaks.titles import (
@@ -110,7 +120,12 @@ JOBS: dict[str, dict[str, Any]] = {}
 JOBS_LOCK = threading.RLock()
 DRAFTS: dict[str, dict[str, Any]] = {}
 DRAFTS_LOCK = threading.RLock()
-VOICE_CACHE: dict[str, Any] = {"voices": list(DEFAULT_SYSTEM_VOICES), "fallback": True, "fetched_at": 0.0}
+VOICE_CACHE: dict[str, Any] = {
+    "voices": list(DEFAULT_SYSTEM_VOICES),
+    "voice_meta": build_voice_metadata_map(DEFAULT_SYSTEM_VOICES, fallback=True),
+    "fallback": True,
+    "fetched_at": 0.0,
+}
 VOICE_CACHE_LOCK = threading.RLock()
 
 INDEX_HTML = r"""<!doctype html>
@@ -139,6 +154,8 @@ INDEX_HTML = r"""<!doctype html>
       --danger: #ff5252;
       --warning: #ffab00;
       --gradient-green: linear-gradient(135deg, #1db954, #1ed760);
+      --accent-cyan: #67e8f9;
+      --cyber-grid: rgba(103, 232, 249, 0.08);
       --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
       --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
       --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
@@ -248,7 +265,8 @@ INDEX_HTML = r"""<!doctype html>
     .voice-picker-section { margin-bottom: 16px; }
     .voice-picker-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .voice-picker-selected { font-size: 12px; color: var(--accent); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
-    .voice-picker-scroll { height: 308px; overflow: hidden; overscroll-behavior: contain; border: 1px solid var(--border-light); border-radius: 8px; background: linear-gradient(145deg, rgba(18,18,26,0.96), rgba(9,14,16,0.98)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), var(--shadow-sm); padding: 8px; }
+    .voice-picker-scroll { position: relative; isolation: isolate; height: 308px; overflow: hidden; overscroll-behavior: contain; border: 1px solid rgba(103,232,249,0.18); border-radius: 8px; background: linear-gradient(145deg, rgba(18,18,26,0.98), rgba(9,14,16,0.98)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(29,185,84,0.08), 0 20px 40px rgba(0,0,0,0.24); padding: 8px; }
+    .voice-picker-scroll::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.5; background: linear-gradient(180deg, rgba(103,232,249,0.08), transparent 22%), repeating-linear-gradient(135deg, rgba(103,232,249,0.06) 0 1px, transparent 1px 18px); }
     .voice-picker-shell { display: grid; grid-template-columns: 156px minmax(0, 1fr); gap: 8px; height: 100%; min-height: 0; }
     .voice-lang-list,
     .voice-option-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: var(--border-light) transparent; }
@@ -260,10 +278,10 @@ INDEX_HTML = r"""<!doctype html>
     .voice-option-list::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
     .voice-lang-list::-webkit-scrollbar-thumb:hover,
     .voice-option-list::-webkit-scrollbar-thumb:hover { background: var(--accent); }
-    .voice-lang-list { display: flex; flex-direction: column; gap: 6px; padding: 4px; border: 1px solid var(--border-light); border-radius: 8px; background: var(--bg-secondary); }
+    .voice-lang-list { display: flex; flex-direction: column; gap: 6px; padding: 4px; border: 1px solid rgba(103,232,249,0.14); border-radius: 8px; background: linear-gradient(180deg, rgba(15,20,28,0.96), rgba(10,10,18,0.92)); }
     .voice-lang-btn { width: 100%; min-height: 34px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 8px 9px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text-secondary); font-size: 11px; font-weight: 700; text-align: left; cursor: pointer; transition: var(--transition); }
     .voice-lang-btn:hover { color: var(--text-primary); background: var(--bg-tertiary); border-color: var(--border); }
-    .voice-lang-btn.active { color: var(--accent); background: linear-gradient(135deg, rgba(29,185,84,0.18), rgba(29,185,84,0.06)); border-color: rgba(29,185,84,0.55); box-shadow: inset 3px 0 0 var(--accent); }
+    .voice-lang-btn.active { color: var(--accent); background: linear-gradient(135deg, rgba(29,185,84,0.16), rgba(103,232,249,0.08)); border-color: rgba(29,185,84,0.55); box-shadow: inset 3px 0 0 var(--accent), 0 0 24px rgba(29,185,84,0.12); }
     .voice-lang-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .voice-lang-count { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 18px; padding: 0 6px; border-radius: 999px; background: var(--bg-elevated); color: var(--text-muted); font-size: 10px; font-weight: 700; }
     .voice-lang-btn.active .voice-lang-count { background: rgba(29,185,84,0.2); color: var(--accent); }
@@ -273,20 +291,27 @@ INDEX_HTML = r"""<!doctype html>
     .voice-custom-btn:hover { border-color: var(--accent); color: var(--accent); }
     .voice-custom-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
     .voice-custom-label { display: block; margin-top: 5px; font-size: 10px; line-height: 1.3; color: var(--text-muted); }
-    .voice-option-list { border: 1px solid var(--border-light); border-radius: 8px; background: var(--bg-secondary); }
-    .voice-options-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; background: rgba(18,18,26,0.96); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); }
+    .voice-option-list { border: 1px solid rgba(103,232,249,0.14); border-radius: 8px; background: linear-gradient(180deg, rgba(14,18,26,0.98), rgba(10,10,18,0.94)); }
+    .voice-options-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; background: linear-gradient(180deg, rgba(18,18,26,0.98), rgba(14,18,26,0.92)); border-bottom: 1px solid rgba(103,232,249,0.14); backdrop-filter: blur(10px); box-shadow: 0 10px 26px rgba(0,0,0,0.18); }
     .voice-options-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 800; color: var(--text-primary); }
     .voice-options-meta { flex: 0 0 auto; color: var(--text-muted); font-size: 10px; font-weight: 700; }
     .voice-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 7px; padding: 9px; align-content: start; }
-    .voice-pill { width: 100%; min-width: 0; min-height: 38px; display: grid; grid-template-columns: minmax(0, 1fr) 24px; align-items: center; gap: 8px; padding: 7px 7px 7px 10px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; font-size: 11px; color: var(--text-secondary); cursor: pointer; transition: var(--transition); line-height: 1.2; text-align: left; }
-    .voice-pill:hover { border-color: var(--accent); color: var(--text-primary); transform: translateY(-1px); }
-    .voice-pill.selected { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); box-shadow: inset 0 0 0 1px rgba(29,185,84,0.16); }
-    .voice-pill.playing { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); animation: pulse 1s ease-in-out infinite; }
-    .voice-pill .play-icon { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--bg-elevated); color: var(--accent); font-size: 9px; box-shadow: 0 2px 8px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,0,0,0.05); }
+    .voice-pill { position: relative; width: 100%; min-width: 0; min-height: 48px; display: grid; grid-template-columns: minmax(0, 1fr) 28px; align-items: center; gap: 10px; padding: 8px 8px 8px 11px; background: linear-gradient(135deg, rgba(25,25,36,0.96), rgba(16,19,28,0.92)); border: 1px solid rgba(103,232,249,0.12); border-radius: 10px; font-size: 11px; color: var(--text-secondary); cursor: pointer; transition: var(--transition); line-height: 1.2; text-align: left; overflow: hidden; }
+    .voice-pill::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; background: linear-gradient(90deg, rgba(29,185,84,0.14), rgba(103,232,249,0.08)); transition: opacity 0.2s ease; }
+    .voice-pill:hover { border-color: rgba(29,185,84,0.6); color: var(--text-primary); transform: translateY(-1px); box-shadow: 0 12px 30px rgba(0,0,0,0.18); }
+    .voice-pill:hover::before { opacity: 1; }
+    .voice-pill.selected { background: linear-gradient(135deg, rgba(29,185,84,0.16), rgba(103,232,249,0.08)); border-color: rgba(29,185,84,0.7); color: var(--accent); box-shadow: inset 0 0 0 1px rgba(29,185,84,0.12), 0 0 30px rgba(29,185,84,0.14); }
+    .voice-pill.playing { background: linear-gradient(135deg, rgba(29,185,84,0.18), rgba(103,232,249,0.12)); border-color: var(--accent); color: var(--accent); animation: pulse 1s ease-in-out infinite; }
+    .voice-pill-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+    .voice-pill-meta { font-size: 9px; line-height: 1.35; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; letter-spacing: 0.05em; }
+    .voice-pill.selected .voice-pill-meta,
+    .voice-pill.playing .voice-pill-meta { color: rgba(255,255,255,0.72); }
+    .voice-pill .play-icon { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: linear-gradient(135deg, rgba(103,232,249,0.12), rgba(255,255,255,0.08)); color: var(--accent); font-size: 9px; box-shadow: 0 2px 8px rgba(0,0,0,0.2), 0 0 0 1px rgba(103,232,249,0.12); }
     .light-theme .voice-pill .play-icon { background: rgba(255,255,255,0.9); box-shadow: 0 2px 8px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8); }
     .light-theme .voice-pill .play-icon:hover { background: #ffffff; box-shadow: 0 4px 16px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,0,0,0.1); }
+    .voice-pill .play-icon.disabled { color: var(--text-muted); background: rgba(255,255,255,0.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04); }
     .voice-pill .play-icon svg { width: 11px; height: 11px; fill: currentColor; }
-    .voice-pill .voice-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .voice-pill .voice-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
     .voice-empty { padding: 18px; text-align: center; color: var(--text-muted); font-size: 12px; }
     /* Advanced Parameters */
     .advanced-toggle { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; margin-top: 16px; }
@@ -316,9 +341,11 @@ INDEX_HTML = r"""<!doctype html>
     .jobs-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
     .jobs-title { font-size: 16px; font-weight: 700; color: var(--text-primary); }
     .jobs-list { display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto; }
-    .job-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); transition: var(--transition); cursor: pointer; }
-    .job-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow-md); }
-    .job-art { width: 56px; height: 56px; background: var(--gradient-green); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; transition: var(--transition); }
+    .job-card { position: relative; overflow: hidden; display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: linear-gradient(135deg, rgba(26,26,37,0.96), rgba(16,19,28,0.92)); border: 1px solid rgba(103,232,249,0.12); border-radius: var(--radius-md); transition: var(--transition); cursor: pointer; }
+    .job-card::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.35; background: repeating-linear-gradient(135deg, rgba(103,232,249,0.04) 0 1px, transparent 1px 20px); }
+    .job-card::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: rgba(103,232,249,0.18); }
+    .job-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 18px 42px rgba(0,0,0,0.24), 0 0 0 1px rgba(29,185,84,0.08); }
+    .job-art { width: 56px; height: 56px; background: linear-gradient(135deg, #1DB954 0%, #34d399 48%, var(--accent-cyan) 100%); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; transition: var(--transition); box-shadow: 0 14px 28px rgba(29,185,84,0.18); }
     .job-card:hover .job-art { transform: scale(1.05); }
     .job-art svg { width: 26px; height: 26px; fill: currentColor; color: #fff; }
     .job-info { flex: 1; min-width: 0; }
@@ -329,6 +356,10 @@ INDEX_HTML = r"""<!doctype html>
     .job-badge.running { background: rgba(255, 171, 0, 0.15); color: var(--warning); }
     .job-badge.completed { background: var(--accent-dim); color: var(--accent); }
     .job-badge.error { background: rgba(255, 82, 82, 0.15); color: var(--danger); }
+    .job-card.status-completed::after { background: linear-gradient(180deg, var(--accent), var(--accent-cyan)); }
+    .job-card.status-running::after,
+    .job-card.status-queued::after { background: linear-gradient(180deg, var(--warning), var(--accent-cyan)); }
+    .job-card.status-error::after { background: linear-gradient(180deg, var(--danger), rgba(255,255,255,0.2)); }
     .job-actions { display: flex; gap: 8px; }
     .job-action-btn { padding: 8px 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
     .job-action-btn svg { width: 13px; height: 13px; fill: currentColor; }
@@ -340,8 +371,9 @@ INDEX_HTML = r"""<!doctype html>
     .progress-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
     .progress-fill { height: 100%; background: var(--accent); transition: width 0.3s; }
     /* Bottom Player */
-    .player { position: fixed; bottom: 0; left: 0; right: 0; min-height: 104px; background: rgba(10,10,15,0.92); border-top: 1px solid rgba(255,255,255,0.08); box-shadow: 0 -18px 60px rgba(0,0,0,0.5); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); display: flex; align-items: center; padding: 16px 24px; gap: 20px; z-index: 100; overflow: visible; }
+    .player { position: fixed; bottom: 0; left: 0; right: 0; min-height: 104px; background: rgba(10,10,15,0.92); border-top: 1px solid rgba(103,232,249,0.18); box-shadow: 0 -18px 60px rgba(0,0,0,0.5), 0 -1px 0 rgba(29,185,84,0.08) inset; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); display: flex; align-items: center; padding: 16px 24px; gap: 20px; z-index: 100; overflow: visible; isolation: isolate; }
     .player::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0)); pointer-events: none; }
+    .player::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(103,232,249,0.9), rgba(29,185,84,0.95), transparent); opacity: 0.9; pointer-events: none; }
     .player > * { position: relative; z-index: 1; }
     .player-track { display: flex; align-items: center; gap: 14px; width: 300px; min-width: 0; flex-shrink: 0; }
     .player-art { width: 62px; height: 62px; background: linear-gradient(135deg, #1DB954 0%, #34d399 48%, #0f766e 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; box-shadow: 0 14px 34px rgba(29,185,84,0.24), inset 0 1px 0 rgba(255,255,255,0.24); }
@@ -377,9 +409,9 @@ INDEX_HTML = r"""<!doctype html>
     .lyrics-toggle { min-width: 78px; height: 36px; padding: 0 14px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; background: rgba(255,255,255,0.06); color: var(--text-secondary); font-size: 12px; font-weight: 800; letter-spacing: 0.01em; cursor: pointer; transition: var(--transition); }
     .lyrics-toggle:hover:not(:disabled), .lyrics-toggle.active { background: rgba(29,185,84,0.18); border-color: rgba(29,185,84,0.52); color: var(--accent); }
     .lyrics-toggle:disabled { opacity: 0.45; cursor: not-allowed; }
-    .lyrics-panel { position: fixed; right: 24px; bottom: 120px; width: min(480px, calc(100vw - 48px)); max-height: min(60vh, 560px); display: flex; flex-direction: column; z-index: 101; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; background: rgba(10,10,15,0.94); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: 0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05) inset; overflow: hidden; opacity: 0; transform: translateY(20px) scale(0.96); pointer-events: none; transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), transform 0.28s cubic-bezier(0.16, 1, 0.3, 1); }
+    .lyrics-panel { position: fixed; right: 24px; bottom: 120px; width: min(480px, calc(100vw - 48px)); max-height: min(60vh, 560px); display: flex; flex-direction: column; z-index: 101; border: 1px solid rgba(103,232,249,0.18); border-radius: 20px; background: rgba(10,10,15,0.94); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: 0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05) inset, 0 0 30px rgba(29,185,84,0.08); overflow: hidden; opacity: 0; transform: translateY(20px) scale(0.96); pointer-events: none; transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), transform 0.28s cubic-bezier(0.16, 1, 0.3, 1); isolation: isolate; }
     .lyrics-panel.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
-    .lyrics-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .lyrics-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; border-bottom: 1px solid rgba(103,232,249,0.14); background: linear-gradient(180deg, rgba(103,232,249,0.08), rgba(255,255,255,0)); }
     .lyrics-panel-title { font-size: 13px; font-weight: 900; color: var(--text-primary); letter-spacing: 0.08em; text-transform: uppercase; }
     .lyrics-panel-close { width: 32px; height: 32px; border: 1px solid rgba(255,255,255,0.1); border-radius: 50%; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.6); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); flex-shrink: 0; }
     .lyrics-panel-close:hover { background: rgba(255,255,255,0.1); color: #ffffff; border-color: rgba(255,255,255,0.2); transform: rotate(90deg); }
@@ -2189,6 +2221,8 @@ INDEX_HTML = r"""<!doctype html>
     let _lyricsLanguage = "auto"; // "auto" = match voice language, or an explicit IETF language tag
     let lastJobs = [];
     let _cachedVoices = null;
+    let _cachedVoiceMeta = {};
+    let _voiceCatalogState = { fallback: false, cached: false, stale: false };
     let _voiceAudio = null;
     let _voicePlayPending = null;
     let _voicePreviewUtterance = null;
@@ -2293,6 +2327,12 @@ INDEX_HTML = r"""<!doctype html>
       document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
       submitBtnOriginalText = submitBtn.textContent; // Update original text when language changes
       renderJobs(lastJobs);
+      if (_cachedVoices) _buildVoicePicker();
+      const voicePickerSelected = document.getElementById("voicePickerSelected");
+      if (voicePickerSelected && _selectedVoiceId) {
+        voicePickerSelected.textContent = _selectedVoiceLabel(_selectedVoiceId);
+        voicePickerSelected.style.color = "var(--accent)";
+      }
     }
     function statusLabel(status) {
       return status === "completed" ? t("completed") : status === "running" ? t("running") : status === "queued" ? t("queued") : status === "error" ? t("error") : t("unknown");
@@ -2336,7 +2376,8 @@ INDEX_HTML = r"""<!doctype html>
       const actions = job.status === "completed" && job.download_url
         ? `<button class="job-action-btn download" onclick="playJob('${escapeHtml(job.id)}')">${UI_ICONS.play}<span>${t("play")}</span></button><a class="job-action-btn download" href="${downloadUrl}" download="${fileName}">${t("download")}</a>${deleteAction}`
         : isRunning ? `<span style="font-size:12px;color:var(--text-muted);"><span class="spinner" style="width:12px;height:12px;border-width:1.5px;"></span> ${statusLabel(status)}...</span>` : deleteAction;
-      return `<div class="job-card ${completedClass}" data-job-id="${escapeHtml(job.id)}" style="animation-delay:${idx * 50}ms">
+      const statusClass = ["queued", "running", "completed", "error"].includes(job.status) ? `status-${job.status}` : "status-unknown";
+      return `<div class="job-card ${statusClass} ${completedClass}" data-job-id="${escapeHtml(job.id)}" style="animation-delay:${idx * 50}ms">
         <div class="job-art">${statusIcon(job.status)}</div>
         <div class="job-info">
           <div class="job-title">${title}</div>
@@ -2404,7 +2445,7 @@ INDEX_HTML = r"""<!doctype html>
         genre: get("genre"), mood: get("mood"), instruments: get("instruments"), tempo: get("tempo"), bpm: get("bpm"), key: get("key"),
         vocals: get("vocals"), structure: get("structure"), references: get("references"), avoid: get("avoid"), use_case: get("useCase"), extra: get("extra"),
         voice_id: clonedVoiceId || _selectedVoiceId || "",
-        lyrics_language: _activeVoiceLang || _lyricsLanguage || "auto",
+        lyrics_language: _lyricsLanguage || (_activeVoiceLang && _activeVoiceLang !== "__other__" ? _activeVoiceLang : "") || "auto",
         interface_language: lang || "en",
       };
     }
@@ -3260,21 +3301,85 @@ INDEX_HTML = r"""<!doctype html>
 
     function _t(key) { return t(key); }
 
+    function _voiceCatalogStateLabel() {
+      if (_voiceCatalogState.stale) return lang === "zh" ? "缓存目录" : lang === "yue" ? "快取目錄" : "Cached catalog";
+      if (_voiceCatalogState.fallback) return lang === "zh" ? "内置目录" : lang === "yue" ? "內置目錄" : "Fallback catalog";
+      if (_voiceCatalogState.cached) return lang === "zh" ? "已缓存" : lang === "yue" ? "已快取" : "Cached";
+      return lang === "zh" ? "实时目录" : lang === "yue" ? "即時目錄" : "Live catalog";
+    }
+
+    function _voiceMetaForId(voiceId) {
+      if (!voiceId || voiceId === "__custom__") return null;
+      const cached = _cachedVoiceMeta && _cachedVoiceMeta[voiceId];
+      if (cached && typeof cached === "object") return cached;
+      const group = VOICE_LANG_GROUPS.find(function(item) {
+        return voiceId.startsWith(item.lang + "_") || voiceId.startsWith(item.lang);
+      });
+      return {
+        id: voiceId,
+        language: group ? group.lang : "English",
+        language_source: group ? "prefix" : "default",
+        display_name: String(voiceId || ""),
+        preview_supported: true,
+        use_case: "General music / spoken demo",
+        unavailable_reason: "",
+        source: "client-fallback",
+      };
+    }
+
+    function _voiceLanguageForId(voiceId) {
+      const meta = _voiceMetaForId(voiceId);
+      if (meta && meta.language_source && meta.language_source !== "default") return meta.language;
+      for (const group of VOICE_LANG_GROUPS) {
+        if (voiceId.startsWith(group.lang + "_") || voiceId.startsWith(group.lang)) return group.lang;
+      }
+      return "";
+    }
+
+    function _voiceSummaryText(voiceId, groupKey) {
+      const meta = _voiceMetaForId(voiceId);
+      if (!meta) return "";
+      const parts = [];
+      const language = meta.language || groupKey || _voiceLanguageForId(voiceId);
+      if (language && language !== "__other__") parts.push(language);
+      if (meta.use_case) parts.push(meta.use_case);
+      if (meta.preview_supported === false && meta.unavailable_reason) parts.push(meta.unavailable_reason);
+      return parts.filter(Boolean).join(" • ");
+    }
+
+    function _selectedVoiceLabel(voiceId) {
+      if (!voiceId) return t("voicePickerDefault");
+      if (voiceId === "__custom__") return _t("voiceCustomBtn");
+      const group = _voiceGroupForId(voiceId);
+      const label = _voiceDisplayName(voiceId, group ? group.lang : "");
+      const summary = _voiceSummaryText(voiceId, group ? group.lang : "");
+      return summary ? label + " · " + summary : label;
+    }
+
+    function _markVoicePreviewCapability(voiceId, previewSupported, unavailableReason = "") {
+      if (!voiceId || voiceId === "__custom__") return;
+      const existing = _voiceMetaForId(voiceId) || { id: voiceId };
+      _cachedVoiceMeta[voiceId] = {
+        ...existing,
+        preview_supported: !!previewSupported && !unavailableReason,
+        unavailable_reason: unavailableReason || "",
+      };
+    }
+
+    function _isPreviewUnavailableError(message) {
+      return /not available for preview|voice id not exist|voice is not available|preview unavailable/i.test(String(message || ""));
+    }
+
     function _voiceGroupsFromCache() {
       const groups = VOICE_LANG_GROUPS.map(function(group) {
         return { lang: group.lang, label: group.label, voices: [] };
       });
       const otherVoices = [];
       for (const voice of (_cachedVoices || [])) {
-        let placed = false;
-        for (const group of groups) {
-          if (voice.startsWith(group.lang + "_") || voice.startsWith(group.lang)) {
-            group.voices.push(voice);
-            placed = true;
-            break;
-          }
-        }
-        if (!placed) otherVoices.push(voice);
+        const detectedLang = _voiceLanguageForId(voice);
+        const targetGroup = groups.find(function(group) { return group.lang === detectedLang; });
+        if (targetGroup) targetGroup.voices.push(voice);
+        else otherVoices.push(voice);
       }
       const visibleGroups = groups.filter(function(group) { return group.voices.length > 0; });
       if (otherVoices.length > 0) visibleGroups.push({ lang: "__other__", label: "Other", voices: otherVoices });
@@ -3290,7 +3395,8 @@ INDEX_HTML = r"""<!doctype html>
     }
 
     function _voiceDisplayName(voice, groupKey) {
-      let name = String(voice || "");
+      const meta = _voiceMetaForId(voice);
+      let name = meta && meta.display_name ? String(meta.display_name) : String(voice || "");
       if (groupKey && groupKey !== "__other__") {
         if (name.startsWith(groupKey + "_")) {
           name = name.slice(groupKey.length + 1);
@@ -3350,7 +3456,7 @@ INDEX_HTML = r"""<!doctype html>
       if (!groups.some(function(group) { return group.lang === _activeVoiceLang; })) {
         _activeVoiceLang = groups[0] ? groups[0].lang : "";
       }
-      _lyricsLanguage = _activeVoiceLang || _lyricsLanguage || "auto";
+      _lyricsLanguage = (_activeVoiceLang && _activeVoiceLang !== "__other__") ? _activeVoiceLang : (_lyricsLanguage || "auto");
       const activeGroup = groups.find(function(group) { return group.lang === _activeVoiceLang; }) || groups[0];
       let html = '<div class="voice-picker-shell">';
       html += '<div class="voice-lang-list" id="voiceLangList" aria-label="Voice languages">';
@@ -3367,14 +3473,20 @@ INDEX_HTML = r"""<!doctype html>
       html += "</div>";
       html += "</div>";
       html += '<div class="voice-option-list" id="voiceOptionList" aria-label="Voice options">';
-      html += '<div class="voice-options-head"><span class="voice-options-title">' + escapeHtml(activeGroup.label) + '</span><span class="voice-options-meta">' + activeGroup.voices.length + ' voices</span></div>';
+      html += '<div class="voice-options-head"><span class="voice-options-title">' + escapeHtml(activeGroup.label) + '</span><span class="voice-options-meta">' + activeGroup.voices.length + ' voices · ' + escapeHtml(_voiceCatalogStateLabel()) + '</span></div>';
       html += '<div class="voice-items">';
       for (const voice of activeGroup.voices) {
+        const meta = _voiceMetaForId(voice);
         const displayName = _voiceDisplayName(voice, activeGroup.lang);
+        const summary = _voiceSummaryText(voice, activeGroup.lang);
         const isSelected = voice === _selectedVoiceId ? " selected" : "";
-        html += '<button type="button" class="voice-pill' + isSelected + '" data-voice="' + escapeHtml(voice) + '">';
-        html += '<span class="voice-name">' + escapeHtml(displayName) + '</span>';
-        html += '<span class="play-icon" aria-hidden="true">' + UI_ICONS.play + '</span>';
+        const previewClass = meta && meta.preview_supported === false ? " disabled" : "";
+        const titleText = summary ? displayName + ' • ' + summary : displayName;
+        html += '<button type="button" class="voice-pill' + isSelected + '" data-voice="' + escapeHtml(voice) + '" title="' + escapeHtml(titleText) + '">';
+        html += '<span class="voice-pill-copy"><span class="voice-name">' + escapeHtml(displayName) + '</span>';
+        if (summary) html += '<span class="voice-pill-meta">' + escapeHtml(summary) + '</span>';
+        html += '</span>';
+        html += '<span class="play-icon' + previewClass + '" aria-hidden="true">' + UI_ICONS.play + '</span>';
         html += '</button>';
       }
       html += "</div>";
@@ -3392,7 +3504,7 @@ INDEX_HTML = r"""<!doctype html>
           _lyricsLanguage = langKey;
           const selectedLabel = document.getElementById("voicePickerSelected");
           if (selectedLabel && (!_selectedVoiceId || _voiceGroupForId(_selectedVoiceId)?.lang !== langKey)) {
-            selectedLabel.textContent = langKey + " lyrics";
+            selectedLabel.textContent = langKey + (lang === "zh" ? " · 歌词跟随该音色" : lang === "yue" ? " · 歌詞跟隨該音色" : " · lyrics follow this voice");
             selectedLabel.style.color = "var(--accent)";
           }
           const vocalsInput = document.getElementById("vocals");
@@ -3409,7 +3521,9 @@ INDEX_HTML = r"""<!doctype html>
           const voiceId = btn.getAttribute("data-voice");
           if (voiceId) {
             selectVoice(voiceId);
-            playVoicePreview(voiceId);
+            const meta = _voiceMetaForId(voiceId);
+            if (!meta || meta.preview_supported !== false) playVoicePreview(voiceId);
+            else showToast(meta.unavailable_reason || t("voicePreviewError"), "warning");
           }
         });
       });
@@ -3431,7 +3545,7 @@ INDEX_HTML = r"""<!doctype html>
       if (voiceId === "__custom__") {
         vocalsInput.value = "";
         if (selectedLabel) {
-          selectedLabel.textContent = _t("voiceCustomBtn");
+          selectedLabel.textContent = _selectedVoiceLabel(voiceId);
           selectedLabel.style.color = "var(--accent)";
         }
         // Open voice recorder
@@ -3439,17 +3553,20 @@ INDEX_HTML = r"""<!doctype html>
       } else {
         stopVoicePreview();
         const group = _voiceGroupForId(voiceId);
-        if (group) {
-          _activeVoiceLang = group.lang;
+        const meta = _voiceMetaForId(voiceId);
+        const resolvedVoiceLang = meta && meta.language ? meta.language : (group && group.lang !== "__other__" ? group.lang : "");
+        if (group) _activeVoiceLang = group.lang;
+        else if (resolvedVoiceLang) _activeVoiceLang = resolvedVoiceLang;
+        if (resolvedVoiceLang) {
           // Auto-set lyrics language to match voice language
-          _lyricsLanguage = group.lang;
+          _lyricsLanguage = resolvedVoiceLang;
           // Check if existing lyrics mismatch
-          _checkLyricsLanguageMismatch(group.lang);
+          _checkLyricsLanguageMismatch(resolvedVoiceLang);
         }
         const label = _voiceDisplayName(voiceId, group ? group.lang : "");
         vocalsInput.value = label;
         if (selectedLabel) {
-          selectedLabel.textContent = label;
+          selectedLabel.textContent = _selectedVoiceLabel(voiceId);
           selectedLabel.style.color = "var(--accent)";
         }
       }
@@ -3492,7 +3609,9 @@ INDEX_HTML = r"""<!doctype html>
       "Romanian": "ro-RO", "Hungarian": "hu-HU",
     };
     function _voicePreviewLanguage(voiceId) {
+      const meta = _voiceMetaForId(voiceId);
       const group = _voiceGroupForId(voiceId);
+      if (meta && meta.language) return meta.language;
       return group && group.lang !== "__other__" ? group.lang : (_activeVoiceLang || "English");
     }
     function _isPreviewQuotaError(message) {
@@ -3540,6 +3659,10 @@ INDEX_HTML = r"""<!doctype html>
           const errMsg = typeof data.error === "string" ? data.error : data.error?.message || t("voicePreviewError");
           if (_voicePlayPending === playId) {
             if (_isPreviewQuotaError(errMsg) && playBrowserVoicePreview(voiceId, errMsg)) return;
+            if (_isPreviewUnavailableError(errMsg)) {
+              _markVoicePreviewCapability(voiceId, false, errMsg);
+              _buildVoicePicker();
+            }
             showToast(errMsg, "error");
             SoundSystem.play("error");
           }
@@ -3559,7 +3682,7 @@ INDEX_HTML = r"""<!doctype html>
           document.querySelectorAll(".voice-pill").forEach(function(p) { p.classList.remove("playing"); });
         });
         _voiceAudio.addEventListener("play", function() {
-          // Successfully started playing
+          _markVoicePreviewCapability(voiceId, true, "");
         });
         _voiceAudio.addEventListener("error", function(e) {
           if (_voicePlayPending !== playId) return;
@@ -3571,6 +3694,10 @@ INDEX_HTML = r"""<!doctype html>
       } catch (err) {
         if (_voicePlayPending !== playId) return;
         if (_isPreviewQuotaError(err.message) && playBrowserVoicePreview(voiceId, err.message)) return;
+        if (_isPreviewUnavailableError(err.message || "")) {
+          _markVoicePreviewCapability(voiceId, false, err.message || t("voicePreviewError"));
+          _buildVoicePicker();
+        }
         stopVoicePreview();
         showToast(err.message || t("voicePreviewError"), "error");
         SoundSystem.play("error");
@@ -3600,6 +3727,12 @@ INDEX_HTML = r"""<!doctype html>
         const res = await fetch("/api/voice", { headers: headers() });
         const data = await res.json();
         _cachedVoices = Array.isArray(data.voices) ? data.voices : [];
+        _cachedVoiceMeta = data.voice_meta && typeof data.voice_meta === "object" ? data.voice_meta : {};
+        _voiceCatalogState = {
+          fallback: !!data.fallback,
+          cached: !!data.cached,
+          stale: !!data.stale,
+        };
         _buildVoicePicker();
       } catch(e) {
         const container = document.getElementById("voicePickerScroll");
@@ -4558,6 +4691,20 @@ def run_mmx(args: list[str], timeout: int = 900) -> str:
     return result.stdout.strip()
 
 
+lyrics_runtime.Path = Path
+lyrics_runtime.base64 = base64
+lyrics_runtime.json = json
+lyrics_runtime.secrets = secrets
+lyrics_runtime.time = time
+lyrics_runtime.MINIMAX_API_KEY = MINIMAX_API_KEY
+lyrics_runtime.VOICE_CLONE_SINGING_MODEL = VOICE_CLONE_SINGING_MODEL
+lyrics_runtime.VOICE_CLONE_SINGING_ENDPOINT = VOICE_CLONE_SINGING_ENDPOINT
+lyrics_runtime.GENERATED_LYRICS_MIN_CHARS = GENERATED_LYRICS_MIN_CHARS
+lyrics_runtime.GENERATED_LYRICS_MAX_CHARS = GENERATED_LYRICS_MAX_CHARS
+lyrics_runtime.run_mmx = run_mmx
+lyrics_runtime._detect_lang_from_voice_id = _detect_lang_from_voice_id
+
+
 def send_email(to_email: str, file_path: Path, prompt: str) -> bool:
     if not SMTP_USER or not SMTP_PASSWORD:
         print("[email] SMTP_USER or SMTP_PASSWORD missing")
@@ -5037,17 +5184,30 @@ class MusicHandler(BaseHTTPRequestHandler):
             if cached_voices and cache_age < VOICE_CACHE_TTL_SECONDS:
                 self.send_json({
                     "voices": cached_voices,
+                    "voice_meta": dict(VOICE_CACHE.get("voice_meta") or {}),
                     "count": len(cached_voices),
                     "fallback": bool(VOICE_CACHE.get("fallback")),
                     "cached": True,
                 })
                 return
+        raw_meta_overrides: dict[str, dict[str, Any]] = {}
         try:
             output = run_mmx(["speech", "voices", "--output", "json", "--non-interactive", "--quiet"], timeout=int(max(1, VOICE_LIST_TIMEOUT)))
             parsed = json.loads(output)
             if isinstance(parsed, dict):
                 parsed = parsed.get("voices") or parsed.get("data") or []
-            voices = [str(voice).strip() for voice in parsed if str(voice).strip()] if isinstance(parsed, list) else []
+            voices = []
+            if isinstance(parsed, list):
+                for entry in parsed:
+                    voice_id = ""
+                    if isinstance(entry, str):
+                        voice_id = str(entry).strip()
+                    elif isinstance(entry, dict):
+                        voice_id = str(entry.get("voice_id") or entry.get("id") or entry.get("name") or entry.get("voice") or "").strip()
+                        if voice_id:
+                            raw_meta_overrides[voice_id] = dict(entry)
+                    if voice_id:
+                        voices.append(voice_id)
         except Exception as exc:
             print(f"[voices] using fallback voice list: {exc}")
             voices = []
@@ -5056,6 +5216,7 @@ class MusicHandler(BaseHTTPRequestHandler):
                 if cached_voices:
                     self.send_json({
                         "voices": cached_voices,
+                        "voice_meta": dict(VOICE_CACHE.get("voice_meta") or {}),
                         "count": len(cached_voices),
                         "fallback": bool(VOICE_CACHE.get("fallback")),
                         "cached": True,
@@ -5065,9 +5226,32 @@ class MusicHandler(BaseHTTPRequestHandler):
         if not voices:
             voices = DEFAULT_SYSTEM_VOICES
         fallback = voices == DEFAULT_SYSTEM_VOICES
+        voice_meta = build_voice_metadata_map(voices, fallback=fallback)
+        for voice_id, raw in raw_meta_overrides.items():
+            meta = voice_meta.get(voice_id) or build_voice_metadata_map([voice_id]).get(voice_id, {"id": voice_id})
+            language = str(raw.get("language") or raw.get("lang") or meta.get("language") or "").strip()
+            if language:
+                meta["language"] = language
+                meta["language_source"] = "api"
+            display_name = str(raw.get("display_name") or raw.get("label") or raw.get("title") or meta.get("display_name") or "").strip()
+            if display_name:
+                meta["display_name"] = display_name
+            use_case = str(raw.get("use_case") or raw.get("useCase") or meta.get("use_case") or "").strip()
+            if use_case:
+                meta["use_case"] = use_case
+            preview_supported = raw.get("preview_supported")
+            if preview_supported is None:
+                preview_supported = raw.get("previewSupport")
+            if preview_supported is not None:
+                meta["preview_supported"] = bool(preview_supported)
+            unavailable_reason = str(raw.get("unavailable_reason") or raw.get("preview_error") or raw.get("previewUnavailableReason") or meta.get("unavailable_reason") or "").strip()
+            if unavailable_reason:
+                meta["preview_supported"] = False
+                meta["unavailable_reason"] = unavailable_reason
+            voice_meta[voice_id] = meta
         with VOICE_CACHE_LOCK:
-            VOICE_CACHE.update({"voices": list(voices), "fallback": fallback, "fetched_at": time.time()})
-        self.send_json({"voices": voices, "count": len(voices), "fallback": fallback, "cached": False})
+            VOICE_CACHE.update({"voices": list(voices), "voice_meta": dict(voice_meta), "fallback": fallback, "fetched_at": time.time()})
+        self.send_json({"voices": voices, "voice_meta": voice_meta, "count": len(voices), "fallback": fallback, "cached": False})
 
     def handle_voice_preview(self) -> None:
         """Handle GET /api/voice/preview?voice_id=xxx — synthesize a short speech sample with the given voice_id."""

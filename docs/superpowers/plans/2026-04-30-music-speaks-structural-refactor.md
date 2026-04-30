@@ -44,19 +44,22 @@
 
 ## Batch 5: Voice Library + MiniMax Capability Mapping
 
-- [~] Voice list uses cached MiniMax API response with `DEFAULT_SYSTEM_VOICES` fallback.
-- [ ] Add metadata: language, preview support, use case, unavailable reason.
-- [ ] Update UI labels without changing core color theme.
+- [x] Voice list uses cached MiniMax API response with `DEFAULT_SYSTEM_VOICES` fallback.
+- [x] Add metadata: language, preview support, use case, unavailable reason.
+- [x] Update UI labels without changing core color theme.
+- [x] Return richer `/api/voice` payload: `voice_meta`, `fallback`, `cached`, `stale`, plus list[str]/list[dict] compatibility.
+- [x] Fix preview capability fallback so unsupported voices are marked in UI instead of repeatedly failing.
 
 ## Batch 6: Cyberpunk UI Upgrade
 
-- [ ] Preserve existing green/dark color theme.
-- [ ] Add cyberpunk styling through borders, glass, glow, grid/noise, sharper states.
-- [ ] Upgrade player, lyrics panel, voice picker, and job cards.
+- [x] Preserve existing green/dark color theme.
+- [x] Add cyberpunk styling through borders, glass, glow, grid/noise, sharper states.
+- [x] Upgrade player, lyrics panel, voice picker, and job cards.
 
 ## Batch 7: Final Testing + Deployment
 
-- [x] Run unit/integration tests: `78 passed`.
+- [x] Run unit/integration tests: `83 passed`.
 - [x] Run local server and manual browser checks: `/`, `/api/health`, `/api/voice` all 200.
+- [x] Verify `/api/voice/preview` returns audio and fix runtime wiring regression introduced by module split.
 - [ ] Compare production-safe behavior after merge.
 - [ ] Only after approval: merge/push and verify Render online deployment.

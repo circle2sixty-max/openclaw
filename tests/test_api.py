@@ -310,6 +310,32 @@ class TestVoiceEndpoints:
         assert isinstance(body, dict)
         assert isinstance(body.get("voices"), list)
 
+    def test_get_voices_returns_voice_metadata(self, base_url):
+        status, body = api_get("/api/voice", base_url, {"X-Client-Id": CLIENT_ID})
+        assert status == HTTPStatus.OK
+        assert isinstance(body.get("voice_meta"), dict)
+        if body.get("voices"):
+            meta = body["voice_meta"][body["voices"][0]]
+            assert "language" in meta
+            assert "display_name" in meta
+            assert "preview_supported" in meta
+
+    def test_voice_preview_returns_audio(self, base_url, monkeypatch, tmp_path):
+        def fake_synthesize_speech(text, voice_id, output_path, model="speech-2.8-hd"):
+            output_path.write_bytes(b"ID3fake-preview")
+            return output_path
+
+        monkeypatch.setattr(music_app, "synthesize_speech", fake_synthesize_speech)
+        req = urllib.request.Request(
+            f"{base_url}/api/voice/preview?voice_id=Chinese%20%28Mandarin%29_Reliable_Executive",
+            headers={"Accept": "audio/mpeg"},
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            body = resp.read()
+            assert resp.status == HTTPStatus.OK
+            assert resp.headers.get("Content-Type") == "audio/mpeg"
+            assert body.startswith(b"ID3")
+
     def test_voice_sing_requires_api_key(self, base_url):
         """Without MINIMAX_API_KEY, voice/sing fails gracefully."""
         status, body = api_post("/api/voice/sing", base_url, {"lyrics": "test", "voice_id": "test"})
