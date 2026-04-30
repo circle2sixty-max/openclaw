@@ -57,113 +57,35 @@ VOICE_CACHE_TTL_SECONDS = int(os.getenv("VOICE_CACHE_TTL_SECONDS", "900"))
 JOB_TIMEOUT_SECONDS = int(os.getenv("JOB_TIMEOUT_SECONDS", "900"))
 JOB_RETENTION_SECONDS = int(os.getenv("JOB_RETENTION_SECONDS", "604800"))
 
-DEFAULT_SYSTEM_VOICES = [
-    "Chinese (Mandarin)_Reliable_Executive",
-    "Chinese (Mandarin)_News_Anchor",
-    "Chinese (Mandarin)_Mature_Woman",
-    "Chinese (Mandarin)_Sweet_Lady",
-    "Chinese (Mandarin)_Lyrical_Voice",
-    "Cantonese_ProfessionalHost（F)",
-    "Cantonese_GentleLady",
-    "English_Trustworthy_Man",
-    "English_Graceful_Lady",
-    "English_Whispering_girl",
-    "Japanese_KindLady",
-    "Japanese_CalmLady",
-    "Korean_SweetGirl",
-    "Korean_CalmLady",
-    "Spanish_SereneWoman",
-    "Spanish_Narrator",
-    "Portuguese_SentimentalLady",
-    "French_Female_News Anchor",
-    "French_MaleNarrator",
-    "German_FriendlyMan",
-    "Russian_ReliableMan",
-    "Italian_Narrator",
-    "Arabic_CalmWoman",
-]
+from music_speaks.voice_data import (
+    DEFAULT_SYSTEM_VOICES,
+    UI_LANGUAGE_LABELS,
+    VOICE_PREVIEW_TEXTS,
+    build_voice_metadata_map,
+    _detect_lang_from_voice_id,
+    _interface_language_label,
+    _is_safe_voice_id,
+)
 
-VOICE_PREVIEW_TEXTS = {
-    "Chinese (Mandarin)": "你好，这是一段音色试听样本。Music Speaks 把你的文字变成歌曲。",
-    "Cantonese": "你好，呢段係音色試聽樣本。Music Speaks 將你嘅文字變成歌曲。",
-    "English": "Hello, this is a sample of this voice. Music Speaks turns your words into songs.",
-    "Korean": "안녕하세요, 이것은 음성 샘플입니다. Music Speaks가 당신의 말을 노래로 만듭니다.",
-    "Japanese": "こんにちは、これは音声サンプルです。Music Speaks が言葉を歌に変えます。",
-    "Spanish": "Hola, esta es una muestra de voz. Music Speaks convierte tus palabras en canciones.",
-    "Portuguese": "Ola, esta e uma amostra de voz. Music Speaks transforma suas palavras em cancoes.",
-    "French": "Bonjour, ceci est un exemple de voix. Music Speaks transforme vos mots en chansons.",
-    "German": "Hallo, dies ist eine Stimmprobe. Music Speaks verwandelt Ihre Worte in Lieder.",
-    "Indonesian": "Halo, ini adalah contoh suara. Music Speaks mengubah kata-katamu menjadi lagu.",
-    "Russian": "Привет, это образец голоса. Music Speaks превращает ваши слова в песни.",
-    "Italian": "Ciao, questo e un campione vocale. Music Speaks trasforma le tue parole in canzoni.",
-    "Arabic": "مرحبا، هذه عينة صوتية. Music Speaks يحول كلماتك إلى أغان.",
-    "Turkish": "Merhaba, bu bir ses ornegidir. Music Speaks sozlerinizi sarkilara donusturur.",
-    "Ukrainian": "Привіт, це зразок голосу. Music Speaks перетворює ваші слова на пісні.",
-    "Dutch": "Hallo, dit is een stemvoorbeeld. Music Speaks verandert je woorden in liedjes.",
-    "Vietnamese": "Xin chao, day la mau giong noi. Music Speaks bien loi cua ban thanh bai hat.",
-}
-VOICE_PREVIEW_LANGUAGES = tuple(sorted(VOICE_PREVIEW_TEXTS, key=len, reverse=True))
-VOICE_ID_SAFE_RE = re.compile(r"^[A-Za-z0-9_()./\- （）]+$")
+import music_speaks.lyrics as lyrics_runtime
 
+from music_speaks.lyrics import (
+    VoiceCloneSingingUnavailable,
+    build_music_option_args,
+    clean_generated_lyrics,
+    clone_voice,
+    fallback_generated_lyrics,
+    generate_lyrics_from_text_model,
+    generate_voice_cover_audio,
+    synthesize_speech,
+    synthesize_voice_clone_singing,
+)  # noqa: F401 – re-export for tests
 
-def _detect_lang_from_voice_id(voice_id: str) -> str:
-    value = str(voice_id or "").strip()
-    for lang in VOICE_PREVIEW_LANGUAGES:
-        if value == lang or value.startswith(f"{lang}_") or value.startswith(f"{lang} "):
-            return lang
-    return "English"
-
-
-UI_LANGUAGE_LABELS = {
-    "en": "English",
-    "zh": "Chinese (Mandarin)",
-    "yue": "Cantonese",
-    "ko": "Korean",
-    "ja": "Japanese",
-    "es": "Spanish",
-    "fr": "French",
-    "de": "German",
-    "pt": "Portuguese",
-    "it": "Italian",
-    "ru": "Russian",
-    "ar": "Arabic",
-    "hi": "Hindi",
-    "id": "Indonesian",
-    "vi": "Vietnamese",
-    "th": "Thai",
-    "tr": "Turkish",
-    "pl": "Polish",
-    "nl": "Dutch",
-    "sv": "Swedish",
-    "no": "Norwegian",
-    "da": "Danish",
-    "fi": "Finnish",
-    "cs": "Czech",
-    "ro": "Romanian",
-    "hu": "Hungarian",
-    "uk": "Ukrainian",
-}
-
-
-def _interface_language_label(value: str) -> str:
-    text = str(value or "").strip()
-    if not text:
-        return ""
-    if text.startswith("voice:"):
-        return text.removeprefix("voice:").strip()
-    return UI_LANGUAGE_LABELS.get(text, text if re.fullmatch(r"[A-Za-z][A-Za-z ()-]{1,40}", text) else "")
-
-
-def _is_safe_voice_id(voice_id: str) -> bool:
-    value = str(voice_id or "").strip()
-    # Basic safety: reject path traversal and obviously malicious patterns
-    # Let MiniMax API handle actual voice_id validity — we just filter injection
-    if len(value) < 1 or len(value) > 200:
-        return False
-    if ".." in value or value.startswith("/"):
-        return False
-    return True
-
+from music_speaks.titles import (
+    clean_song_title,
+    fallback_song_title,
+    normalize_generated_song_title,
+)
 
 def legacy_local_config(name: str) -> str:
     legacy_path = Path.home() / "Downloads" / "minimax_music_tool.py"
@@ -198,7 +120,12 @@ JOBS: dict[str, dict[str, Any]] = {}
 JOBS_LOCK = threading.RLock()
 DRAFTS: dict[str, dict[str, Any]] = {}
 DRAFTS_LOCK = threading.RLock()
-VOICE_CACHE: dict[str, Any] = {"voices": list(DEFAULT_SYSTEM_VOICES), "fallback": True, "fetched_at": 0.0}
+VOICE_CACHE: dict[str, Any] = {
+    "voices": list(DEFAULT_SYSTEM_VOICES),
+    "voice_meta": build_voice_metadata_map(DEFAULT_SYSTEM_VOICES, fallback=True),
+    "fallback": True,
+    "fetched_at": 0.0,
+}
 VOICE_CACHE_LOCK = threading.RLock()
 
 INDEX_HTML = r"""<!doctype html>
@@ -227,6 +154,8 @@ INDEX_HTML = r"""<!doctype html>
       --danger: #ff5252;
       --warning: #ffab00;
       --gradient-green: linear-gradient(135deg, #1db954, #1ed760);
+      --accent-cyan: #67e8f9;
+      --cyber-grid: rgba(103, 232, 249, 0.08);
       --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
       --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
       --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
@@ -336,7 +265,8 @@ INDEX_HTML = r"""<!doctype html>
     .voice-picker-section { margin-bottom: 16px; }
     .voice-picker-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .voice-picker-selected { font-size: 12px; color: var(--accent); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
-    .voice-picker-scroll { height: 308px; overflow: hidden; overscroll-behavior: contain; border: 1px solid var(--border-light); border-radius: 8px; background: linear-gradient(145deg, rgba(18,18,26,0.96), rgba(9,14,16,0.98)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), var(--shadow-sm); padding: 8px; }
+    .voice-picker-scroll { position: relative; isolation: isolate; height: 308px; overflow: hidden; overscroll-behavior: contain; border: 1px solid rgba(103,232,249,0.18); border-radius: 8px; background: linear-gradient(145deg, rgba(18,18,26,0.98), rgba(9,14,16,0.98)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(29,185,84,0.08), 0 20px 40px rgba(0,0,0,0.24); padding: 8px; }
+    .voice-picker-scroll::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.5; background: linear-gradient(180deg, rgba(103,232,249,0.08), transparent 22%), repeating-linear-gradient(135deg, rgba(103,232,249,0.06) 0 1px, transparent 1px 18px); }
     .voice-picker-shell { display: grid; grid-template-columns: 156px minmax(0, 1fr); gap: 8px; height: 100%; min-height: 0; }
     .voice-lang-list,
     .voice-option-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: var(--border-light) transparent; }
@@ -348,10 +278,10 @@ INDEX_HTML = r"""<!doctype html>
     .voice-option-list::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
     .voice-lang-list::-webkit-scrollbar-thumb:hover,
     .voice-option-list::-webkit-scrollbar-thumb:hover { background: var(--accent); }
-    .voice-lang-list { display: flex; flex-direction: column; gap: 6px; padding: 4px; border: 1px solid var(--border-light); border-radius: 8px; background: var(--bg-secondary); }
+    .voice-lang-list { display: flex; flex-direction: column; gap: 6px; padding: 4px; border: 1px solid rgba(103,232,249,0.14); border-radius: 8px; background: linear-gradient(180deg, rgba(15,20,28,0.96), rgba(10,10,18,0.92)); }
     .voice-lang-btn { width: 100%; min-height: 34px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 8px 9px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text-secondary); font-size: 11px; font-weight: 700; text-align: left; cursor: pointer; transition: var(--transition); }
     .voice-lang-btn:hover { color: var(--text-primary); background: var(--bg-tertiary); border-color: var(--border); }
-    .voice-lang-btn.active { color: var(--accent); background: linear-gradient(135deg, rgba(29,185,84,0.18), rgba(29,185,84,0.06)); border-color: rgba(29,185,84,0.55); box-shadow: inset 3px 0 0 var(--accent); }
+    .voice-lang-btn.active { color: var(--accent); background: linear-gradient(135deg, rgba(29,185,84,0.16), rgba(103,232,249,0.08)); border-color: rgba(29,185,84,0.55); box-shadow: inset 3px 0 0 var(--accent), 0 0 24px rgba(29,185,84,0.12); }
     .voice-lang-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .voice-lang-count { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 18px; padding: 0 6px; border-radius: 999px; background: var(--bg-elevated); color: var(--text-muted); font-size: 10px; font-weight: 700; }
     .voice-lang-btn.active .voice-lang-count { background: rgba(29,185,84,0.2); color: var(--accent); }
@@ -361,20 +291,27 @@ INDEX_HTML = r"""<!doctype html>
     .voice-custom-btn:hover { border-color: var(--accent); color: var(--accent); }
     .voice-custom-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
     .voice-custom-label { display: block; margin-top: 5px; font-size: 10px; line-height: 1.3; color: var(--text-muted); }
-    .voice-option-list { border: 1px solid var(--border-light); border-radius: 8px; background: var(--bg-secondary); }
-    .voice-options-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; background: rgba(18,18,26,0.96); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); }
+    .voice-option-list { border: 1px solid rgba(103,232,249,0.14); border-radius: 8px; background: linear-gradient(180deg, rgba(14,18,26,0.98), rgba(10,10,18,0.94)); }
+    .voice-options-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; background: linear-gradient(180deg, rgba(18,18,26,0.98), rgba(14,18,26,0.92)); border-bottom: 1px solid rgba(103,232,249,0.14); backdrop-filter: blur(10px); box-shadow: 0 10px 26px rgba(0,0,0,0.18); }
     .voice-options-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 800; color: var(--text-primary); }
     .voice-options-meta { flex: 0 0 auto; color: var(--text-muted); font-size: 10px; font-weight: 700; }
     .voice-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 7px; padding: 9px; align-content: start; }
-    .voice-pill { width: 100%; min-width: 0; min-height: 38px; display: grid; grid-template-columns: minmax(0, 1fr) 24px; align-items: center; gap: 8px; padding: 7px 7px 7px 10px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; font-size: 11px; color: var(--text-secondary); cursor: pointer; transition: var(--transition); line-height: 1.2; text-align: left; }
-    .voice-pill:hover { border-color: var(--accent); color: var(--text-primary); transform: translateY(-1px); }
-    .voice-pill.selected { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); box-shadow: inset 0 0 0 1px rgba(29,185,84,0.16); }
-    .voice-pill.playing { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); animation: pulse 1s ease-in-out infinite; }
-    .voice-pill .play-icon { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--bg-elevated); color: var(--accent); font-size: 9px; box-shadow: 0 2px 8px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,0,0,0.05); }
+    .voice-pill { position: relative; width: 100%; min-width: 0; min-height: 48px; display: grid; grid-template-columns: minmax(0, 1fr) 28px; align-items: center; gap: 10px; padding: 8px 8px 8px 11px; background: linear-gradient(135deg, rgba(25,25,36,0.96), rgba(16,19,28,0.92)); border: 1px solid rgba(103,232,249,0.12); border-radius: 10px; font-size: 11px; color: var(--text-secondary); cursor: pointer; transition: var(--transition); line-height: 1.2; text-align: left; overflow: hidden; }
+    .voice-pill::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; background: linear-gradient(90deg, rgba(29,185,84,0.14), rgba(103,232,249,0.08)); transition: opacity 0.2s ease; }
+    .voice-pill:hover { border-color: rgba(29,185,84,0.6); color: var(--text-primary); transform: translateY(-1px); box-shadow: 0 12px 30px rgba(0,0,0,0.18); }
+    .voice-pill:hover::before { opacity: 1; }
+    .voice-pill.selected { background: linear-gradient(135deg, rgba(29,185,84,0.16), rgba(103,232,249,0.08)); border-color: rgba(29,185,84,0.7); color: var(--accent); box-shadow: inset 0 0 0 1px rgba(29,185,84,0.12), 0 0 30px rgba(29,185,84,0.14); }
+    .voice-pill.playing { background: linear-gradient(135deg, rgba(29,185,84,0.18), rgba(103,232,249,0.12)); border-color: var(--accent); color: var(--accent); animation: pulse 1s ease-in-out infinite; }
+    .voice-pill-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+    .voice-pill-meta { font-size: 9px; line-height: 1.35; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; letter-spacing: 0.05em; }
+    .voice-pill.selected .voice-pill-meta,
+    .voice-pill.playing .voice-pill-meta { color: rgba(255,255,255,0.72); }
+    .voice-pill .play-icon { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: linear-gradient(135deg, rgba(103,232,249,0.12), rgba(255,255,255,0.08)); color: var(--accent); font-size: 9px; box-shadow: 0 2px 8px rgba(0,0,0,0.2), 0 0 0 1px rgba(103,232,249,0.12); }
     .light-theme .voice-pill .play-icon { background: rgba(255,255,255,0.9); box-shadow: 0 2px 8px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8); }
     .light-theme .voice-pill .play-icon:hover { background: #ffffff; box-shadow: 0 4px 16px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,0,0,0.1); }
+    .voice-pill .play-icon.disabled { color: var(--text-muted); background: rgba(255,255,255,0.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04); }
     .voice-pill .play-icon svg { width: 11px; height: 11px; fill: currentColor; }
-    .voice-pill .voice-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .voice-pill .voice-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
     .voice-empty { padding: 18px; text-align: center; color: var(--text-muted); font-size: 12px; }
     /* Advanced Parameters */
     .advanced-toggle { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; margin-top: 16px; }
@@ -404,9 +341,11 @@ INDEX_HTML = r"""<!doctype html>
     .jobs-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
     .jobs-title { font-size: 16px; font-weight: 700; color: var(--text-primary); }
     .jobs-list { display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto; }
-    .job-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); transition: var(--transition); cursor: pointer; }
-    .job-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow-md); }
-    .job-art { width: 56px; height: 56px; background: var(--gradient-green); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; transition: var(--transition); }
+    .job-card { position: relative; overflow: hidden; display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: linear-gradient(135deg, rgba(26,26,37,0.96), rgba(16,19,28,0.92)); border: 1px solid rgba(103,232,249,0.12); border-radius: var(--radius-md); transition: var(--transition); cursor: pointer; }
+    .job-card::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.35; background: repeating-linear-gradient(135deg, rgba(103,232,249,0.04) 0 1px, transparent 1px 20px); }
+    .job-card::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: rgba(103,232,249,0.18); }
+    .job-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 18px 42px rgba(0,0,0,0.24), 0 0 0 1px rgba(29,185,84,0.08); }
+    .job-art { width: 56px; height: 56px; background: linear-gradient(135deg, #1DB954 0%, #34d399 48%, var(--accent-cyan) 100%); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; transition: var(--transition); box-shadow: 0 14px 28px rgba(29,185,84,0.18); }
     .job-card:hover .job-art { transform: scale(1.05); }
     .job-art svg { width: 26px; height: 26px; fill: currentColor; color: #fff; }
     .job-info { flex: 1; min-width: 0; }
@@ -417,6 +356,10 @@ INDEX_HTML = r"""<!doctype html>
     .job-badge.running { background: rgba(255, 171, 0, 0.15); color: var(--warning); }
     .job-badge.completed { background: var(--accent-dim); color: var(--accent); }
     .job-badge.error { background: rgba(255, 82, 82, 0.15); color: var(--danger); }
+    .job-card.status-completed::after { background: linear-gradient(180deg, var(--accent), var(--accent-cyan)); }
+    .job-card.status-running::after,
+    .job-card.status-queued::after { background: linear-gradient(180deg, var(--warning), var(--accent-cyan)); }
+    .job-card.status-error::after { background: linear-gradient(180deg, var(--danger), rgba(255,255,255,0.2)); }
     .job-actions { display: flex; gap: 8px; }
     .job-action-btn { padding: 8px 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
     .job-action-btn svg { width: 13px; height: 13px; fill: currentColor; }
@@ -428,8 +371,9 @@ INDEX_HTML = r"""<!doctype html>
     .progress-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
     .progress-fill { height: 100%; background: var(--accent); transition: width 0.3s; }
     /* Bottom Player */
-    .player { position: fixed; bottom: 0; left: 0; right: 0; min-height: 104px; background: rgba(10,10,15,0.92); border-top: 1px solid rgba(255,255,255,0.08); box-shadow: 0 -18px 60px rgba(0,0,0,0.5); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); display: flex; align-items: center; padding: 16px 24px; gap: 20px; z-index: 100; overflow: visible; }
+    .player { position: fixed; bottom: 0; left: 0; right: 0; min-height: 104px; background: rgba(10,10,15,0.92); border-top: 1px solid rgba(103,232,249,0.18); box-shadow: 0 -18px 60px rgba(0,0,0,0.5), 0 -1px 0 rgba(29,185,84,0.08) inset; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); display: flex; align-items: center; padding: 16px 24px; gap: 20px; z-index: 100; overflow: visible; isolation: isolate; }
     .player::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0)); pointer-events: none; }
+    .player::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(103,232,249,0.9), rgba(29,185,84,0.95), transparent); opacity: 0.9; pointer-events: none; }
     .player > * { position: relative; z-index: 1; }
     .player-track { display: flex; align-items: center; gap: 14px; width: 300px; min-width: 0; flex-shrink: 0; }
     .player-art { width: 62px; height: 62px; background: linear-gradient(135deg, #1DB954 0%, #34d399 48%, #0f766e 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; box-shadow: 0 14px 34px rgba(29,185,84,0.24), inset 0 1px 0 rgba(255,255,255,0.24); }
@@ -465,9 +409,9 @@ INDEX_HTML = r"""<!doctype html>
     .lyrics-toggle { min-width: 78px; height: 36px; padding: 0 14px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; background: rgba(255,255,255,0.06); color: var(--text-secondary); font-size: 12px; font-weight: 800; letter-spacing: 0.01em; cursor: pointer; transition: var(--transition); }
     .lyrics-toggle:hover:not(:disabled), .lyrics-toggle.active { background: rgba(29,185,84,0.18); border-color: rgba(29,185,84,0.52); color: var(--accent); }
     .lyrics-toggle:disabled { opacity: 0.45; cursor: not-allowed; }
-    .lyrics-panel { position: fixed; right: 24px; bottom: 120px; width: min(480px, calc(100vw - 48px)); max-height: min(60vh, 560px); display: flex; flex-direction: column; z-index: 101; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; background: rgba(10,10,15,0.94); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: 0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05) inset; overflow: hidden; opacity: 0; transform: translateY(20px) scale(0.96); pointer-events: none; transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), transform 0.28s cubic-bezier(0.16, 1, 0.3, 1); }
+    .lyrics-panel { position: fixed; right: 24px; bottom: 120px; width: min(480px, calc(100vw - 48px)); max-height: min(60vh, 560px); display: flex; flex-direction: column; z-index: 101; border: 1px solid rgba(103,232,249,0.18); border-radius: 20px; background: rgba(10,10,15,0.94); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: 0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05) inset, 0 0 30px rgba(29,185,84,0.08); overflow: hidden; opacity: 0; transform: translateY(20px) scale(0.96); pointer-events: none; transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), transform 0.28s cubic-bezier(0.16, 1, 0.3, 1); isolation: isolate; }
     .lyrics-panel.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
-    .lyrics-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .lyrics-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; border-bottom: 1px solid rgba(103,232,249,0.14); background: linear-gradient(180deg, rgba(103,232,249,0.08), rgba(255,255,255,0)); }
     .lyrics-panel-title { font-size: 13px; font-weight: 900; color: var(--text-primary); letter-spacing: 0.08em; text-transform: uppercase; }
     .lyrics-panel-close { width: 32px; height: 32px; border: 1px solid rgba(255,255,255,0.1); border-radius: 50%; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.6); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); flex-shrink: 0; }
     .lyrics-panel-close:hover { background: rgba(255,255,255,0.1); color: #ffffff; border-color: rgba(255,255,255,0.2); transform: rotate(90deg); }
@@ -2246,6 +2190,22 @@ INDEX_HTML = r"""<!doctype html>
       }
     });
 
+    Object.assign(I18N, {
+      en: { ...I18N.en, recPreparing: "Preparing...", recCancel: "Cancel", recSegment: "Segment", recStartingIn: "Starting in {seconds}...", recStartRecording: "Start Recording", recRecordingFailed: "Recording failed — no audio data captured. Please try again.", recTooSmall: "Recording too small — check microphone. Please try again.", recRecording: "Recording...", recRecordingCountdown: "Recording... {seconds}s", recMicDenied: "Microphone access denied. Please allow microphone access.", recRerecord: "Re-record", recNext: "Next →", recAllDone: "All recordings complete! Merging...", recUploadingCloning: "Uploading & cloning...", recCloneFailed: "Clone failed.", recVoiceReady: "Voice cloned! Use Preview to listen.", recCloneFailedPrefix: "Clone failed: ", recClose: "Close", recRerecordConfirm: "Re-record voice? This will create a new voice clone.", untitled: "Untitled", noLyrics: "No lyrics available.", fullscreenLyrics: "Fullscreen lyrics", closeFullscreenLyrics: "Close fullscreen lyrics", previous: "Previous", next: "Next", playPause: "Play/Pause", artistName: "Music Speaks", muteSounds: "Mute sounds", unmuteSounds: "Unmute sounds" },
+      zh: { ...I18N.zh, recPreparing: "准备中...", recCancel: "取消", recSegment: "段落", recStartingIn: "{seconds}秒后开始...", recStartRecording: "开始录制", recRecordingFailed: "录音失败 — 未捕获到音频数据，请重试。", recTooSmall: "录音文件过小 — 请检查麦克风后重试。", recRecording: "录制中...", recRecordingCountdown: "录制中... {seconds}s", recMicDenied: "麦克风访问被拒绝，请允许麦克风权限。", recRerecord: "重新录制", recNext: "下一个 →", recAllDone: "全部录制完成！正在合并...", recUploadingCloning: "上传中并复刻声音...", recCloneFailed: "声音复刻失败。", recVoiceReady: "声音复刻完成！点击预览试听。", recCloneFailedPrefix: "复刻失败：", recClose: "关闭", recRerecordConfirm: "重新录制？这将创建新的声音复刻。", untitled: "未命名", noLyrics: "暂无歌词。", fullscreenLyrics: "全屏歌词", closeFullscreenLyrics: "关闭全屏歌词", previous: "上一首", next: "下一首", playPause: "播放/暂停", artistName: "Music Speaks", muteSounds: "静音", unmuteSounds: "取消静音" },
+      yue: { ...I18N.yue, recPreparing: "準備中...", recCancel: "取消", recSegment: "段落", recStartingIn: "{seconds}秒後開始...", recStartRecording: "開始錄製", recRecordingFailed: "錄音失敗 — 未捕獲音訊資料，請重試。", recTooSmall: "錄音檔案太細 — 請檢查咪高峰後重試。", recRecording: "錄製中...", recRecordingCountdown: "錄製中... {seconds}s", recMicDenied: "咪高峰存取被拒，請允許權限。", recRerecord: "重新錄製", recNext: "下一個 →", recAllDone: "全部錄製完成！正在合併...", recUploadingCloning: "上載並復刻聲音中...", recCloneFailed: "聲音復刻失敗。", recVoiceReady: "聲音復刻完成！點擊預覽試聽。", recCloneFailedPrefix: "復刻失敗：", recClose: "關閉", recRerecordConfirm: "重新錄製？這會建立新的聲音復刻。", untitled: "未命名", noLyrics: "暫無歌詞。", fullscreenLyrics: "全屏歌詞", closeFullscreenLyrics: "關閉全屏歌詞", previous: "上一首", next: "下一首", playPause: "播放/暫停", artistName: "Music Speaks", muteSounds: "靜音", unmuteSounds: "取消靜音" },
+      ko: { ...I18N.ko, recPreparing: "준비 중...", recCancel: "취소", recSegment: "구간", recStartingIn: "{seconds}초 후 시작...", recStartRecording: "녹음 시작", recRecordingFailed: "녹음 실패 — 오디오가 캡처되지 않았습니다. 다시 시도하세요.", recTooSmall: "녹음 파일이 너무 작습니다 — 마이크를 확인하고 다시 시도하세요.", recRecording: "녹음 중...", recRecordingCountdown: "녹음 중... {seconds}초", recMicDenied: "마이크 접근이 거부되었습니다. 권한을 허용하세요.", recRerecord: "다시 녹음", recNext: "다음 →", recAllDone: "모든 녹음 완료! 병합 중...", recUploadingCloning: "업로드 및 음성 복제 중...", recCloneFailed: "음성 복제 실패.", recVoiceReady: "음성 복제 완료! 미리듣기로 확인하세요.", recCloneFailedPrefix: "복제 실패: ", recClose: "닫기", recRerecordConfirm: "다시 녹음할까요? 새 음성 복제가 생성됩니다.", untitled: "제목 없음", muteSounds: "소리 끄기", unmuteSounds: "소리 켜기" },
+      ja: { ...I18N.ja, recPreparing: "準備中...", recCancel: "キャンセル", recSegment: "セグメント", recStartingIn: "{seconds}秒後に開始...", recStartRecording: "録音開始", recRecordingFailed: "録音に失敗しました — 音声データが取得できません。もう一度お試しください。", recTooSmall: "録音が短すぎます — マイクを確認してもう一度お試しください。", recRecording: "録音中...", recRecordingCountdown: "録音中... {seconds}秒", recMicDenied: "マイクへのアクセスが拒否されました。権限を許可してください。", recRerecord: "再録音", recNext: "次へ →", recAllDone: "すべての録音が完了しました！結合中...", recUploadingCloning: "アップロードして音声を複製中...", recCloneFailed: "音声複製に失敗しました。", recVoiceReady: "音声複製完了！プレビューで確認してください。", recCloneFailedPrefix: "複製失敗: ", recClose: "閉じる", recRerecordConfirm: "再録音しますか？新しい音声複製が作成されます。", untitled: "無題", muteSounds: "ミュート", unmuteSounds: "ミュート解除" },
+      es: { ...I18N.es, recPreparing: "Preparando...", recCancel: "Cancelar", recSegment: "Segmento", recStartingIn: "Empieza en {seconds}...", recStartRecording: "Iniciar grabación", recRecordingFailed: "La grabación falló: no se capturó audio. Inténtalo de nuevo.", recTooSmall: "La grabación es demasiado pequeña: revisa el micrófono e inténtalo de nuevo.", recRecording: "Grabando...", recRecordingCountdown: "Grabando... {seconds}s", recMicDenied: "Acceso al micrófono denegado. Permite el acceso.", recRerecord: "Volver a grabar", recNext: "Siguiente →", recAllDone: "¡Grabaciones completas! Mezclando...", recUploadingCloning: "Subiendo y clonando voz...", recCloneFailed: "Clonación de voz fallida.", recVoiceReady: "¡Voz clonada! Usa Vista previa para escuchar.", recCloneFailedPrefix: "Clonación fallida: ", recClose: "Cerrar", recRerecordConfirm: "¿Volver a grabar? Esto creará una nueva voz clonada.", untitled: "Sin título", muteSounds: "Silenciar sonidos", unmuteSounds: "Activar sonidos" },
+      fr: { ...I18N.fr, recPreparing: "Préparation...", recCancel: "Annuler", recSegment: "Segment", recStartingIn: "Début dans {seconds}...", recStartRecording: "Démarrer l'enregistrement", recRecordingFailed: "Échec de l'enregistrement — aucun audio capturé. Réessayez.", recTooSmall: "Enregistrement trop court — vérifiez le micro et réessayez.", recRecording: "Enregistrement...", recRecordingCountdown: "Enregistrement... {seconds}s", recMicDenied: "Accès au micro refusé. Autorisez l'accès.", recRerecord: "Réenregistrer", recNext: "Suivant →", recAllDone: "Tous les enregistrements sont terminés ! Fusion...", recUploadingCloning: "Téléversement et clonage de voix...", recCloneFailed: "Échec du clonage vocal.", recVoiceReady: "Voix clonée ! Utilisez l’aperçu pour écouter.", recCloneFailedPrefix: "Échec du clonage : ", recClose: "Fermer", recRerecordConfirm: "Réenregistrer ? Cela créera une nouvelle voix clonée.", untitled: "Sans titre", muteSounds: "Couper les sons", unmuteSounds: "Activer les sons" },
+      de: { ...I18N.de, recPreparing: "Vorbereitung...", recCancel: "Abbrechen", recSegment: "Segment", recStartingIn: "Start in {seconds}...", recStartRecording: "Aufnahme starten", recRecordingFailed: "Aufnahme fehlgeschlagen — keine Audiodaten erfasst. Bitte erneut versuchen.", recTooSmall: "Aufnahme zu klein — Mikrofon prüfen und erneut versuchen.", recRecording: "Aufnahme läuft...", recRecordingCountdown: "Aufnahme läuft... {seconds}s", recMicDenied: "Mikrofonzugriff verweigert. Bitte Zugriff erlauben.", recRerecord: "Neu aufnehmen", recNext: "Weiter →", recAllDone: "Alle Aufnahmen fertig! Wird zusammengeführt...", recUploadingCloning: "Hochladen und Stimme klonen...", recCloneFailed: "Stimmenklon fehlgeschlagen.", recVoiceReady: "Stimme geklont! Vorschau zum Anhören nutzen.", recCloneFailedPrefix: "Klonen fehlgeschlagen: ", recClose: "Schließen", recRerecordConfirm: "Neu aufnehmen? Dadurch wird ein neuer Stimmenklon erstellt.", untitled: "Ohne Titel", muteSounds: "Töne stummschalten", unmuteSounds: "Töne aktivieren" },
+      ru: { ...I18N.ru, recPreparing: "Подготовка...", recCancel: "Отмена", recSegment: "Сегмент", recStartingIn: "Начало через {seconds}...", recStartRecording: "Начать запись", recRecordingFailed: "Запись не удалась — аудио не получено. Попробуйте снова.", recTooSmall: "Запись слишком короткая — проверьте микрофон и попробуйте снова.", recRecording: "Запись...", recRecordingCountdown: "Запись... {seconds}с", recMicDenied: "Доступ к микрофону запрещен. Разрешите доступ.", recRerecord: "Записать заново", recNext: "Далее →", recAllDone: "Все записи готовы! Объединение...", recUploadingCloning: "Загрузка и клонирование голоса...", recCloneFailed: "Клонирование голоса не удалось.", recVoiceReady: "Голос клонирован! Нажмите предпросмотр.", recCloneFailedPrefix: "Ошибка клонирования: ", recClose: "Закрыть", recRerecordConfirm: "Записать заново? Будет создан новый клон голоса.", untitled: "Без названия", muteSounds: "Выключить звуки", unmuteSounds: "Включить звуки" },
+    });
+
+
+    Object.assign(I18N, {
+      en: { ...I18N.en, play: "Play", pause: "Pause" }, zh: { ...I18N.zh, play: "播放", pause: "暂停" }, yue: { ...I18N.yue, play: "播放", pause: "暫停" }, ko: { ...I18N.ko, play: "재생" }, ja: { ...I18N.ja, play: "再生" }, es: { ...I18N.es, play: "Reproducir" }, fr: { ...I18N.fr, play: "Lire" }, de: { ...I18N.de, play: "Abspielen" }, pt: { ...I18N.pt, play: "Reproduzir" }, it: { ...I18N.it, play: "Riproduci" }, ru: { ...I18N.ru, play: "Воспроизвести" }, ar: { ...I18N.ar, play: "تشغيل" }, hi: { ...I18N.hi, play: "चलाएँ" }, id: { ...I18N.id, play: "Putar" }, vi: { ...I18N.vi, play: "Phát" }, th: { ...I18N.th, play: "เล่น" }, tr: { ...I18N.tr, play: "Oynat" }, pl: { ...I18N.pl, play: "Odtwórz" }, nl: { ...I18N.nl, play: "Afspelen" }, sv: { ...I18N.sv, play: "Spela" }, no: { ...I18N.no, play: "Spill" }, da: { ...I18N.da, play: "Afspil" }, fi: { ...I18N.fi, play: "Toista" }, cs: { ...I18N.cs, play: "Přehrát" }, ro: { ...I18N.ro, play: "Redă" }, hu: { ...I18N.hu, play: "Lejátszás" }, uk: { ...I18N.uk, play: "Відтворити" }
+    });
     const TEMPLATES = {
       upbeat_pop: { prompt: "Upbeat pop song with catchy melody, bright synthesizer, driving drum beat, feel-good energy, modern production, radio-ready", genre: "pop", mood: "happy, energetic", instruments: "synth, drums, bass, guitar" },
       chill_ambient: { prompt: "Chill ambient electronic music, soft pad drones, gentle arpeggios, relaxed atmosphere, meditative, soundscape", genre: "ambient, electronic", mood: "calm, peaceful", instruments: "synth pads, soft percussion" },
@@ -2261,6 +2221,8 @@ INDEX_HTML = r"""<!doctype html>
     let _lyricsLanguage = "auto"; // "auto" = match voice language, or an explicit IETF language tag
     let lastJobs = [];
     let _cachedVoices = null;
+    let _cachedVoiceMeta = {};
+    let _voiceCatalogState = { fallback: false, cached: false, stale: false };
     let _voiceAudio = null;
     let _voicePlayPending = null;
     let _voicePreviewUtterance = null;
@@ -2324,7 +2286,13 @@ INDEX_HTML = r"""<!doctype html>
     let draftTimer = null;
     let restoringDraft = false;
 
-    function t(key) { return (I18N[lang] && I18N[lang][key]) || (I18N.en && I18N.en[key]) || key; }
+    function t(key, vars = {}) {
+      let text = (I18N[lang] && I18N[lang][key]) || (I18N.en && I18N.en[key]) || key;
+      for (const [name, value] of Object.entries(vars || {})) {
+        text = String(text).replaceAll(`{${name}}`, String(value));
+      }
+      return text;
+    }
     function headers(extra = {}) { return {"X-Client-Id": clientId, ...extra}; }
     function escapeHtml(value) {
       return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
@@ -2359,6 +2327,12 @@ INDEX_HTML = r"""<!doctype html>
       document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
       submitBtnOriginalText = submitBtn.textContent; // Update original text when language changes
       renderJobs(lastJobs);
+      if (_cachedVoices) _buildVoicePicker();
+      const voicePickerSelected = document.getElementById("voicePickerSelected");
+      if (voicePickerSelected && _selectedVoiceId) {
+        voicePickerSelected.textContent = _selectedVoiceLabel(_selectedVoiceId);
+        voicePickerSelected.style.color = "var(--accent)";
+      }
     }
     function statusLabel(status) {
       return status === "completed" ? t("completed") : status === "running" ? t("running") : status === "queued" ? t("queued") : status === "error" ? t("error") : t("unknown");
@@ -2366,7 +2340,8 @@ INDEX_HTML = r"""<!doctype html>
     function formatDate(value) {
       const date = new Date(value);
       if (Number.isNaN(date.getTime())) return "";
-      return date.toLocaleString(lang === "en" ? "en-GB" : "zh-CN", {month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit"});
+      const dateLocales = {en:"en-GB", zh:"zh-CN", yue:"zh-HK", ko:"ko-KR", ja:"ja-JP", es:"es-ES", fr:"fr-FR", de:"de-DE", pt:"pt-PT", it:"it-IT", ru:"ru-RU", ar:"ar-SA", hi:"hi-IN", id:"id-ID", vi:"vi-VN", th:"th-TH", tr:"tr-TR", pl:"pl-PL", nl:"nl-NL", sv:"sv-SE", no:"nb-NO", da:"da-DK", fi:"fi-FI", cs:"cs-CZ", ro:"ro-RO", hu:"hu-HU", uk:"uk-UA"};
+      return date.toLocaleString(dateLocales[lang] || "en-GB", {month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit"});
     }
     function _jobsForView(view, jobs) {
       const list = jobs || [];
@@ -2375,9 +2350,9 @@ INDEX_HTML = r"""<!doctype html>
       return list;
     }
     function _emptyJobsMessage(view) {
-      if (view === "favorites") return "No favorite tracks yet.";
-      if (view === "history") return "No recent tracks yet.";
-      if (view === "library") return "Your generated tracks will appear here.";
+      if (view === "favorites") return t("favoritesDesc");
+      if (view === "history") return t("historyDesc");
+      if (view === "library") return t("libraryDesc");
       return t("empty");
     }
     function _renderJobList(box, jobs, view) {
@@ -2392,16 +2367,17 @@ INDEX_HTML = r"""<!doctype html>
     function _renderJobCard(job, idx) {
       const status = escapeHtml(job.status || "unknown");
       const fileName = escapeHtml(job.file_name || "terry-music.mp3");
-      const title = escapeHtml(job.song_title || job.prompt || "Untitled");
+      const title = escapeHtml(job.song_title || job.prompt || t("untitled"));
       const mode = job.is_instrumental ? t("instrumentalMode") : t("vocalMode");
       const downloadUrl = job.download_url ? `${escapeHtml(job.download_url)}?client_id=${encodeURIComponent(clientId)}` : "";
       const isRunning = job.status === "running" || job.status === "queued";
       const completedClass = job.status === "completed" ? "animate-bounce-in" : "";
       const deleteAction = !isRunning ? `<button class="job-action-btn" onclick="deleteJob('${escapeHtml(job.id)}')">${UI_ICONS.error}<span>${t("delete")}</span></button>` : "";
       const actions = job.status === "completed" && job.download_url
-        ? `<button class="job-action-btn download" onclick="playJob('${escapeHtml(job.id)}')">${UI_ICONS.play}<span>Play</span></button><a class="job-action-btn download" href="${downloadUrl}" download="${fileName}">${t("download")}</a>${deleteAction}`
+        ? `<button class="job-action-btn download" onclick="playJob('${escapeHtml(job.id)}')">${UI_ICONS.play}<span>${t("play")}</span></button><a class="job-action-btn download" href="${downloadUrl}" download="${fileName}">${t("download")}</a>${deleteAction}`
         : isRunning ? `<span style="font-size:12px;color:var(--text-muted);"><span class="spinner" style="width:12px;height:12px;border-width:1.5px;"></span> ${statusLabel(status)}...</span>` : deleteAction;
-      return `<div class="job-card ${completedClass}" data-job-id="${escapeHtml(job.id)}" style="animation-delay:${idx * 50}ms">
+      const statusClass = ["queued", "running", "completed", "error"].includes(job.status) ? `status-${job.status}` : "status-unknown";
+      return `<div class="job-card ${statusClass} ${completedClass}" data-job-id="${escapeHtml(job.id)}" style="animation-delay:${idx * 50}ms">
         <div class="job-art">${statusIcon(job.status)}</div>
         <div class="job-info">
           <div class="job-title">${title}</div>
@@ -2422,7 +2398,7 @@ INDEX_HTML = r"""<!doctype html>
       if (!job || !job.download_url) return;
       const url = job.download_url + (job.download_url.includes('?') ? '&' : '?') + 'client_id=' + encodeURIComponent(clientId);
       const lyrics = job.lyrics || "";
-      currentTrack = { id: job.id, title: job.song_title || job.prompt || 'Untitled', url: url, lyrics: lyrics };
+      currentTrack = { id: job.id, title: job.song_title || job.prompt || t("untitled"), url: url, lyrics: lyrics };
       audioPlayer.src = url;
       audioPlayer.play();
       updatePlayerUI();
@@ -2438,7 +2414,7 @@ INDEX_HTML = r"""<!doctype html>
           const prev = prevJobs[job.id];
           if (prev && prev.status !== "completed" && job.status === "completed") {
             SoundSystem.play("complete");
-            showToast(t("toastMusicReady") + (job.song_title || job.prompt || "Untitled"), "success", 5000);
+            showToast(t("toastMusicReady") + (job.song_title || job.prompt || t("untitled")), "success", 5000);
           }
         });
         window._prevJobs = Object.fromEntries(newJobs.map(j => [j.id, j]));
@@ -2451,6 +2427,13 @@ INDEX_HTML = r"""<!doctype html>
       if (!confirm(t("deleteConfirm"))) return;
       const res = await fetch(`/api/jobs/${encodeURIComponent(id)}`, {method: "DELETE", headers: headers()});
       if (!res.ok) alert(t("deleteFailed"));
+      // If the deleted job is currently playing, stop the player
+      if (currentTrack && currentTrack.id === id) {
+        audioPlayer.pause();
+        audioPlayer.src = "";
+        currentTrack = null;
+        updatePlayerUI();
+      }
       await loadJobs();
     }
     function collectPayload() {
@@ -2462,7 +2445,7 @@ INDEX_HTML = r"""<!doctype html>
         genre: get("genre"), mood: get("mood"), instruments: get("instruments"), tempo: get("tempo"), bpm: get("bpm"), key: get("key"),
         vocals: get("vocals"), structure: get("structure"), references: get("references"), avoid: get("avoid"), use_case: get("useCase"), extra: get("extra"),
         voice_id: clonedVoiceId || _selectedVoiceId || "",
-        lyrics_language: _activeVoiceLang || _lyricsLanguage || "auto",
+        lyrics_language: _lyricsLanguage || (_activeVoiceLang && _activeVoiceLang !== "__other__" ? _activeVoiceLang : "") || "auto",
         interface_language: lang || "en",
       };
     }
@@ -2591,6 +2574,9 @@ INDEX_HTML = r"""<!doctype html>
           throw new Error(errMsg);
         }
         lyrics.value = data.lyrics || "";
+        if (data.song_title && !document.getElementById("songTitle").value.trim()) {
+          document.getElementById("songTitle").value = data.song_title;
+        }
         saveDraftSoon();
         setLyricsAssistMessage(t("lyricsGenerated") + " (" + lyrics.value.length + "字)");
         showToast(t("toastLyricsSuccess"), "success");
@@ -2815,7 +2801,7 @@ INDEX_HTML = r"""<!doctype html>
       const enabled = SoundSystem.toggle();
       const soundBtn = document.getElementById("soundBtn");
       soundBtn.innerHTML = enabled ? '<svg class="ui-icon"><use href="#icon-volume"></use></svg>' : '<svg class="ui-icon"><use href="#icon-volume-off"></use></svg>';
-      soundBtn.setAttribute("aria-label", enabled ? "Mute sounds" : "Unmute sounds");
+      soundBtn.setAttribute("aria-label", enabled ? t("muteSounds") : t("unmuteSounds"));
       soundBtn.className = "header-btn sound-toggle " + (enabled ? "on" : "off");
     }
     // Advanced panel toggle
@@ -2868,7 +2854,7 @@ INDEX_HTML = r"""<!doctype html>
     function setPlayerPlayIcon() {
       const isPaused = audioPlayer.paused;
       playerPlay.innerHTML = isPaused ? ICON_PLAY : ICON_PAUSE;
-      playerPlay.setAttribute("aria-label", isPaused ? "Play" : "Pause");
+      playerPlay.setAttribute("aria-label", isPaused ? t("play") : t("pause"));
     }
     function parseLyrics(rawLyrics) {
       return String(rawLyrics || "")
@@ -3315,21 +3301,85 @@ INDEX_HTML = r"""<!doctype html>
 
     function _t(key) { return t(key); }
 
+    function _voiceCatalogStateLabel() {
+      if (_voiceCatalogState.stale) return lang === "zh" ? "缓存目录" : lang === "yue" ? "快取目錄" : "Cached catalog";
+      if (_voiceCatalogState.fallback) return lang === "zh" ? "内置目录" : lang === "yue" ? "內置目錄" : "Fallback catalog";
+      if (_voiceCatalogState.cached) return lang === "zh" ? "已缓存" : lang === "yue" ? "已快取" : "Cached";
+      return lang === "zh" ? "实时目录" : lang === "yue" ? "即時目錄" : "Live catalog";
+    }
+
+    function _voiceMetaForId(voiceId) {
+      if (!voiceId || voiceId === "__custom__") return null;
+      const cached = _cachedVoiceMeta && _cachedVoiceMeta[voiceId];
+      if (cached && typeof cached === "object") return cached;
+      const group = VOICE_LANG_GROUPS.find(function(item) {
+        return voiceId.startsWith(item.lang + "_") || voiceId.startsWith(item.lang);
+      });
+      return {
+        id: voiceId,
+        language: group ? group.lang : "English",
+        language_source: group ? "prefix" : "default",
+        display_name: String(voiceId || ""),
+        preview_supported: true,
+        use_case: "General music / spoken demo",
+        unavailable_reason: "",
+        source: "client-fallback",
+      };
+    }
+
+    function _voiceLanguageForId(voiceId) {
+      const meta = _voiceMetaForId(voiceId);
+      if (meta && meta.language_source && meta.language_source !== "default") return meta.language;
+      for (const group of VOICE_LANG_GROUPS) {
+        if (voiceId.startsWith(group.lang + "_") || voiceId.startsWith(group.lang)) return group.lang;
+      }
+      return "";
+    }
+
+    function _voiceSummaryText(voiceId, groupKey) {
+      const meta = _voiceMetaForId(voiceId);
+      if (!meta) return "";
+      const parts = [];
+      const language = meta.language || groupKey || _voiceLanguageForId(voiceId);
+      if (language && language !== "__other__") parts.push(language);
+      if (meta.use_case) parts.push(meta.use_case);
+      if (meta.preview_supported === false && meta.unavailable_reason) parts.push(meta.unavailable_reason);
+      return parts.filter(Boolean).join(" • ");
+    }
+
+    function _selectedVoiceLabel(voiceId) {
+      if (!voiceId) return t("voicePickerDefault");
+      if (voiceId === "__custom__") return _t("voiceCustomBtn");
+      const group = _voiceGroupForId(voiceId);
+      const label = _voiceDisplayName(voiceId, group ? group.lang : "");
+      const summary = _voiceSummaryText(voiceId, group ? group.lang : "");
+      return summary ? label + " · " + summary : label;
+    }
+
+    function _markVoicePreviewCapability(voiceId, previewSupported, unavailableReason = "") {
+      if (!voiceId || voiceId === "__custom__") return;
+      const existing = _voiceMetaForId(voiceId) || { id: voiceId };
+      _cachedVoiceMeta[voiceId] = {
+        ...existing,
+        preview_supported: !!previewSupported && !unavailableReason,
+        unavailable_reason: unavailableReason || "",
+      };
+    }
+
+    function _isPreviewUnavailableError(message) {
+      return /not available for preview|voice id not exist|voice is not available|preview unavailable/i.test(String(message || ""));
+    }
+
     function _voiceGroupsFromCache() {
       const groups = VOICE_LANG_GROUPS.map(function(group) {
         return { lang: group.lang, label: group.label, voices: [] };
       });
       const otherVoices = [];
       for (const voice of (_cachedVoices || [])) {
-        let placed = false;
-        for (const group of groups) {
-          if (voice.startsWith(group.lang + "_") || voice.startsWith(group.lang)) {
-            group.voices.push(voice);
-            placed = true;
-            break;
-          }
-        }
-        if (!placed) otherVoices.push(voice);
+        const detectedLang = _voiceLanguageForId(voice);
+        const targetGroup = groups.find(function(group) { return group.lang === detectedLang; });
+        if (targetGroup) targetGroup.voices.push(voice);
+        else otherVoices.push(voice);
       }
       const visibleGroups = groups.filter(function(group) { return group.voices.length > 0; });
       if (otherVoices.length > 0) visibleGroups.push({ lang: "__other__", label: "Other", voices: otherVoices });
@@ -3345,7 +3395,8 @@ INDEX_HTML = r"""<!doctype html>
     }
 
     function _voiceDisplayName(voice, groupKey) {
-      let name = String(voice || "");
+      const meta = _voiceMetaForId(voice);
+      let name = meta && meta.display_name ? String(meta.display_name) : String(voice || "");
       if (groupKey && groupKey !== "__other__") {
         if (name.startsWith(groupKey + "_")) {
           name = name.slice(groupKey.length + 1);
@@ -3405,7 +3456,7 @@ INDEX_HTML = r"""<!doctype html>
       if (!groups.some(function(group) { return group.lang === _activeVoiceLang; })) {
         _activeVoiceLang = groups[0] ? groups[0].lang : "";
       }
-      _lyricsLanguage = _activeVoiceLang || _lyricsLanguage || "auto";
+      _lyricsLanguage = (_activeVoiceLang && _activeVoiceLang !== "__other__") ? _activeVoiceLang : (_lyricsLanguage || "auto");
       const activeGroup = groups.find(function(group) { return group.lang === _activeVoiceLang; }) || groups[0];
       let html = '<div class="voice-picker-shell">';
       html += '<div class="voice-lang-list" id="voiceLangList" aria-label="Voice languages">';
@@ -3422,14 +3473,20 @@ INDEX_HTML = r"""<!doctype html>
       html += "</div>";
       html += "</div>";
       html += '<div class="voice-option-list" id="voiceOptionList" aria-label="Voice options">';
-      html += '<div class="voice-options-head"><span class="voice-options-title">' + escapeHtml(activeGroup.label) + '</span><span class="voice-options-meta">' + activeGroup.voices.length + ' voices</span></div>';
+      html += '<div class="voice-options-head"><span class="voice-options-title">' + escapeHtml(activeGroup.label) + '</span><span class="voice-options-meta">' + activeGroup.voices.length + ' voices · ' + escapeHtml(_voiceCatalogStateLabel()) + '</span></div>';
       html += '<div class="voice-items">';
       for (const voice of activeGroup.voices) {
+        const meta = _voiceMetaForId(voice);
         const displayName = _voiceDisplayName(voice, activeGroup.lang);
+        const summary = _voiceSummaryText(voice, activeGroup.lang);
         const isSelected = voice === _selectedVoiceId ? " selected" : "";
-        html += '<button type="button" class="voice-pill' + isSelected + '" data-voice="' + escapeHtml(voice) + '">';
-        html += '<span class="voice-name">' + escapeHtml(displayName) + '</span>';
-        html += '<span class="play-icon" aria-hidden="true">' + UI_ICONS.play + '</span>';
+        const previewClass = meta && meta.preview_supported === false ? " disabled" : "";
+        const titleText = summary ? displayName + ' • ' + summary : displayName;
+        html += '<button type="button" class="voice-pill' + isSelected + '" data-voice="' + escapeHtml(voice) + '" title="' + escapeHtml(titleText) + '">';
+        html += '<span class="voice-pill-copy"><span class="voice-name">' + escapeHtml(displayName) + '</span>';
+        if (summary) html += '<span class="voice-pill-meta">' + escapeHtml(summary) + '</span>';
+        html += '</span>';
+        html += '<span class="play-icon' + previewClass + '" aria-hidden="true">' + UI_ICONS.play + '</span>';
         html += '</button>';
       }
       html += "</div>";
@@ -3447,7 +3504,7 @@ INDEX_HTML = r"""<!doctype html>
           _lyricsLanguage = langKey;
           const selectedLabel = document.getElementById("voicePickerSelected");
           if (selectedLabel && (!_selectedVoiceId || _voiceGroupForId(_selectedVoiceId)?.lang !== langKey)) {
-            selectedLabel.textContent = langKey + " lyrics";
+            selectedLabel.textContent = langKey + (lang === "zh" ? " · 歌词跟随该音色" : lang === "yue" ? " · 歌詞跟隨該音色" : " · lyrics follow this voice");
             selectedLabel.style.color = "var(--accent)";
           }
           const vocalsInput = document.getElementById("vocals");
@@ -3464,7 +3521,9 @@ INDEX_HTML = r"""<!doctype html>
           const voiceId = btn.getAttribute("data-voice");
           if (voiceId) {
             selectVoice(voiceId);
-            playVoicePreview(voiceId);
+            const meta = _voiceMetaForId(voiceId);
+            if (!meta || meta.preview_supported !== false) playVoicePreview(voiceId);
+            else showToast(meta.unavailable_reason || t("voicePreviewError"), "warning");
           }
         });
       });
@@ -3486,7 +3545,7 @@ INDEX_HTML = r"""<!doctype html>
       if (voiceId === "__custom__") {
         vocalsInput.value = "";
         if (selectedLabel) {
-          selectedLabel.textContent = _t("voiceCustomBtn");
+          selectedLabel.textContent = _selectedVoiceLabel(voiceId);
           selectedLabel.style.color = "var(--accent)";
         }
         // Open voice recorder
@@ -3494,17 +3553,20 @@ INDEX_HTML = r"""<!doctype html>
       } else {
         stopVoicePreview();
         const group = _voiceGroupForId(voiceId);
-        if (group) {
-          _activeVoiceLang = group.lang;
+        const meta = _voiceMetaForId(voiceId);
+        const resolvedVoiceLang = meta && meta.language ? meta.language : (group && group.lang !== "__other__" ? group.lang : "");
+        if (group) _activeVoiceLang = group.lang;
+        else if (resolvedVoiceLang) _activeVoiceLang = resolvedVoiceLang;
+        if (resolvedVoiceLang) {
           // Auto-set lyrics language to match voice language
-          _lyricsLanguage = group.lang;
+          _lyricsLanguage = resolvedVoiceLang;
           // Check if existing lyrics mismatch
-          _checkLyricsLanguageMismatch(group.lang);
+          _checkLyricsLanguageMismatch(resolvedVoiceLang);
         }
         const label = _voiceDisplayName(voiceId, group ? group.lang : "");
         vocalsInput.value = label;
         if (selectedLabel) {
-          selectedLabel.textContent = label;
+          selectedLabel.textContent = _selectedVoiceLabel(voiceId);
           selectedLabel.style.color = "var(--accent)";
         }
       }
@@ -3547,7 +3609,9 @@ INDEX_HTML = r"""<!doctype html>
       "Romanian": "ro-RO", "Hungarian": "hu-HU",
     };
     function _voicePreviewLanguage(voiceId) {
+      const meta = _voiceMetaForId(voiceId);
       const group = _voiceGroupForId(voiceId);
+      if (meta && meta.language) return meta.language;
       return group && group.lang !== "__other__" ? group.lang : (_activeVoiceLang || "English");
     }
     function _isPreviewQuotaError(message) {
@@ -3595,6 +3659,10 @@ INDEX_HTML = r"""<!doctype html>
           const errMsg = typeof data.error === "string" ? data.error : data.error?.message || t("voicePreviewError");
           if (_voicePlayPending === playId) {
             if (_isPreviewQuotaError(errMsg) && playBrowserVoicePreview(voiceId, errMsg)) return;
+            if (_isPreviewUnavailableError(errMsg)) {
+              _markVoicePreviewCapability(voiceId, false, errMsg);
+              _buildVoicePicker();
+            }
             showToast(errMsg, "error");
             SoundSystem.play("error");
           }
@@ -3614,7 +3682,7 @@ INDEX_HTML = r"""<!doctype html>
           document.querySelectorAll(".voice-pill").forEach(function(p) { p.classList.remove("playing"); });
         });
         _voiceAudio.addEventListener("play", function() {
-          // Successfully started playing
+          _markVoicePreviewCapability(voiceId, true, "");
         });
         _voiceAudio.addEventListener("error", function(e) {
           if (_voicePlayPending !== playId) return;
@@ -3626,6 +3694,10 @@ INDEX_HTML = r"""<!doctype html>
       } catch (err) {
         if (_voicePlayPending !== playId) return;
         if (_isPreviewQuotaError(err.message) && playBrowserVoicePreview(voiceId, err.message)) return;
+        if (_isPreviewUnavailableError(err.message || "")) {
+          _markVoicePreviewCapability(voiceId, false, err.message || t("voicePreviewError"));
+          _buildVoicePicker();
+        }
         stopVoicePreview();
         showToast(err.message || t("voicePreviewError"), "error");
         SoundSystem.play("error");
@@ -3655,6 +3727,12 @@ INDEX_HTML = r"""<!doctype html>
         const res = await fetch("/api/voice", { headers: headers() });
         const data = await res.json();
         _cachedVoices = Array.isArray(data.voices) ? data.voices : [];
+        _cachedVoiceMeta = data.voice_meta && typeof data.voice_meta === "object" ? data.voice_meta : {};
+        _voiceCatalogState = {
+          fallback: !!data.fallback,
+          cached: !!data.cached,
+          stale: !!data.stale,
+        };
         _buildVoicePicker();
       } catch(e) {
         const container = document.getElementById("voicePickerScroll");
@@ -3716,7 +3794,7 @@ INDEX_HTML = r"""<!doctype html>
       const segs = getSegments();
       const scrs = getScripts();
       const container = document.getElementById("recModalBody");
-      container.innerHTML = `<div class="rec-progress"><div class="rec-step">${lang === "en" ? "Preparing..." : "准备中..."}</div></div><div class="rec-script-box"></div><div class="rec-controls-row"><button id="recModalClose" class="secondary-btn" type="button">${lang === "en" ? "Cancel" : "取消"}</button></div>`;
+      container.innerHTML = `<div class="rec-progress"><div class="rec-step">${t("recPreparing")}</div></div><div class="rec-script-box"></div><div class="rec-controls-row"><button id="recModalClose" class="secondary-btn" type="button">${t("recCancel")}</button></div>`;
       document.getElementById("recModal").style.display = "flex";
       document.getElementById("recModalClose").addEventListener("click", closeVoiceRecorder);
       setTimeout(() => showSegment(0), 300);
@@ -3747,17 +3825,17 @@ INDEX_HTML = r"""<!doctype html>
       const body = document.getElementById("recModalBody");
       body.innerHTML = `
         <div class="rec-progress">
-          <div class="rec-step">${lang === "en" ? "Segment" : "段落"} ${idx + 1} / ${total} — ${seg.label}</div>
+          <div class="rec-step">${t("recSegment")} ${idx + 1} / ${total} — ${seg.label}</div>
           <div class="rec-bar"><div class="rec-bar-fill" style="width:${progress}%"></div></div>
         </div>
         <div class="rec-script-box">
           <div class="rec-instruction">${seg.desc}</div>
           <div class="rec-script">"${script}"</div>
         </div>
-        <div class="rec-countdown" id="recCountdown">${lang === "en" ? "Starting in 3..." : "3秒后开始..."}</div>
+        <div class="rec-countdown" id="recCountdown">${t("recStartingIn", {seconds: 3})}</div>
         <div class="rec-controls-row">
-          <button id="recStartSeg" class="secondary-btn" type="button">${lang === "en" ? "Start Recording" : "开始录制"}</button>
-          <button id="recModalClose" class="ghost" type="button">${lang === "en" ? "Cancel" : "取消"}</button>
+          <button id="recStartSeg" class="secondary-btn" type="button">${t("recStartRecording")}</button>
+          <button id="recModalClose" class="ghost" type="button">${t("recCancel")}</button>
         </div>
       `;
       document.getElementById("recStartSeg").addEventListener("click", () => showCountdownAndRecord(idx));
@@ -3770,7 +3848,7 @@ INDEX_HTML = r"""<!doctype html>
       countdownInterval = setInterval(() => {
         count--;
         if (count > 0) {
-          countdownEl.textContent = (lang === "en" ? `Starting in ${count}...` : `${count}秒后开始...`);
+          countdownEl.textContent = t("recStartingIn", {seconds: count});
         } else {
           clearInterval(countdownInterval);
           countdownInterval = null;
@@ -3791,13 +3869,13 @@ INDEX_HTML = r"""<!doctype html>
         mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
         mediaRecorder.onstop = async () => {
           if (recordedChunks.length === 0) {
-            alert(lang === "en" ? "Recording failed — no audio data captured. Please try again." : "录音失败 — 未捕获到音频数据，请重试。");
+            alert(t("recRecordingFailed"));
             closeVoiceRecorder();
             return;
           }
           const rawBlob = new Blob(recordedChunks, { type: mimeType });
           if (rawBlob.size < 1000) {
-            alert(lang === "en" ? "Recording too small — check microphone. Please try again." : "录音文件过小 — 请检查麦克风后重试。");
+            alert(t("recTooSmall"));
             closeVoiceRecorder();
             return;
           }
@@ -3813,19 +3891,19 @@ INDEX_HTML = r"""<!doctype html>
         };
         mediaRecorder.start(100); // timeslice=100ms ensures regular data events
         document.getElementById("recStartSeg").disabled = true;
-        document.getElementById("recStartSeg").textContent = lang === "en" ? "Recording..." : "录制中...";
+        document.getElementById("recStartSeg").textContent = t("recRecording");
         const countdownEl = document.getElementById("recCountdown");
         let remaining = 5;
-        countdownEl.textContent = lang === "en" ? `Recording... ${remaining}s` : `录制中... ${remaining}s`;
+        countdownEl.textContent = t("recRecordingCountdown", {seconds: remaining});
         recordingTimer = setInterval(() => {
           remaining--;
           if (remaining > 0) {
-            countdownEl.textContent = lang === "en" ? `Recording... ${remaining}s` : `录制中... ${remaining}s`;
+            countdownEl.textContent = t("recRecordingCountdown", {seconds: remaining});
           }
         }, 1000);
         setTimeout(() => { if (mediaRecorder.state === "recording") mediaRecorder.stop(); }, SEGMENT_DURATION);
       } catch (err) {
-        alert(lang === "en" ? "Microphone access denied. Please allow microphone access." : "麦克风访问被拒绝，请允许麦克风权限。");
+        alert(t("recMicDenied"));
         closeVoiceRecorder();
       }
     }
@@ -3876,7 +3954,7 @@ INDEX_HTML = r"""<!doctype html>
       const body = document.getElementById("recModalBody");
       body.innerHTML = `
         <div class="rec-progress">
-          <div class="rec-step">${lang === "en" ? "Segment" : "段落"} ${idx + 1} / ${segs.length} — ${seg.label} ${UI_ICONS.check}</div>
+          <div class="rec-step">${t("recSegment")} ${idx + 1} / ${segs.length} — ${seg.label} ${UI_ICONS.check}</div>
           <div class="rec-bar"><div class="rec-bar-fill" style="width:${((idx + 1) / segs.length) * 100}%"></div></div>
         </div>
         <div class="rec-script-box">
@@ -3885,8 +3963,8 @@ INDEX_HTML = r"""<!doctype html>
         </div>
         <div class="rec-review-audio"><audio src="${url}" controls style="height:40px; width:100%;"></audio></div>
         <div class="rec-controls-row">
-          <button id="recRerecord" class="ghost" type="button"><svg class="ui-icon" aria-hidden="true"><use href="#icon-refresh"></use></svg> ${lang === "en" ? "Re-record" : "重新录制"}</button>
-          <button id="recNext" class="secondary-btn" type="button">${lang === "en" ? "Next →" : "下一个 →"}</button>
+          <button id="recRerecord" class="ghost" type="button"><svg class="ui-icon" aria-hidden="true"><use href="#icon-refresh"></use></svg> ${t("recRerecord")}</button>
+          <button id="recNext" class="secondary-btn" type="button">${t("recNext")}</button>
         </div>
       `;
       document.getElementById("recRerecord").addEventListener("click", () => showSegment(idx));
@@ -3895,17 +3973,17 @@ INDEX_HTML = r"""<!doctype html>
 
     async function showAllDone() {
       const body = document.getElementById("recModalBody");
-      body.innerHTML = `<div class="rec-done">${lang === "en" ? "All recordings complete! Merging..." : "全部录制完成！正在合并..."}</div>`;
+      body.innerHTML = `<div class="rec-done">${t("recAllDone")}</div>`;
       try {
         const combined = await mergeAudioBlobs(recordedSegments);
         const fd = new FormData();
         fd.append("audio", combined, "voice_sample.wav");
-        voiceStatus.textContent = lang === "en" ? "Uploading & cloning..." : "上传中并复刻声音...";
+        voiceStatus.textContent = t("recUploadingCloning");
         voiceStatus.style.color = "var(--muted)";
         const res = await fetch("/api/voice/clone", { method: "POST", headers: headers(), body: fd });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          const errMsg = typeof data.error === "string" ? data.error : data.error?.message || (lang === "en" ? "Clone failed." : "声音复刻失败。");
+          const errMsg = typeof data.error === "string" ? data.error : data.error?.message || (t("recCloneFailed"));
           throw new Error(errMsg);
         }
         clonedVoiceId = data.voice_id || "";
@@ -3918,13 +3996,13 @@ INDEX_HTML = r"""<!doctype html>
         if (data.voice_wav_path) localStorage.setItem("terry_music_voice_wav", data.voice_wav_path);
         voicePreviewRow.style.display = "flex";
         closeVoiceRecorder();
-        voiceStatus.textContent = lang === "en" ? "Voice cloned! Use Preview to listen." : "声音复刻完成！点击预览试听。";
+        voiceStatus.textContent = t("recVoiceReady");
         voiceStatus.style.color = "var(--accent)";
         voiceStatus.classList.add("animate-bounce-in");
         SoundSystem.play("success");
         showToast(t("toastVoiceCloneSuccess"), "success");
       } catch (err) {
-        body.innerHTML = `<div class="rec-done rec-error">${lang === "en" ? "Clone failed: " : "复刻失败："}${err.message}</div><div class="rec-controls-row"><button id="recModalClose2" class="secondary-btn" type="button">${lang === "en" ? "Close" : "关闭"}</button></div>`;
+        body.innerHTML = `<div class="rec-done rec-error">${t("recCloneFailedPrefix")}${err.message}</div><div class="rec-controls-row"><button id="recModalClose2" class="secondary-btn" type="button">${t("recClose")}</button></div>`;
         SoundSystem.play("error");
         showToast(t("toastVoiceCloneError") + " " + err.message, "error");
         document.getElementById("recModalClose2").addEventListener("click", closeVoiceRecorder);
@@ -3988,7 +4066,7 @@ INDEX_HTML = r"""<!doctype html>
     document.getElementById("voiceRecordBtn").addEventListener("click", () => {
       SoundSystem.play("click");
       if (clonedVoiceId && voiceCloneExpires && parseInt(voiceCloneExpires) > Date.now()) {
-        if (confirm(lang === "en" ? "Re-record voice? This will create a new voice clone." : "重新录制？这将创建新的声音复刻。")) {
+        if (confirm(t("recRerecordConfirm"))) {
           localStorage.removeItem("terry_music_voice_id");
           localStorage.removeItem("terry_music_voice_expires");
           localStorage.removeItem("terry_music_voice_lang");
@@ -4008,19 +4086,19 @@ INDEX_HTML = r"""<!doctype html>
       <div class="lfm-bg"></div>
       <div class="lfm-header">
         <div class="lfm-track-info">
-          <div class="lfm-title" id="lfmTitle">Song Title</div>
-          <div class="lfm-artist" id="lfmArtist">Music Speaks</div>
+          <div class="lfm-title" id="lfmTitle"></div>
+          <div class="lfm-artist" id="lfmArtist"></div>
         </div>
-        <button class="lfm-close" id="lfmClose" aria-label="Close fullscreen lyrics">✕</button>
+        <button class="lfm-close" id="lfmClose" aria-label="${t("closeFullscreenLyrics")}">✕</button>
       </div>
       <div class="lfm-body" id="lfmBody">
         <div class="lfm-lines" id="lfmLines"></div>
       </div>
       <div class="lfm-footer">
         <div class="lfm-controls">
-          <button class="lfm-btn" id="lfmPrev" aria-label="Previous"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M19 4H9l-7 8 7 8h10V4z"/></svg></button>
-          <button class="lfm-btn lfm-play" id="lfmPlay" aria-label="Play/Pause"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path class="play-path" d="M8 5v14l11-7L8 5Z"/></svg></button>
-          <button class="lfm-btn" id="lfmNext" aria-label="Next"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 4l10 8-10 8V4z"/><rect x="17" y="4" width="2" height="16"/></svg></button>
+          <button class="lfm-btn" id="lfmPrev" aria-label="${t("previous")}"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M19 4H9l-7 8 7 8h10V4z"/></svg></button>
+          <button class="lfm-btn lfm-play" id="lfmPlay" aria-label="${t("playPause")}"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path class="play-path" d="M8 5v14l11-7L8 5Z"/></svg></button>
+          <button class="lfm-btn" id="lfmNext" aria-label="${t("next")}"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 4l10 8-10 8V4z"/><rect x="17" y="4" width="2" height="16"/></svg></button>
         </div>
         <div class="lfm-progress-row">
           <span class="lfm-time" id="lfmCurrentTime">0:00</span>
@@ -4044,12 +4122,12 @@ INDEX_HTML = r"""<!doctype html>
     }
     function _syncLfmFromPlayer() {
       if (!currentTrack) return;
-      document.getElementById("lfmTitle").textContent = currentTrack.title || "Untitled";
-      document.getElementById("lfmArtist").textContent = "Music Speaks";
+      document.getElementById("lfmTitle").textContent = currentTrack.title || t("untitled");
+      document.getElementById("lfmArtist").textContent = t("artistName");
       const rows = getLyricRows();
       const playableRows = rows.filter(r => !r.isSection && r.text);
       if (!playableRows.length) {
-        document.getElementById("lfmLines").innerHTML = '<div class="lfm-empty">No lyrics available.</div>';
+        document.getElementById("lfmLines").innerHTML = '<div class="lfm-empty">' + escapeHtml(t("noLyrics")) + '</div>';
         return;
       }
       document.getElementById("lfmLines").innerHTML = rows.map(row => {
@@ -4092,9 +4170,11 @@ INDEX_HTML = r"""<!doctype html>
       _openLyricsModal();
       _syncLfmFromPlayer();
       _updateLfmProgress();
-      // Attach continuous timeupdate when modal is open
-      _lfmTimeUpdateHandler = () => _updateLfmProgress();
-      audioPlayer.addEventListener("timeupdate", _lfmTimeUpdateHandler);
+      // Attach one continuous timeupdate handler while modal is open.
+      if (!_lfmTimeUpdateHandler) {
+        _lfmTimeUpdateHandler = () => _updateLfmProgress();
+        audioPlayer.addEventListener("timeupdate", _lfmTimeUpdateHandler);
+      }
     });
     function _closeLyricsModal() {
       lyricsModal.classList.remove("open");
@@ -4459,1200 +4539,6 @@ def admin_job(job: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def clean_generated_lyrics(text: str) -> str:
-    cleaned = re.sub(r"\x1b\[[0-9;]*m", "", text).strip()
-    if cleaned.startswith("```"):
-        cleaned = re.sub(r"^```[a-zA-Z]*\s*", "", cleaned)
-        cleaned = re.sub(r"\s*```$", "", cleaned)
-    prefixes = ("lyrics:", "song lyrics:", "here are the lyrics:", "以下是歌词：", "歌词：")
-    lower = cleaned.lower()
-    for prefix in prefixes:
-        if lower.startswith(prefix):
-            cleaned = cleaned[len(prefix):].strip()
-            break
-    return cleaned[:LYRICS_CHAR_LIMIT].strip()
-
-
-def _normalize_copy_check_text(text: str) -> str:
-    text = str(text or "").lower()
-    return re.sub(r"[^0-9a-z_\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]+", "", text)
-
-
-def _source_sentence_candidates(text: str) -> list[str]:
-    text = str(text or "").strip()
-    if not text:
-        return []
-    candidates: list[str] = []
-    for part in re.split(r"[\r\n。！？!?；;]+", text):
-        part = re.sub(r"^\s*[-*#>\d.)、]+", "", part).strip(" \t\"'“”‘’`")
-        if not part:
-            continue
-        words = re.findall(r"[A-Za-z0-9_']+", part)
-        cjk_chars = re.findall(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]", part)
-        normalized = _normalize_copy_check_text(part)
-        if len(normalized) >= 24 or len(words) >= 4 or len(cjk_chars) >= 8:
-            candidates.append(part)
-    return candidates
-
-
-def _find_copied_source_fragment(lyrics: str, source_texts: list[str]) -> str:
-    normalized_lyrics = _normalize_copy_check_text(lyrics)
-    lyric_words = " " + " ".join(re.findall(r"[A-Za-z0-9_']+", lyrics.lower())) + " "
-    lyric_cjk = "".join(re.findall(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]", lyrics))
-    for source in source_texts:
-        for sentence in _source_sentence_candidates(source):
-            normalized_sentence = _normalize_copy_check_text(sentence)
-            if normalized_sentence and normalized_sentence in normalized_lyrics:
-                return sentence[:120]
-
-        source_words = re.findall(r"[A-Za-z0-9_']+", str(source or "").lower())
-        for size in range(min(10, len(source_words)), 4, -1):
-            for index in range(0, len(source_words) - size + 1):
-                phrase = " ".join(source_words[index:index + size])
-                if len(phrase) >= 25 and f" {phrase} " in lyric_words:
-                    return phrase[:120]
-
-        source_cjk = "".join(re.findall(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]", str(source or "")))
-        if len(source_cjk) >= 6 and lyric_cjk:
-            for index in range(0, len(source_cjk) - 5):
-                phrase = source_cjk[index:index + 6]
-                if phrase in lyric_cjk:
-                    return phrase
-    return ""
-
-
-def _lyrics_body_text(lyrics: str) -> str:
-    lines = []
-    for line in str(lyrics or "").splitlines():
-        stripped = line.strip()
-        if not stripped or re.fullmatch(r"\[[^\]]+\]", stripped):
-            continue
-        lines.append(stripped)
-    return "\n".join(lines)
-
-
-def _validate_lyrics_language_weight(lyrics: str, voice_lang: str) -> None:
-    body = _lyrics_body_text(lyrics)
-    if not body:
-        raise ValueError("Generated lyrics were empty after cleaning.")
-    cjk_count = len(re.findall(r"[\u3400-\u9fff]", body))
-    kana_count = len(re.findall(r"[\u3040-\u30ff]", body))
-    hangul_count = len(re.findall(r"[\uac00-\ud7af]", body))
-    letters_count = len(re.findall(r"[A-Za-z]", body))
-    meaningful_count = cjk_count + kana_count + hangul_count + letters_count
-    if meaningful_count < 80:
-        return
-    if voice_lang in {"Chinese (Mandarin)", "Cantonese"} and cjk_count / meaningful_count < 0.65:
-        raise ValueError("Generated lyrics did not primarily use the selected Chinese voice language.")
-    if voice_lang == "Japanese" and (kana_count + cjk_count) / meaningful_count < 0.65:
-        raise ValueError("Generated lyrics did not primarily use Japanese.")
-    if voice_lang == "Korean" and hangul_count / meaningful_count < 0.65:
-        raise ValueError("Generated lyrics did not primarily use Korean.")
-
-
-def validate_generated_lyrics(lyrics: str, source_texts: list[str] | None = None, voice_lang: str = "") -> None:
-    if len(lyrics) < GENERATED_LYRICS_MIN_CHARS:
-        raise ValueError(
-            f"Generated lyrics were too short ({len(lyrics)} characters). "
-            f"Please regenerate; lyrics must be at least {GENERATED_LYRICS_MIN_CHARS} characters for a full song."
-        )
-    if voice_lang:
-        _validate_lyrics_language_weight(lyrics, voice_lang)
-    copied_fragment = _find_copied_source_fragment(lyrics, source_texts or [])
-    if copied_fragment:
-        raise ValueError(
-            "Generated lyrics reused text from the lyrics prompt. Please regenerate with a shorter inspiration brief; "
-            "the lyrics must be fully original and cannot include prompt sentences or phrases."
-        )
-
-
-def _theme_anchor_from_seed(seed: str, voice_lang: str) -> str:
-    seed = re.sub(r"\[[^\]]+\]", " ", str(seed or ""))
-    seed = re.sub(r"\s+", " ", seed).strip()
-    if not seed:
-        return {
-            "Cantonese": "心入面嘅光",
-            "Chinese (Mandarin)": "心里的光",
-            "Korean": "마음의 빛",
-            "Japanese": "心の光",
-        }.get(voice_lang, "inner light")
-
-    if re.search(r"[\u3400-\u9fff]", seed):
-        keyword_map = [
-            ("梦想", "梦想"), ("夢想", "夢想"), ("雨", "雨夜"), ("海", "海风"), ("城市", "城市"),
-            ("星", "星光"), ("夜", "夜色"), ("爱情", "爱"), ("愛情", "愛"), ("思念", "思念"),
-            ("失恋", "告别"), ("孤独", "孤独"), ("快乐", "快乐"), ("快樂", "快樂"), ("希望", "希望"),
-            ("回家", "归途"), ("家", "归途"), ("朋友", "陪伴"), ("未来", "未来"), ("未來", "未來"),
-        ]
-        anchors = [anchor for token, anchor in keyword_map if token in seed]
-        if anchors:
-            return "、".join(dict.fromkeys(anchors[:3]))
-        compact = re.sub(r"[^\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]+", "", seed)
-        return (compact[:4] + "的回响") if compact else "心里的光"
-
-    stop_words = {
-        "about", "above", "after", "again", "against", "also", "and", "another", "around", "because",
-        "before", "brief", "chorus", "describe", "feeling", "feelings", "from", "into", "like", "lyrics",
-        "make", "music", "only", "prompt", "rewrite", "song", "style", "that", "the", "this", "translate",
-        "verse", "want", "with", "write", "your",
-    }
-    words = [
-        word for word in re.findall(r"[A-Za-z][A-Za-z']{2,}", seed.lower())
-        if word not in stop_words
-    ]
-    if not words:
-        return "inner light"
-    unique_words = list(dict.fromkeys(words))
-    return " and ".join(unique_words[:2])
-
-
-def _fallback_extension_for_language(voice_lang: str) -> str:
-    if voice_lang == "Cantonese":
-        return (
-            "[Verse 3]\n"
-            "路燈一路陪我行過轉角\n"
-            "舊日嘅影像慢慢變得清楚\n"
-            "就算風聲遮住心跳\n"
-            "我都會將未講嘅話唱到天光\n\n"
-            "[Final Chorus]\n"
-            "呢一刻我哋相通\n"
-            "微光照住彼此嘅方向\n"
-            "所有沉默開成花\n"
-            "留低一首唔會熄滅嘅歌\n\n"
-            "[Outro]\n"
-            "當最後一粒星仍然閃爍\n"
-            "我把答案放入旋律\n"
-            "輕輕唱畀明日聽\n"
-        )
-    if voice_lang == "Chinese (Mandarin)":
-        return (
-            "[Verse 3]\n"
-            "路灯陪我走过转角\n"
-            "旧日画面慢慢变清楚\n"
-            "就算风声盖过心跳\n"
-            "我也把没说的话唱到破晓\n\n"
-            "[Final Chorus]\n"
-            "这一刻我们相通\n"
-            "微光照亮彼此方向\n"
-            "所有沉默开成花\n"
-            "留下不会熄灭的歌\n\n"
-            "[Outro]\n"
-            "当最后一颗星仍闪烁\n"
-            "我把答案放进旋律\n"
-            "轻轻唱给明天听\n"
-        )
-    if voice_lang == "Korean":
-        return (
-            "[Verse 3]\n"
-            "가로등은 천천히 길을 열고\n"
-            "오래된 장면들이 선명해져\n"
-            "바람이 심장 소릴 덮어도\n"
-            "말 못 한 진심을 새벽까지 노래해\n\n"
-            "[Final Chorus]\n"
-            "이 순간 우린 같은 빛 안에\n"
-            "서로의 방향을 다시 찾아\n"
-            "침묵은 꽃처럼 피어나\n"
-            "꺼지지 않는 노래로 남아\n\n"
-            "[Outro]\n"
-            "마지막 별이 아직 반짝일 때\n"
-            "내 대답을 멜로디에 담아\n"
-            "내일에게 조용히 불러\n"
-        )
-    if voice_lang == "Japanese":
-        return (
-            "[Verse 3]\n"
-            "街灯が曲がり角を照らし\n"
-            "古い景色が少しずつ澄んでいく\n"
-            "風が鼓動を隠しても\n"
-            "言えなかった想いを夜明けまで歌う\n\n"
-            "[Final Chorus]\n"
-            "この瞬間ふたつの光が\n"
-            "もう一度行き先を見つける\n"
-            "沈黙は花のように開き\n"
-            "消えない歌になって残る\n\n"
-            "[Outro]\n"
-            "最後の星がまたたくうちに\n"
-            "答えをメロディに預けて\n"
-            "明日へそっと歌う\n"
-        )
-    return (
-        "[Verse 3]\n"
-        "Streetlights open up the corner\n"
-        "Old photographs begin to breathe\n"
-        "Even when the wind gets louder\n"
-        "I keep the truth beneath the beat\n\n"
-        "[Final Chorus]\n"
-        "In this moment we align\n"
-        "Small sparks turning into signs\n"
-        "Every silence starts to bloom\n"
-        "Every shadow leaves the room\n\n"
-        "[Outro]\n"
-        "When the final star keeps shining\n"
-        "I place my answer in the sound\n"
-        "Let tomorrow hear it rising\n"
-    )
-
-
-def _finalize_fallback_lyrics(lyrics: str, voice_lang: str, source_texts: list[str]) -> str:
-    lyrics = lyrics.strip()
-    extension = _fallback_extension_for_language(voice_lang)
-    while len(lyrics) < GENERATED_LYRICS_MIN_CHARS:
-        lyrics = f"{lyrics}\n\n{extension}".strip()
-    return lyrics[:GENERATED_LYRICS_MAX_CHARS].strip()
-
-
-def _minimax_headers() -> dict[str, str]:
-    return {
-        "Authorization": f"Bearer {MINIMAX_API_KEY}",
-        "Content-Type": "application/json",
-    }
-
-
-def _call_minimax_api(method: str, endpoint: str, payload: Any | None = None, files: dict | None = None) -> Any:
-    """Make a direct call to MiniMax API, returning parsed JSON."""
-    import urllib.request
-    import urllib.error
-
-    base = "https://api.minimaxi.com"
-    url = f"{base}{endpoint}"
-    data = None
-    headers: dict[str, str] = {}
-    if files:
-        boundary = "----FormBoundary" + secrets.token_hex(16)
-        parts = []
-        for field_name, (filename, file_content, content_type) in files.items():
-            parts.append(
-                f"--{boundary}\r\nContent-Disposition: form-data; name=\"{field_name}\"; filename=\"{filename}\"\r\nContent-Type: {content_type}\r\n\r\n".encode()
-                + file_content
-                + b"\r\n"
-            )
-        for key, value in (payload or {}).items():
-            parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"{key}\"\r\n\r\n{value}\r\n".encode())
-        parts.append(f"--{boundary}--\r\n".encode())
-        data = b"".join(parts)
-        headers = {
-            "Authorization": f"Bearer {MINIMAX_API_KEY}",
-            "Content-Type": f"multipart/form-data; boundary={boundary}",
-        }
-    else:
-        if payload is not None:
-            data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        headers = _minimax_headers()
-
-    last_network_error = None
-    for attempt in range(3):
-        req = urllib.request.Request(url, data=data, headers=headers, method=method)
-        try:
-            with urllib.request.urlopen(req, timeout=120) as resp:
-                return json.loads(resp.read().decode("utf-8"))
-        except urllib.error.HTTPError as exc:
-            body = exc.read().decode("utf-8", errors="replace")
-            raise RuntimeError(f"MiniMax API error {exc.code}: {body}")
-        except urllib.error.URLError as exc:
-            last_network_error = exc
-            if attempt < 2:
-                time.sleep(0.5 * (attempt + 1))
-                continue
-    reason = last_network_error.reason if last_network_error else "unknown network error"
-    raise RuntimeError(f"MiniMax network error: {reason}")
-
-
-def clone_voice(audio_path: Path, custom_voice_id: str) -> dict[str, Any]:
-    """Upload audio sample and clone the voice."""
-    if not MINIMAX_API_KEY:
-        raise RuntimeError("MINIMAX_API_KEY is not configured.")
-    audio_path = Path(audio_path)
-    if not audio_path.exists():
-        raise RuntimeError(f"Audio file not found: {audio_path}")
-    file_size = audio_path.stat().st_size
-    if file_size > 20 * 1024 * 1024:
-        raise RuntimeError("Audio file must be under 20MB.")
-    suffix = audio_path.suffix.lower()
-    content_type_map = {".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".wav": "audio/wav"}
-    content_type = content_type_map.get(suffix, "audio/mpeg")
-
-    upload_resp = _call_minimax_api(
-        "POST", "/v1/files/upload",
-        files={"file": (audio_path.name, audio_path.read_bytes(), content_type)},
-        payload={"purpose": "voice_clone"},
-    )
-    file_id = (
-        upload_resp.get("file", {}).get("file_id")
-        or upload_resp.get("data", {}).get("file_id")
-        or upload_resp.get("file_id")
-    )
-    if not file_id:
-        raise RuntimeError(f"Failed to upload audio: {upload_resp}")
-
-    clone_resp = _call_minimax_api(
-        "POST", "/v1/voice_clone",
-        {"file_id": file_id, "voice_id": custom_voice_id, "model": "speech-2.8-hd"},
-    )
-    return clone_resp
-
-
-LANGS_REQUIRING_TRADITIONAL = {"Cantonese"}
-LANGS_REQUIRING_SIMPLIFIED = {"Chinese (Mandarin)", "Japanese", "Korean"}
-
-_LANG_CODE_MAP = {
-    "English": "English", "Chinese (Mandarin)": "Chinese", "Cantonese": "Chinese",
-    "Korean": "Korean", "Japanese": "Japanese", "Spanish": "Spanish",
-    "Portuguese": "Portuguese", "French": "French", "German": "German",
-    "Indonesian": "Indonesian", "Russian": "Russian", "Italian": "Italian",
-    "Arabic": "Arabic", "Hindi": "Hindi", "Vietnamese": "Vietnamese",
-    "Thai": "Thai", "Turkish": "Turkish", "Polish": "Polish", "Dutch": "Dutch",
-    "Swedish": "Swedish", "Norwegian": "Norwegian", "Danish": "Danish",
-    "Finnish": "Finnish", "Czech": "Czech", "Romanian": "Romanian",
-    "Hungarian": "Hungarian", "Ukrainian": "Ukrainian",
-}
-
-
-def _detect_text_language(text: str) -> str:
-    """Detect the primary language of a text string using simple heuristics + MiniMax."""
-    if not text or len(text.strip()) < 10:
-        return "English"
-    # Heuristic: check for character sets
-    chinese_chars = len(re.findall(r'[\u4e00-\u9fff]', text))
-    japanese_chars = len(re.findall(r'[\u3040-\u309f\u30a0-\u30ff]', text))
-    korean_chars = len(re.findall(r'[\uac00-\ud7af\u1100-\u11ff]', text))
-    arabic_chars = len(re.findall(r'[\u0600-\u06ff]', text))
-    russian_chars = len(re.findall(r'[\u0400-\u04ff]', text))
-    total_chars = len(text)
-    # If enough CJK characters, use MiniMax to be more accurate
-    if chinese_chars / total_chars > 0.3:
-        return "Chinese (Mandarin)"
-    elif korean_chars / total_chars > 0.3:
-        return "Korean"
-    elif japanese_chars / total_chars > 0.2:
-        return "Japanese"
-    elif arabic_chars / total_chars > 0.3:
-        return "Arabic"
-    elif russian_chars / total_chars > 0.3:
-        return "Russian"
-    # Use MiniMax for ambiguous cases (mixed or Latin-script texts)
-    prompt_text = text[:500]
-    detect_msg = f"""Detect the language of the following text. Reply with ONLY the language name from this list: English, Chinese (Mandarin), Cantonese, Korean, Japanese, Spanish, Portuguese, French, German, Indonesian, Russian, Italian, Arabic, Hindi, Vietnamese, Thai, Turkish, Polish, Dutch, Swedish, Norwegian, Danish, Finnish, Czech, Romanian, Hungarian, Ukrainian.
-
-Text: {prompt_text}"""
-    try:
-        result = run_mmx([
-            "text", "chat",
-            "--model", "auto",
-            "--system", "You are a language detection assistant. Reply with ONLY the language name, nothing else.",
-            "--message", detect_msg,
-            "--max-tokens", "20",
-            "--temperature", "0.1",
-            "--non-interactive", "--quiet", "--output", "text",
-        ], timeout=10)
-        result = result.strip()
-        # Match against known languages
-        for lang in _LANG_CODE_MAP:
-            if lang.lower() in result.lower() or result.lower() in lang.lower():
-                return lang
-        return "English"
-    except Exception:
-        return "English"
-
-
-def _translate_text(text: str, from_lang: str, to_lang: str) -> str:
-    """Translate text from one language to another using MiniMax."""
-    if not text or from_lang == to_lang:
-        return text
-    if to_lang == "Cantonese":
-        to_native = "Cantonese (traditional Chinese characters, spoken Cantonese expressions)"
-    elif to_lang == "Chinese (Mandarin)":
-        to_native = "simplified Chinese"
-    elif to_lang == "Japanese":
-        to_native = "Japanese"
-    elif to_lang == "Korean":
-        to_native = "Korean"
-    elif to_lang == "English":
-        to_native = "English"
-    else:
-        to_native = _LANG_CODE_MAP.get(to_lang, to_lang)
-    translate_msg = f"""Translate the following text into {to_native}.
-
-Rules:
-- Translate meaning and spirit, NOT word-for-word
-- Adapt idioms and expressions naturally to {to_native}
-- Keep the same tone and emotional quality
-- Output ONLY the translated text, no explanation, no quotes, no notes
-
-Text to translate:
-{text}"""
-    try:
-        result = run_mmx([
-            "text", "chat",
-            "--model", "auto",
-            "--system", f"You are a professional translator into {to_native}. Output ONLY the translated text.",
-            "--message", translate_msg,
-            "--max-tokens", "2000",
-            "--temperature", "0.7",
-            "--non-interactive", "--quiet", "--output", "text",
-        ], timeout=30)
-        # Clean up the result
-        result = result.strip()
-        result = re.sub(r'^["\']', '', result).strip()
-        result = re.sub(r'["\']$', '', result).strip()
-        prefixes = ("translation:", "translated text:", "here is the translation:")
-        lower_result = result.lower()
-        for prefix in prefixes:
-            if lower_result.startswith(prefix):
-                result = result[len(prefix):].strip()
-                lower_result = result.lower()
-        return result
-    except Exception as exc:
-        print(f"[translate] failed: {exc}")
-        return text  # fallback to original if translation fails
-
-
-def synthesize_speech(text: str, voice_id: str, output_path: Path, model: str = "speech-2.8-hd") -> Path:
-    """Synthesize speech using a cloned or system voice_id, save to output_path."""
-    output_path = Path(output_path)
-    if not MINIMAX_API_KEY:
-        raise RuntimeError("MINIMAX_API_KEY is not configured.")
-    resp = _call_minimax_api(
-        "POST", "/v1/t2a_v2",
-        {
-            "model": model,
-            "text": text[:5000],
-            "stream": False,
-            "voice_setting": {"voice_id": voice_id},
-            "output_format": "hex",
-        },
-    )
-    audio_hex = (
-        resp.get("data", {}).get("audio_file")
-        or resp.get("data", {}).get("audio")
-        or resp.get("audio_file")
-        or resp.get("audio")
-    )
-    if not audio_hex:
-        # Check for specific MiniMax error codes
-        base_resp = resp.get("base_resp", {})
-        status_code = base_resp.get("status_code", 0)
-        status_msg = base_resp.get("status_msg", "")
-        if status_code == 2054 or "not exist" in status_msg.lower() or "not found" in status_msg.lower():
-            raise RuntimeError(f"This voice is not available for preview: {voice_id}")
-        # Check for quota/usage limit errors
-        response_text = f"{status_msg} {resp}".lower()
-        if any(token in response_text for token in ("limit", "quota", "usage", "exceed", "rate")):
-            raise RuntimeError("Voice preview is temporarily unavailable due to high demand. Please try again in a few minutes.")
-        print(f"[TTS] unexpected resp: {resp}")
-        raise RuntimeError(f"No audio in TTS response: {status_msg or str(resp)}")
-    audio_bytes = bytes.fromhex(audio_hex)
-    output_path.write_bytes(audio_bytes)
-    return output_path
-
-
-class VoiceCloneSingingUnavailable(RuntimeError):
-    """Raised when MiniMax voice_clone_singing is absent or not enabled for this key."""
-
-
-def build_music_option_args(extra: dict[str, Any] | None) -> list[str]:
-    option_map = {
-        "genre": "--genre", "mood": "--mood", "instruments": "--instruments", "tempo": "--tempo",
-        "bpm": "--bpm", "key": "--key", "vocals": "--vocals", "structure": "--structure",
-        "references": "--references", "avoid": "--avoid", "use_case": "--use-case", "extra": "--extra",
-    }
-    args: list[str] = []
-    source = extra if isinstance(extra, dict) else {}
-    for key, flag in option_map.items():
-        value = str(source.get(key, "")).strip()
-        if value:
-            args.extend([flag, value])
-    return args
-
-
-def extract_audio_bytes_from_response(payload: Any) -> bytes:
-    """Find hex/base64/audio URL payloads returned by MiniMax audio APIs."""
-    if isinstance(payload, dict):
-        for key in ("audio_file", "audio", "audio_data", "data", "file", "result", "output"):
-            if key in payload:
-                try:
-                    return extract_audio_bytes_from_response(payload[key])
-                except ValueError:
-                    pass
-        for key in ("audio_url", "url", "file_url", "download_url"):
-            value = payload.get(key)
-            if isinstance(value, str) and value.startswith(("http://", "https://")):
-                import urllib.request
-
-                with urllib.request.urlopen(value, timeout=120) as resp:
-                    return resp.read()
-    if isinstance(payload, str):
-        text = payload.strip()
-        if text.startswith("data:") and "," in text:
-            text = text.split(",", 1)[1]
-        if re.fullmatch(r"[0-9a-fA-F]+", text) and len(text) % 2 == 0:
-            try:
-                return bytes.fromhex(text)
-            except ValueError:
-                pass
-        try:
-            return base64.b64decode(text, validate=True)
-        except Exception:
-            pass
-    raise ValueError("No audio data found in MiniMax response.")
-
-
-def voice_clone_singing_error_is_unavailable(error: Exception) -> bool:
-    message = str(error).lower()
-    return any(token in message for token in (
-        "404",
-        "not found",
-        "not exist",
-        "permission",
-        "forbidden",
-        "unauthorized",
-        "access denied",
-        "not enabled",
-        "no privilege",
-    ))
-
-
-def synthesize_voice_clone_singing(lyrics: str, voice_id: str, output_path: Path, prompt: str = "") -> Path:
-    """Try MiniMax's direct voice_clone_singing endpoint and save audio to output_path."""
-    if not MINIMAX_API_KEY:
-        raise VoiceCloneSingingUnavailable("MINIMAX_API_KEY is not configured.")
-    payload = {
-        "model": VOICE_CLONE_SINGING_MODEL,
-        "voice_id": voice_id,
-        "lyrics": lyrics[:LYRICS_CHAR_LIMIT],
-        "prompt": prompt[:2000],
-        "stream": False,
-        "output_format": "hex",
-        "audio_setting": {
-            "format": "mp3",
-            "sample_rate": 44100,
-            "bitrate": 256000,
-            "channel": 2,
-        },
-    }
-    try:
-        resp = _call_minimax_api("POST", VOICE_CLONE_SINGING_ENDPOINT, payload)
-        output_path.write_bytes(extract_audio_bytes_from_response(resp))
-        if output_path.stat().st_size <= 0:
-            raise RuntimeError("voice_clone_singing returned an empty audio file.")
-        return output_path
-    except Exception as exc:
-        if voice_clone_singing_error_is_unavailable(exc):
-            raise VoiceCloneSingingUnavailable(str(exc)) from exc
-        raise
-
-
-def generate_voice_cover_audio(prompt: str, lyrics: str, voice_wav: Path, out_path: Path, extra: dict[str, Any] | None = None) -> None:
-    """Fallback path: use the recorded voice as reference audio for MiniMax music cover."""
-    if not voice_wav.exists():
-        raise RuntimeError("Voice recording not found. Please re-record your voice.")
-    cover_prompt = prompt.strip() or "A natural singing voice performance with clear melody"
-    args = ["music", "cover", "--prompt", cover_prompt, "--audio-file", str(voice_wav), "--out", str(out_path), "--non-interactive"]
-    if lyrics:
-        args.extend(["--lyrics", lyrics])
-    args.extend(build_music_option_args(extra))
-    run_mmx(args)
-
-
-def clean_song_title(text: str) -> str:
-    cleaned = re.sub(r"\x1b\[[0-9;]*m", "", text).strip()
-    if cleaned.startswith("```"):
-        cleaned = re.sub(r"^```[a-zA-Z]*\s*", "", cleaned)
-        cleaned = re.sub(r"\s*```$", "", cleaned)
-    prefixes = ("title:", "song title:", "songname:", "歌名:", "歌名：", "标题:", "标题：")
-    lower = cleaned.lower()
-    for prefix in prefixes:
-        if lower.startswith(prefix):
-            cleaned = cleaned[len(prefix):].strip()
-            break
-    lines = [line.strip(" \t\r\n\"'`") for line in cleaned.splitlines() if line.strip()]
-    title = lines[0] if lines else ""
-    title = re.sub(r"^\s*[-*#]+\s*", "", title).strip(" \t\r\n\"'`")
-    title = re.sub(r"\s+", " ", title)
-    if title.lower().endswith(".mp3"):
-        title = title[:-4].strip(" .-_")
-    # Enforce length limits: English <=12 words, Chinese <=12 chars
-    if re.search(r"[\u4e00-\u9fff]", title):
-        title = title[:12]
-    else:
-        words = title.split()
-        if len(words) > 12:
-            title = " ".join(words[:12])
-    return title[:120].strip()
-
-
-def compact_title_candidate(text: str, max_words: int = 8, max_chars: int = 36) -> str:
-    title = clean_song_title(text)
-    if not title:
-        return ""
-    title = re.sub(r"^\[[^\]]+\]\s*", "", title).strip()
-    title = re.sub(r"[,，。.!！?？;；:：]+$", "", title).strip()
-    if not title:
-        return ""
-    words = title.split()
-    if len(words) > max_words:
-        return " ".join(words[:max_words]).strip()
-    if len(title) > max_chars and len(words) <= 1:
-        return title[:max_chars].strip()
-    return title[:120].strip()
-
-
-def _lyrics_content_lines(lyrics: str) -> list[str]:
-    lines: list[str] = []
-    for raw in (lyrics or "").splitlines():
-        line = re.sub(r"\[[^\]]+\]", "", raw).strip()
-        line = re.sub(r"^[\-*•]+\s*", "", line).strip()
-        if line:
-            lines.append(line)
-    return lines
-
-
-def _title_language(text: str, fallback: str = "en") -> str:
-    chinese_chars = len(re.findall(r"[\u4e00-\u9fff]", text or ""))
-    latin_words = len(re.findall(r"[A-Za-z]{2,}", text or ""))
-    return "zh" if chinese_chars >= max(4, latin_words * 2) else fallback
-
-
-def _normalized_title_compare(text: str) -> str:
-    return re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", (text or "").lower())
-
-
-def _is_first_line_title(title: str, lyrics: str) -> bool:
-    lines = _lyrics_content_lines(lyrics)
-    if not lines:
-        return False
-    first = _normalized_title_compare(lines[0])
-    candidate = _normalized_title_compare(title)
-    if not candidate:
-        return False
-    return candidate == first or (len(candidate) >= 8 and first.startswith(candidate))
-
-
-def _format_chinese_title(title: str) -> str:
-    title = "".join(re.findall(r"[\u4e00-\u9fff]+", title or ""))
-    if not title:
-        return ""
-    if len(title) < 4:
-        suffix = "未眠" if any(ch in title for ch in "夜星月灯") else "回响"
-        title = f"{title}{suffix}"
-    if len(title) > 12:
-        title = title[:12]
-    return title if 4 <= len(title) <= 12 else ""
-
-
-def _format_english_title(title: str) -> str:
-    words = re.findall(r"[A-Za-z0-9]+(?:'[A-Za-z0-9]+)?", title or "")
-    if not words:
-        return ""
-    if len(words) == 1:
-        words.append("Dreams")
-    words = words[:6]
-    small = {"a", "an", "and", "as", "at", "but", "by", "for", "from", "in", "into", "of", "on", "or", "the", "to", "with"}
-    titled = []
-    for idx, word in enumerate(words):
-        lower = word.lower()
-        if 0 < idx < len(words) - 1 and lower in small:
-            titled.append(lower)
-        else:
-            titled.append(lower.capitalize())
-    return " ".join(titled) if 2 <= len(titled) <= 6 else ""
-
-
-def normalize_generated_song_title(title: str, lyrics: str = "", preferred_lang: str = "") -> str:
-    cleaned = compact_title_candidate(title, max_words=6, max_chars=36)
-    if not cleaned:
-        return ""
-    if preferred_lang == "zh" and not re.search(r"[\u4e00-\u9fff]", cleaned):
-        return ""
-    lang = preferred_lang or _title_language(cleaned)
-    formatted = _format_chinese_title(cleaned) if lang == "zh" else _format_english_title(cleaned)
-    if formatted and _is_first_line_title(formatted, lyrics):
-        return ""
-    return formatted
-
-
-ZH_IMAGE_TERMS = [
-    ("雨夜", "雨夜"), ("雨", "雨"), ("窗", "窗外"), ("夜空", "夜空"), ("夜", "夜色"),
-    ("午夜", "午夜"), ("星", "星光"), ("月", "月光"), ("灯", "灯火"), ("城市", "城市"),
-    ("街", "街角"), ("海", "海风"), ("浪", "海浪"), ("风", "风"), ("雪", "雪"),
-    ("花", "花开"), ("路", "远方"), ("远方", "远方"), ("天空", "天空"), ("银河", "银河"),
-    ("晨光", "晨光"), ("黎明", "黎明"), ("回忆", "回忆"), ("时光", "时光"), ("梦", "梦想"),
-    ("火", "火焰"), ("山", "山海"), ("河", "河流"), ("列车", "列车"),
-]
-ZH_EMOTION_TERMS = [
-    ("想念", "想念"), ("思念", "想念"), ("孤单", "孤独"), ("孤独", "孤独"),
-    ("寂寞", "孤独"), ("温柔", "温柔"), ("勇敢", "勇敢"), ("自由", "自由"),
-    ("快乐", "快乐"), ("开心", "快乐"), ("遗憾", "遗憾"), ("等待", "等待"),
-    ("告别", "告别"), ("希望", "希望"), ("爱", "爱"), ("心动", "心动"),
-    ("伤心", "伤心"), ("痛", "伤痛"), ("成长", "成长"), ("梦想", "梦想"),
-    ("不放弃", "不放弃"), ("永不放弃", "不放弃"),
-]
-ZH_ACTION_TERMS = [
-    ("追逐", "追逐"), ("奔跑", "奔跑"), ("奔向", "奔向"), ("等待", "等待"),
-    ("告别", "告别"), ("远行", "远行"), ("重逢", "重逢"), ("守护", "守护"),
-    ("飞翔", "飞翔"), ("回家", "回家"), ("逃离", "逃离"), ("燃烧", "燃烧"),
-    ("绽放", "绽放"), ("前行", "前行"),
-]
-
-EN_IMAGE_TERMS = [
-    (("rain", "raining", "rainy"), "rain"), (("window", "windows"), "window"),
-    (("night", "midnight"), "night"), (("star", "stars", "starlight"), "star"),
-    (("moon", "moonlight"), "moon"), (("city", "cities"), "city"),
-    (("street", "streets"), "street"), (("neon",), "neon"), (("ocean", "sea", "waves"), "ocean"),
-    (("road", "roads", "highway"), "road"), (("home",), "home"), (("fire", "flame", "flames"), "fire"),
-    (("sky", "skies"), "sky"), (("sunrise", "dawn", "morning"), "sunrise"),
-    (("memory", "memories", "remember"), "memory"), (("dream", "dreams"), "dream"),
-    (("shadow", "shadows"), "shadow"), (("river", "rivers"), "river"), (("light", "lights"), "light"),
-]
-EN_EMOTION_TERMS = [
-    (("hope", "hopeful"), "hope"), (("love", "lover", "loved"), "love"),
-    (("lonely", "alone", "lonesome"), "loneliness"), (("free", "freedom"), "freedom"),
-    (("happy", "joy", "joyful"), "joy"), (("sad", "sorrow", "tears"), "sadness"),
-    (("broken", "heartbreak", "heartbroken"), "heartbreak"), (("brave", "courage"), "courage"),
-    (("longing", "miss", "missing"), "longing"), (("goodbye", "farewell"), "goodbye"),
-    (("wild",), "wild"), (("perfect",), "perfect"),
-]
-EN_ACTION_TERMS = [
-    (("run", "running"), "running"), (("chase", "chasing"), "chasing"),
-    (("wait", "waiting"), "waiting"), (("leave", "leaving"), "leaving"),
-    (("dance", "dancing"), "dancing"), (("fly", "flying"), "flying"),
-    (("burn", "burning"), "burning"), (("rise", "rising"), "rising"),
-    (("hold", "holding"), "holding"), (("fall", "falling"), "falling"),
-]
-EN_TITLE_STOPWORDS = {
-    "the", "and", "for", "are", "but", "not", "you", "your", "all", "can", "had", "her", "was",
-    "one", "our", "out", "get", "has", "him", "his", "how", "its", "let", "may", "new", "now",
-    "old", "see", "two", "way", "who", "did", "say", "she", "too", "use", "that", "with",
-    "have", "this", "will", "from", "they", "been", "come", "could", "each", "find", "give",
-    "just", "know", "look", "make", "more", "only", "over", "such", "take", "than", "them",
-    "then", "very", "when", "what", "into", "inside", "music", "song", "sing", "feel",
-}
-
-
-def _rank_zh_terms(text: str, terms: list[tuple[str, str]]) -> list[str]:
-    scores: dict[str, tuple[int, int]] = {}
-    for token, label in terms:
-        count = text.count(token)
-        if not count:
-            continue
-        first_pos = text.find(token)
-        current_score, current_pos = scores.get(label, (0, first_pos))
-        scores[label] = (current_score + count * max(1, len(token)), min(current_pos, first_pos))
-    return [label for label, _ in sorted(scores.items(), key=lambda item: (-item[1][0], item[1][1], item[0]))]
-
-
-def _rank_en_terms(text: str, terms: list[tuple[tuple[str, ...], str]]) -> list[str]:
-    lowered = text.lower()
-    scores: dict[str, tuple[int, int]] = {}
-    for variants, label in terms:
-        score = 0
-        first_pos = len(lowered)
-        for variant in variants:
-            pattern = r"\b" + re.escape(variant) + r"\b"
-            matches = list(re.finditer(pattern, lowered))
-            score += len(matches)
-            if matches:
-                first_pos = min(first_pos, matches[0].start())
-        if score:
-            current_score, current_pos = scores.get(label, (0, first_pos))
-            scores[label] = (current_score + score, min(current_pos, first_pos))
-    return [label for label, _ in sorted(scores.items(), key=lambda item: (-item[1][0], item[1][1], item[0]))]
-
-
-def _fallback_english_keywords(text: str) -> list[str]:
-    counts: dict[str, int] = {}
-    for word in re.findall(r"[A-Za-z]{4,}", text.lower()):
-        if word in EN_TITLE_STOPWORDS:
-            continue
-        if word.endswith("ing") and len(word) > 6:
-            word = word[:-3]
-        elif word.endswith("ed") and len(word) > 5:
-            word = word[:-2]
-        elif word.endswith("s") and len(word) > 5:
-            word = word[:-1]
-        counts[word] = counts.get(word, 0) + 1
-    return [word for word, _ in sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:4]]
-
-
-def _title_signals(lyrics: str, prompt: str = "", lyrics_idea: str = "") -> dict[str, Any]:
-    lyric_text = " ".join(_lyrics_content_lines(lyrics))
-    source = " ".join(part for part in (lyric_text, lyrics_idea, prompt) if part).strip()
-    lang = _title_language(lyric_text or source)
-    if lang == "zh":
-        return {
-            "lang": "zh",
-            "images": _rank_zh_terms(source, ZH_IMAGE_TERMS),
-            "emotions": _rank_zh_terms(source, ZH_EMOTION_TERMS),
-            "actions": _rank_zh_terms(source, ZH_ACTION_TERMS),
-            "fallback_words": [],
-        }
-    return {
-        "lang": "en",
-        "images": _rank_en_terms(source, EN_IMAGE_TERMS),
-        "emotions": _rank_en_terms(source, EN_EMOTION_TERMS),
-        "actions": _rank_en_terms(source, EN_ACTION_TERMS),
-        "fallback_words": _fallback_english_keywords(source),
-    }
-
-
-def _contains_any(values: list[str], *needles: str) -> bool:
-    return any(needle in values for needle in needles)
-
-
-def _chinese_title_candidates(signals: dict[str, Any], mood: str) -> list[str]:
-    images = signals["images"]
-    emotions = signals["emotions"]
-    actions = signals["actions"]
-    candidates: list[str] = []
-    if _contains_any(images, "梦想") or _contains_any(emotions, "梦想", "不放弃") or _contains_any(actions, "追逐", "奔跑"):
-        candidates += ["追梦不止", "奔向星光", "逆风奔跑", "梦想发光"]
-    if _contains_any(images, "雨", "雨夜") and _contains_any(images, "窗外"):
-        candidates += ["窗外的雨", "雨落窗前"]
-    if _contains_any(images, "雨", "雨夜") and _contains_any(images, "回忆", "时光"):
-        candidates += ["雨中的回忆", "回忆里的雨"]
-    if _contains_any(images, "雨", "雨夜") and _contains_any(emotions, "想念", "孤独", "遗憾"):
-        candidates += ["雨夜想念", "雨一直下"]
-    if _contains_any(images, "夜色", "午夜", "夜空") and _contains_any(images, "星光"):
-        candidates += ["夜空中有光", "星光未眠"]
-    if _contains_any(images, "夜色", "午夜") and _contains_any(images, "梦想"):
-        candidates += ["午夜的梦", "夜色里的梦"]
-    if _contains_any(images, "城市", "街角", "灯火") and _contains_any(emotions, "孤独", "想念"):
-        candidates += ["孤城灯火", "街角想念"]
-    if _contains_any(images, "海风", "海浪") and _contains_any(emotions, "自由", "想念"):
-        candidates += ["海风里的你", "自由海岸"]
-    if _contains_any(images, "晨光", "黎明") and _contains_any(emotions, "希望", "勇敢"):
-        candidates += ["奔向晨光", "黎明之前"]
-    if _contains_any(emotions, "告别") or _contains_any(actions, "告别", "远行"):
-        candidates += ["最后的告别", "告别之前"]
-    if _contains_any(emotions, "爱", "心动", "温柔"):
-        candidates += ["温柔心事", "把爱唱给你"]
-    if _contains_any(emotions, "自由") or _contains_any(actions, "飞翔", "逃离"):
-        candidates += ["向风而行", "自由飞翔"]
-    if images and emotions:
-        candidates.append(f"{images[0]}与{emotions[0]}")
-        candidates.append(f"{images[0]}里的{emotions[0]}")
-    if images:
-        candidates.append(f"{images[0]}未眠")
-        candidates.append(f"{images[0]}回响")
-    if emotions:
-        candidates.append(f"{emotions[0]}回响")
-    if "happy" in mood or "bright" in mood or "快乐" in mood:
-        candidates.append("晴天心事")
-    if "calm" in mood or "peaceful" in mood or "温柔" in mood:
-        candidates.append("温柔回响")
-    candidates += ["夜空中有光", "时光回响", "音乐心声"]
-    return candidates
-
-
-def _english_title_candidates(signals: dict[str, Any], mood: str) -> list[str]:
-    images = signals["images"]
-    emotions = signals["emotions"]
-    actions = signals["actions"]
-    words = signals["fallback_words"]
-    candidates: list[str] = []
-    if _contains_any(images, "dream") or _contains_any(actions, "chasing") or _contains_any(emotions, "hope"):
-        candidates += ["Chasing the Light", "Running Toward Tomorrow", "Dreams in Motion", "Hold On to Hope"]
-    if _contains_any(actions, "running") and _contains_any(emotions, "wild", "freedom"):
-        candidates.insert(0, "Running Wild")
-    if _contains_any(images, "night") and _contains_any(images, "dream"):
-        candidates += ["Midnight Dreams", "Dreams After Dark"]
-    if _contains_any(images, "night") and _contains_any(images, "star", "light"):
-        candidates += ["Starlit Night", "Light in the Dark"]
-    if _contains_any(images, "rain") and _contains_any(images, "window"):
-        candidates += ["Window in the Rain", "Rain on the Glass"]
-    if _contains_any(images, "rain") and _contains_any(images, "memory"):
-        candidates += ["Rainy Memories", "After the Rain"]
-    if _contains_any(images, "rain") and _contains_any(emotions, "heartbreak", "longing", "sadness"):
-        candidates += ["Rain Keeps Falling", "After the Rain"]
-    if _contains_any(images, "city", "neon", "street") and _contains_any(emotions, "loneliness"):
-        candidates += ["Neon Shadows", "City of Echoes"]
-    if _contains_any(images, "ocean") and _contains_any(emotions, "freedom", "longing", "love"):
-        candidates += ["Waves of You", "Ocean Echoes"]
-    if _contains_any(images, "home") and _contains_any(actions, "leaving", "running", "chasing"):
-        candidates += ["Way Back Home", "Long Road Home"]
-    if _contains_any(images, "fire") and _contains_any(emotions, "courage", "hope"):
-        candidates += ["Fire in the Heart", "Burning Bright"]
-    if _contains_any(emotions, "goodbye"):
-        candidates += ["Last Goodbye", "Before We Go"]
-    if _contains_any(emotions, "love") and _contains_any(emotions, "longing"):
-        candidates += ["Still Loving You", "Waves of You"]
-    if _contains_any(emotions, "love"):
-        candidates += ["Love Still Remains", "Only Love Knows"]
-    if _contains_any(emotions, "loneliness"):
-        candidates += ["Lonely Echoes", "Alone Tonight"]
-    if _contains_any(emotions, "freedom"):
-        candidates += ["Running Free", "Wild and Free"]
-    if _contains_any(emotions, "joy", "perfect"):
-        candidates += ["Perfect Day", "Bright New Morning"]
-    if _contains_any(emotions, "heartbreak", "sadness"):
-        candidates += ["Broken Melody", "Tears in the Dark"]
-    if _contains_any(emotions, "courage"):
-        candidates += ["Brave New Morning", "Stand in the Light"]
-    if images and emotions:
-        emotion_word = {
-            "hope": "Hope", "love": "Love", "loneliness": "Lonely", "freedom": "Freedom",
-            "joy": "Joy", "sadness": "Sorrow", "heartbreak": "Broken", "courage": "Brave",
-            "longing": "Longing", "goodbye": "Goodbye", "wild": "Wild", "perfect": "Perfect",
-        }.get(emotions[0], emotions[0].title())
-        image_word = {
-            "night": "Night", "star": "Stars", "city": "City", "ocean": "Waves", "road": "Road",
-            "home": "Home", "fire": "Fire", "sky": "Sky", "sunrise": "Morning", "memory": "Memories",
-            "dream": "Dreams", "shadow": "Shadows", "river": "River", "rain": "Rain", "light": "Light",
-            "window": "Window", "moon": "Moon", "street": "Street", "neon": "Neon",
-        }.get(images[0], images[0].title())
-        candidates += [f"{emotion_word} {image_word}", f"{image_word} of {emotion_word}"]
-    if images:
-        candidates.append(f"{images[0].title()} Echoes")
-    if words:
-        candidates.append(" ".join(words[:2]).title())
-    if "happy" in mood or "bright" in mood or "upbeat" in mood:
-        candidates.append("Perfect Day")
-    if "calm" in mood or "peaceful" in mood:
-        candidates.append("Quiet Echoes")
-    if "sad" in mood or "dark" in mood or "melancholic" in mood:
-        candidates.append("Midnight Echoes")
-    candidates += ["Midnight Dreams", "Sunrise Dreams", "Music Speaks"]
-    return candidates
-
-
-def _choose_generated_title(candidates: list[str], lyrics: str, lang: str) -> str:
-    seen: set[str] = set()
-    for candidate in candidates:
-        formatted = _format_chinese_title(candidate) if lang == "zh" else _format_english_title(candidate)
-        key = _normalized_title_compare(formatted)
-        if not formatted or key in seen:
-            continue
-        seen.add(key)
-        if not _is_first_line_title(formatted, lyrics):
-            return formatted
-    return "时光回响" if lang == "zh" else "Midnight Dreams"
-
-
-def fallback_song_title(job: dict[str, Any], lyrics: str) -> str:
-    """Generate title from lyrics content — NOT just the first line."""
-    extra = job.get("extra", {}) if isinstance(job.get("extra"), dict) else {}
-    mood = str(extra.get("mood", "")).strip().lower()
-    prompt = str(job.get("prompt", "")).strip()
-    lyrics_idea = str(job.get("lyrics_idea", "")).strip()
-    signals = _title_signals(lyrics, prompt, lyrics_idea)
-    if signals["lang"] == "zh":
-        return _choose_generated_title(_chinese_title_candidates(signals, mood), lyrics, "zh")
-    return _choose_generated_title(_english_title_candidates(signals, mood), lyrics, "en")
-
-
-def generate_lyrics_from_text_model(job: dict[str, Any], timeout: float = 180) -> str:
-    voice_id = str(job.get("voice_id", "")).strip()
-    lyrics_language = str(job.get("lyrics_language", "auto")).strip()
-    if lyrics_language and lyrics_language != "auto":
-        voice_lang = lyrics_language
-    elif voice_id:
-        voice_lang = _detect_lang_from_voice_id(voice_id)
-    else:
-        voice_lang = "English"
-    prompt = str(job.get("prompt", "")).strip()
-    lyrics_idea = str(job.get("lyrics_idea", "")).strip()
-    lyrics_extra = str(job.get("lyrics_extra", "")).strip()
-    brief_parts = [part for part in (lyrics_idea, prompt, lyrics_extra) if part]
-    brief = "\n".join(brief_parts).strip() or "Create a clear, singable AI music lyric."
-
-    system_prompt = f"The selected vocal language is {voice_lang}. The lyrics must be written in {voice_lang}."
-    user_prompt = f"根据提示创作出一首 3-5 分钟时长的歌词。\n\n提示：\n{brief}"
-
-    output = run_mmx([
-        "text", "chat",
-        "--model", "auto",
-        "--system", system_prompt,
-        "--message", user_prompt,
-        "--max-tokens", "5000",
-        "--temperature", "0.8",
-        "--non-interactive",
-        "--quiet",
-        "--output", "text",
-    ], timeout=int(max(1, timeout)))
-    lyrics = clean_generated_lyrics(output)
-    if not lyrics:
-        raise RuntimeError("MiniMax lyrics_generation model returned empty lyrics.")
-    return lyrics
-
-
-def fallback_generated_lyrics(prompt: str, lyrics_idea: str, extra: dict[str, Any] | None = None, voice_id: str = "", lyrics_language: str = "auto", interface_language: str = "") -> str:
-    """Fast local fallback — generates simple lyrics from user seed only.
-    No hardcoded templates. Uses seed words as thematic anchors only.
-    The language is determined by voice_lang, not by the seed language."""
-    extra = extra or {}
-    seed = (lyrics_idea or prompt or "").strip()
-    seed = re.sub(r"\s+", " ", seed)[:80] if seed else ""
-    if lyrics_language and lyrics_language != "auto":
-        voice_lang = lyrics_language
-    elif voice_id:
-        voice_lang = _detect_lang_from_voice_id(voice_id)
-    else:
-        voice_lang = "English"
-    mood = str(extra.get("mood", "")).strip()
-    genre = str(extra.get("genre", "")).strip()
-
-    # Build a short theme anchor without copying full user sentences into the fallback lyrics.
-    seed_theme = _theme_anchor_from_seed(seed, voice_lang)
-    source_texts = [prompt, lyrics_idea, *[str(value) for value in extra.values() if value]]
-
-    if voice_lang == "Cantonese":
-        theme_line = "有束光喺心入面慢慢浮現"
-        mood_line = "带着" + mood + "心情" if mood else ""
-        genre_line = "，" + genre + "曲风" if genre else ""
-        return _finalize_fallback_lyrics((
-            "[Verse 1]\n" + theme_line + genre_line + "\n"
-            + "霓虹喺雨後慢慢散開\n"
-            + "我將未講出口嘅心事收埋\n\n"
-            + "[Pre-Chorus]\n"
-            + "仍然聽見心跳帶路\n"
-            + "行過暗巷都唔怕再重來\n\n"
-            + "[Chorus]\n"
-            + "呢一刻我哋望住同一片海\n"
-            + "浪花將沉默唱到天光\n"
-            + "就算世界轉得再快\n"
-            + "我都會跟住旋律搵返方向\n\n"
-            + "[Verse 2]\n"
-            + "舊相簿入面有風經過\n"
-            + "每一頁都照住未完嘅夢\n"
-            + "我學識喺跌低之後\n"
-            + "將眼淚變成節奏\n\n"
-            + "[Bridge]\n"
-            + "如果長夜仲未肯離開\n"
-            + "我就點起一盞細細嘅燈\n\n"
-            + "[Chorus]\n"
-            + "呢一刻我哋望住同一片海\n"
-            + "浪花將沉默唱到天光\n"
-            + "就算世界轉得再快\n"
-            + "我都會跟住旋律搵返方向\n\n"
-            + "[Outro]\n"
-            + "留低一首歌陪明日發亮\n"
-        ), voice_lang, source_texts)
-
-    elif voice_lang == "Chinese (Mandarin)":
-        theme_line = "有束光在心里慢慢浮现"
-        mood_line = "带着" + mood if mood else ""
-        genre_line = "，" + genre + "风格" if genre else ""
-        return _finalize_fallback_lyrics((
-            "[Verse 1]\n" + theme_line + genre_line + mood_line + "\n"
-            + "城市光影忽明忽暗\n"
-            + "思绪飘向每一个深夜\n\n"
-            + "[Pre-Chorus]\n"
-            + "依然听见心里的声音\n"
-            + "一次次尝试从未放弃\n\n"
-            + "[Chorus]\n"
-            + "这一刻我们相通\n"
-            + "一切都不需要言语\n"
-            + "风把沉默吹成花\n"
-            + "梦把远方推近一点\n\n"
-            + "[Verse 2]\n"
-            + "时光机里存着感受\n"
-            + "打开发现全是你\n"
-            + "为什么不放手\n"
-            + "就是因为太喜欢你\n\n"
-            + "[Bridge]\n"
-            + "世界停下来等我\n"
-            + "今天阴天转晴\n\n"
-            + "[Chorus]\n"
-            + "这一刻我们相通\n"
-            + "一切都不需要言语\n"
-            + "风把沉默吹成花\n"
-            + "梦把远方推近一点\n\n"
-            + "[Outro]\n"
-            + "把答案放进旋律里\n"
-        ), voice_lang, source_texts)
-
-    elif voice_lang == "Korean":
-        theme_line = "작은 빛이 마음속에 천천히 떠올라"
-        return _finalize_fallback_lyrics((
-            "[Verse 1]\n" + theme_line + "\n"
-            + "도시 불빛이 반짝이고\n"
-            + "낡은 기억이 밤을 건너와\n\n"
-            + "[Pre-Chorus]\n"
-            + "여전히 네 목소리가 들려\n"
-            + "흔들려도 멈춘 적은 없어\n\n"
-            + "[Chorus]\n"
-            + "이 순간 우린 같은 숨을 쉬어\n"
-            + "말로 다 못 한 마음이 노래가 돼\n"
-            + "멀어진 길도 다시 이어져\n"
-            + "새벽 끝에서 빛을 찾아\n\n"
-            + "[Verse 2]\n"
-            + "접어 둔 편지 위로 비가 내려\n"
-            + "잊은 줄 알던 장면들이 깨어나\n"
-            + "상처는 리듬이 되고\n"
-            + "두려움은 발걸음이 돼\n\n"
-            + "[Bridge]\n"
-            + "세상이 멈춰서 나를 기다려\n"
-            + "오늘 흐렸다가 맑아졌어\n\n"
-            + "[Chorus]\n"
-            + "이 순간 우린 같은 숨을 쉬어\n"
-            + "말로 다 못 한 마음이 노래가 돼\n"
-            + "멀어진 길도 다시 이어져\n"
-            + "새벽 끝에서 빛을 찾아\n\n"
-            + "[Outro]\n"
-            + "작은 멜로디가 내일을 깨워\n"
-        ), voice_lang, source_texts)
-
-    elif voice_lang == "Japanese":
-        theme_line = "小さな光が胸の奥で揺れている"
-        return _finalize_fallback_lyrics((
-            "[Verse 1]\n" + theme_line + "\n"
-            + "街の灯りが煌めいて\n"
-            + "古い記憶が夜を渡る\n\n"
-            + "[Pre-Chorus]\n"
-            + "まだ鼓動が道を覚えてる\n"
-            + "迷いながらも歩いてきた\n\n"
-            + "[Chorus]\n"
-            + "この瞬間 同じ空を見上げ\n"
-            + "言えなかった想いが歌になる\n"
-            + "遠い道もまたつながって\n"
-            + "夜明けの端で光を探す\n\n"
-            + "[Verse 2]\n"
-            + "閉じた手紙に雨が落ちて\n"
-            + "忘れた景色が息を返す\n"
-            + "傷跡はリズムになり\n"
-            + "ためらいは一歩に変わる\n\n"
-            + "[Bridge]\n"
-            + "世界が少し静かになる\n"
-            + "その隙間で願いを灯す\n\n"
-            + "[Chorus]\n"
-            + "この瞬間 同じ空を見上げ\n"
-            + "言えなかった想いが歌になる\n"
-            + "遠い道もまたつながって\n"
-            + "夜明けの端で光を探す\n\n"
-            + "[Outro]\n"
-            + "小さなメロディが明日を起こす\n"
-        ), voice_lang, source_texts)
-
-    else:
-        seed_word = "the light inside"
-        mood_tag = " — " + mood if mood else ""
-        genre_tag = " / " + genre if genre else ""
-        return _finalize_fallback_lyrics((
-            "[Verse 1]\n"
-            + seed_word + mood_tag + genre_tag + "\n"
-            + "Every corner holds a memory\n"
-            + "Every breath reminds me of you\n\n"
-            + "[Pre-Chorus]\n"
-            + "Still hearing your voice inside\n"
-            + "Never once did I let go\n\n"
-            + "[Chorus]\n"
-            + "In this moment we align\n"
-            + "Feelings words could never find\n\n"
-            + "[Verse 2]\n"
-            + "Time machine stores all the feelings\n"
-            + "Open it up and it's all you\n"
-            + "Why I can't let go\n"
-            + "Because I love you this much\n\n"
-            + "[Bridge]\n"
-            + "The world stopped just to wait for me\n"
-            + "Today turned from gray to bright\n\n"
-            + "[Chorus]\n"
-            + "In this moment we align\n"
-            + "Feelings words could never find\n\n"
-            + "[Outro]\n"
-            + seed_word + "\n"
-        ), voice_lang, source_texts)
-
-
 
 def generate_title_from_text_model(job: dict[str, Any], lyrics: str, timeout: float = 180) -> str:
     """
@@ -5803,6 +4689,20 @@ def run_mmx(args: list[str], timeout: int = 900) -> str:
             err_msg = detail
         raise RuntimeError(err_msg)
     return result.stdout.strip()
+
+
+lyrics_runtime.Path = Path
+lyrics_runtime.base64 = base64
+lyrics_runtime.json = json
+lyrics_runtime.secrets = secrets
+lyrics_runtime.time = time
+lyrics_runtime.MINIMAX_API_KEY = MINIMAX_API_KEY
+lyrics_runtime.VOICE_CLONE_SINGING_MODEL = VOICE_CLONE_SINGING_MODEL
+lyrics_runtime.VOICE_CLONE_SINGING_ENDPOINT = VOICE_CLONE_SINGING_ENDPOINT
+lyrics_runtime.GENERATED_LYRICS_MIN_CHARS = GENERATED_LYRICS_MIN_CHARS
+lyrics_runtime.GENERATED_LYRICS_MAX_CHARS = GENERATED_LYRICS_MAX_CHARS
+lyrics_runtime.run_mmx = run_mmx
+lyrics_runtime._detect_lang_from_voice_id = _detect_lang_from_voice_id
 
 
 def send_email(to_email: str, file_path: Path, prompt: str) -> bool:
@@ -6147,7 +5047,7 @@ class MusicHandler(BaseHTTPRequestHandler):
             voice_id = str(form.get("voice_id", "")).strip()
             lyrics_language = str(form.get("lyrics_language", "auto")).strip()
             interface_language = str(form.get("interface_language", "")).strip()
-            lyrics = generate_lyrics_from_text_model({
+            job_for_generation = {
                 "prompt": prompt,
                 "lyrics_idea": lyrics_idea,
                 "lyrics_extra": lyrics_extra,
@@ -6155,7 +5055,21 @@ class MusicHandler(BaseHTTPRequestHandler):
                 "voice_id": voice_id,
                 "lyrics_language": lyrics_language,
                 "interface_language": interface_language,
-            }, timeout=LYRICS_REQUEST_TIMEOUT)
+            }
+            lyrics = generate_lyrics_from_text_model(job_for_generation, timeout=LYRICS_REQUEST_TIMEOUT)
+            requested_title = clean_song_title(str(form.get("song_title", "")).strip())
+            title_error = None
+            if requested_title:
+                song_title = requested_title
+                generated_title = False
+            else:
+                try:
+                    song_title = generate_title_from_text_model(job_for_generation, lyrics, timeout=min(45, LYRICS_REQUEST_TIMEOUT))
+                    generated_title = True
+                except Exception as exc:
+                    song_title = fallback_song_title(job_for_generation, lyrics)
+                    title_error = str(exc)
+                    generated_title = False
         except ValueError as exc:
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
             return
@@ -6170,7 +5084,7 @@ class MusicHandler(BaseHTTPRequestHandler):
             )
             self.send_json({"lyrics": fallback, "fallback": True, "warning": "Live lyrics generation timed out or failed; using local fallback."})
             return
-        self.send_json({"lyrics": lyrics})
+        self.send_json({"lyrics": lyrics, "song_title": song_title, "generated_title": generated_title, "title_error": title_error})
 
     def handle_jobs_voice(self) -> None:
         """Handle POST /api/jobs/voice — create a music job that uses a cloned voice."""
@@ -6270,17 +5184,30 @@ class MusicHandler(BaseHTTPRequestHandler):
             if cached_voices and cache_age < VOICE_CACHE_TTL_SECONDS:
                 self.send_json({
                     "voices": cached_voices,
+                    "voice_meta": dict(VOICE_CACHE.get("voice_meta") or {}),
                     "count": len(cached_voices),
                     "fallback": bool(VOICE_CACHE.get("fallback")),
                     "cached": True,
                 })
                 return
+        raw_meta_overrides: dict[str, dict[str, Any]] = {}
         try:
             output = run_mmx(["speech", "voices", "--output", "json", "--non-interactive", "--quiet"], timeout=int(max(1, VOICE_LIST_TIMEOUT)))
             parsed = json.loads(output)
             if isinstance(parsed, dict):
                 parsed = parsed.get("voices") or parsed.get("data") or []
-            voices = [str(voice).strip() for voice in parsed if str(voice).strip()] if isinstance(parsed, list) else []
+            voices = []
+            if isinstance(parsed, list):
+                for entry in parsed:
+                    voice_id = ""
+                    if isinstance(entry, str):
+                        voice_id = str(entry).strip()
+                    elif isinstance(entry, dict):
+                        voice_id = str(entry.get("voice_id") or entry.get("id") or entry.get("name") or entry.get("voice") or "").strip()
+                        if voice_id:
+                            raw_meta_overrides[voice_id] = dict(entry)
+                    if voice_id:
+                        voices.append(voice_id)
         except Exception as exc:
             print(f"[voices] using fallback voice list: {exc}")
             voices = []
@@ -6289,6 +5216,7 @@ class MusicHandler(BaseHTTPRequestHandler):
                 if cached_voices:
                     self.send_json({
                         "voices": cached_voices,
+                        "voice_meta": dict(VOICE_CACHE.get("voice_meta") or {}),
                         "count": len(cached_voices),
                         "fallback": bool(VOICE_CACHE.get("fallback")),
                         "cached": True,
@@ -6298,9 +5226,32 @@ class MusicHandler(BaseHTTPRequestHandler):
         if not voices:
             voices = DEFAULT_SYSTEM_VOICES
         fallback = voices == DEFAULT_SYSTEM_VOICES
+        voice_meta = build_voice_metadata_map(voices, fallback=fallback)
+        for voice_id, raw in raw_meta_overrides.items():
+            meta = voice_meta.get(voice_id) or build_voice_metadata_map([voice_id]).get(voice_id, {"id": voice_id})
+            language = str(raw.get("language") or raw.get("lang") or meta.get("language") or "").strip()
+            if language:
+                meta["language"] = language
+                meta["language_source"] = "api"
+            display_name = str(raw.get("display_name") or raw.get("label") or raw.get("title") or meta.get("display_name") or "").strip()
+            if display_name:
+                meta["display_name"] = display_name
+            use_case = str(raw.get("use_case") or raw.get("useCase") or meta.get("use_case") or "").strip()
+            if use_case:
+                meta["use_case"] = use_case
+            preview_supported = raw.get("preview_supported")
+            if preview_supported is None:
+                preview_supported = raw.get("previewSupport")
+            if preview_supported is not None:
+                meta["preview_supported"] = bool(preview_supported)
+            unavailable_reason = str(raw.get("unavailable_reason") or raw.get("preview_error") or raw.get("previewUnavailableReason") or meta.get("unavailable_reason") or "").strip()
+            if unavailable_reason:
+                meta["preview_supported"] = False
+                meta["unavailable_reason"] = unavailable_reason
+            voice_meta[voice_id] = meta
         with VOICE_CACHE_LOCK:
-            VOICE_CACHE.update({"voices": list(voices), "fallback": fallback, "fetched_at": time.time()})
-        self.send_json({"voices": voices, "count": len(voices), "fallback": fallback, "cached": False})
+            VOICE_CACHE.update({"voices": list(voices), "voice_meta": dict(voice_meta), "fallback": fallback, "fetched_at": time.time()})
+        self.send_json({"voices": voices, "voice_meta": voice_meta, "count": len(voices), "fallback": fallback, "cached": False})
 
     def handle_voice_preview(self) -> None:
         """Handle GET /api/voice/preview?voice_id=xxx — synthesize a short speech sample with the given voice_id."""
