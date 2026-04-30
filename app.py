@@ -2148,9 +2148,9 @@ INDEX_HTML = r"""<!doctype html>
     });
 
     Object.assign(I18N, {
-      en: { ...I18N.en, recPreparing: "Preparing...", recCancel: "Cancel", recSegment: "Segment", recStartingIn: "Starting in {seconds}...", recStartRecording: "Start Recording", recRecordingFailed: "Recording failed — no audio data captured. Please try again.", recTooSmall: "Recording too small — check microphone. Please try again.", recRecording: "Recording...", recRecordingCountdown: "Recording... {seconds}s", recMicDenied: "Microphone access denied. Please allow microphone access.", recRerecord: "Re-record", recNext: "Next →", recAllDone: "All recordings complete! Merging...", recUploadingCloning: "Uploading & cloning...", recCloneFailed: "Clone failed.", recVoiceReady: "Voice cloned! Use Preview to listen.", recCloneFailedPrefix: "Clone failed: ", recClose: "Close", recRerecordConfirm: "Re-record voice? This will create a new voice clone.", untitled: "Untitled", muteSounds: "Mute sounds", unmuteSounds: "Unmute sounds" },
-      zh: { ...I18N.zh, recPreparing: "准备中...", recCancel: "取消", recSegment: "段落", recStartingIn: "{seconds}秒后开始...", recStartRecording: "开始录制", recRecordingFailed: "录音失败 — 未捕获到音频数据，请重试。", recTooSmall: "录音文件过小 — 请检查麦克风后重试。", recRecording: "录制中...", recRecordingCountdown: "录制中... {seconds}s", recMicDenied: "麦克风访问被拒绝，请允许麦克风权限。", recRerecord: "重新录制", recNext: "下一个 →", recAllDone: "全部录制完成！正在合并...", recUploadingCloning: "上传中并复刻声音...", recCloneFailed: "声音复刻失败。", recVoiceReady: "声音复刻完成！点击预览试听。", recCloneFailedPrefix: "复刻失败：", recClose: "关闭", recRerecordConfirm: "重新录制？这将创建新的声音复刻。", untitled: "未命名", muteSounds: "静音", unmuteSounds: "取消静音" },
-      yue: { ...I18N.yue, recPreparing: "準備中...", recCancel: "取消", recSegment: "段落", recStartingIn: "{seconds}秒後開始...", recStartRecording: "開始錄製", recRecordingFailed: "錄音失敗 — 未捕獲音訊資料，請重試。", recTooSmall: "錄音檔案太細 — 請檢查咪高峰後重試。", recRecording: "錄製中...", recRecordingCountdown: "錄製中... {seconds}s", recMicDenied: "咪高峰存取被拒，請允許權限。", recRerecord: "重新錄製", recNext: "下一個 →", recAllDone: "全部錄製完成！正在合併...", recUploadingCloning: "上載並復刻聲音中...", recCloneFailed: "聲音復刻失敗。", recVoiceReady: "聲音復刻完成！點擊預覽試聽。", recCloneFailedPrefix: "復刻失敗：", recClose: "關閉", recRerecordConfirm: "重新錄製？這會建立新的聲音復刻。", untitled: "未命名", muteSounds: "靜音", unmuteSounds: "取消靜音" },
+      en: { ...I18N.en, recPreparing: "Preparing...", recCancel: "Cancel", recSegment: "Segment", recStartingIn: "Starting in {seconds}...", recStartRecording: "Start Recording", recRecordingFailed: "Recording failed — no audio data captured. Please try again.", recTooSmall: "Recording too small — check microphone. Please try again.", recRecording: "Recording...", recRecordingCountdown: "Recording... {seconds}s", recMicDenied: "Microphone access denied. Please allow microphone access.", recRerecord: "Re-record", recNext: "Next →", recAllDone: "All recordings complete! Merging...", recUploadingCloning: "Uploading & cloning...", recCloneFailed: "Clone failed.", recVoiceReady: "Voice cloned! Use Preview to listen.", recCloneFailedPrefix: "Clone failed: ", recClose: "Close", recRerecordConfirm: "Re-record voice? This will create a new voice clone.", untitled: "Untitled", noLyrics: "No lyrics available.", fullscreenLyrics: "Fullscreen lyrics", closeFullscreenLyrics: "Close fullscreen lyrics", previous: "Previous", next: "Next", playPause: "Play/Pause", artistName: "Music Speaks", muteSounds: "Mute sounds", unmuteSounds: "Unmute sounds" },
+      zh: { ...I18N.zh, recPreparing: "准备中...", recCancel: "取消", recSegment: "段落", recStartingIn: "{seconds}秒后开始...", recStartRecording: "开始录制", recRecordingFailed: "录音失败 — 未捕获到音频数据，请重试。", recTooSmall: "录音文件过小 — 请检查麦克风后重试。", recRecording: "录制中...", recRecordingCountdown: "录制中... {seconds}s", recMicDenied: "麦克风访问被拒绝，请允许麦克风权限。", recRerecord: "重新录制", recNext: "下一个 →", recAllDone: "全部录制完成！正在合并...", recUploadingCloning: "上传中并复刻声音...", recCloneFailed: "声音复刻失败。", recVoiceReady: "声音复刻完成！点击预览试听。", recCloneFailedPrefix: "复刻失败：", recClose: "关闭", recRerecordConfirm: "重新录制？这将创建新的声音复刻。", untitled: "未命名", noLyrics: "暂无歌词。", fullscreenLyrics: "全屏歌词", closeFullscreenLyrics: "关闭全屏歌词", previous: "上一首", next: "下一首", playPause: "播放/暂停", artistName: "Music Speaks", muteSounds: "静音", unmuteSounds: "取消静音" },
+      yue: { ...I18N.yue, recPreparing: "準備中...", recCancel: "取消", recSegment: "段落", recStartingIn: "{seconds}秒後開始...", recStartRecording: "開始錄製", recRecordingFailed: "錄音失敗 — 未捕獲音訊資料，請重試。", recTooSmall: "錄音檔案太細 — 請檢查咪高峰後重試。", recRecording: "錄製中...", recRecordingCountdown: "錄製中... {seconds}s", recMicDenied: "咪高峰存取被拒，請允許權限。", recRerecord: "重新錄製", recNext: "下一個 →", recAllDone: "全部錄製完成！正在合併...", recUploadingCloning: "上載並復刻聲音中...", recCloneFailed: "聲音復刻失敗。", recVoiceReady: "聲音復刻完成！點擊預覽試聽。", recCloneFailedPrefix: "復刻失敗：", recClose: "關閉", recRerecordConfirm: "重新錄製？這會建立新的聲音復刻。", untitled: "未命名", noLyrics: "暫無歌詞。", fullscreenLyrics: "全屏歌詞", closeFullscreenLyrics: "關閉全屏歌詞", previous: "上一首", next: "下一首", playPause: "播放/暫停", artistName: "Music Speaks", muteSounds: "靜音", unmuteSounds: "取消靜音" },
       ko: { ...I18N.ko, recPreparing: "준비 중...", recCancel: "취소", recSegment: "구간", recStartingIn: "{seconds}초 후 시작...", recStartRecording: "녹음 시작", recRecordingFailed: "녹음 실패 — 오디오가 캡처되지 않았습니다. 다시 시도하세요.", recTooSmall: "녹음 파일이 너무 작습니다 — 마이크를 확인하고 다시 시도하세요.", recRecording: "녹음 중...", recRecordingCountdown: "녹음 중... {seconds}초", recMicDenied: "마이크 접근이 거부되었습니다. 권한을 허용하세요.", recRerecord: "다시 녹음", recNext: "다음 →", recAllDone: "모든 녹음 완료! 병합 중...", recUploadingCloning: "업로드 및 음성 복제 중...", recCloneFailed: "음성 복제 실패.", recVoiceReady: "음성 복제 완료! 미리듣기로 확인하세요.", recCloneFailedPrefix: "복제 실패: ", recClose: "닫기", recRerecordConfirm: "다시 녹음할까요? 새 음성 복제가 생성됩니다.", untitled: "제목 없음", muteSounds: "소리 끄기", unmuteSounds: "소리 켜기" },
       ja: { ...I18N.ja, recPreparing: "準備中...", recCancel: "キャンセル", recSegment: "セグメント", recStartingIn: "{seconds}秒後に開始...", recStartRecording: "録音開始", recRecordingFailed: "録音に失敗しました — 音声データが取得できません。もう一度お試しください。", recTooSmall: "録音が短すぎます — マイクを確認してもう一度お試しください。", recRecording: "録音中...", recRecordingCountdown: "録音中... {seconds}秒", recMicDenied: "マイクへのアクセスが拒否されました。権限を許可してください。", recRerecord: "再録音", recNext: "次へ →", recAllDone: "すべての録音が完了しました！結合中...", recUploadingCloning: "アップロードして音声を複製中...", recCloneFailed: "音声複製に失敗しました。", recVoiceReady: "音声複製完了！プレビューで確認してください。", recCloneFailedPrefix: "複製失敗: ", recClose: "閉じる", recRerecordConfirm: "再録音しますか？新しい音声複製が作成されます。", untitled: "無題", muteSounds: "ミュート", unmuteSounds: "ミュート解除" },
       es: { ...I18N.es, recPreparing: "Preparando...", recCancel: "Cancelar", recSegment: "Segmento", recStartingIn: "Empieza en {seconds}...", recStartRecording: "Iniciar grabación", recRecordingFailed: "La grabación falló: no se capturó audio. Inténtalo de nuevo.", recTooSmall: "La grabación es demasiado pequeña: revisa el micrófono e inténtalo de nuevo.", recRecording: "Grabando...", recRecordingCountdown: "Grabando... {seconds}s", recMicDenied: "Acceso al micrófono denegado. Permite el acceso.", recRerecord: "Volver a grabar", recNext: "Siguiente →", recAllDone: "¡Grabaciones completas! Mezclando...", recUploadingCloning: "Subiendo y clonando voz...", recCloneFailed: "Clonación de voz fallida.", recVoiceReady: "¡Voz clonada! Usa Vista previa para escuchar.", recCloneFailedPrefix: "Clonación fallida: ", recClose: "Cerrar", recRerecordConfirm: "¿Volver a grabar? Esto creará una nueva voz clonada.", untitled: "Sin título", muteSounds: "Silenciar sonidos", unmuteSounds: "Activar sonidos" },
@@ -2161,7 +2161,7 @@ INDEX_HTML = r"""<!doctype html>
 
 
     Object.assign(I18N, {
-      en: { ...I18N.en, play: "Play" }, zh: { ...I18N.zh, play: "播放" }, yue: { ...I18N.yue, play: "播放" }, ko: { ...I18N.ko, play: "재생" }, ja: { ...I18N.ja, play: "再生" }, es: { ...I18N.es, play: "Reproducir" }, fr: { ...I18N.fr, play: "Lire" }, de: { ...I18N.de, play: "Abspielen" }, pt: { ...I18N.pt, play: "Reproduzir" }, it: { ...I18N.it, play: "Riproduci" }, ru: { ...I18N.ru, play: "Воспроизвести" }, ar: { ...I18N.ar, play: "تشغيل" }, hi: { ...I18N.hi, play: "चलाएँ" }, id: { ...I18N.id, play: "Putar" }, vi: { ...I18N.vi, play: "Phát" }, th: { ...I18N.th, play: "เล่น" }, tr: { ...I18N.tr, play: "Oynat" }, pl: { ...I18N.pl, play: "Odtwórz" }, nl: { ...I18N.nl, play: "Afspelen" }, sv: { ...I18N.sv, play: "Spela" }, no: { ...I18N.no, play: "Spill" }, da: { ...I18N.da, play: "Afspil" }, fi: { ...I18N.fi, play: "Toista" }, cs: { ...I18N.cs, play: "Přehrát" }, ro: { ...I18N.ro, play: "Redă" }, hu: { ...I18N.hu, play: "Lejátszás" }, uk: { ...I18N.uk, play: "Відтворити" }
+      en: { ...I18N.en, play: "Play", pause: "Pause" }, zh: { ...I18N.zh, play: "播放", pause: "暂停" }, yue: { ...I18N.yue, play: "播放", pause: "暫停" }, ko: { ...I18N.ko, play: "재생" }, ja: { ...I18N.ja, play: "再生" }, es: { ...I18N.es, play: "Reproducir" }, fr: { ...I18N.fr, play: "Lire" }, de: { ...I18N.de, play: "Abspielen" }, pt: { ...I18N.pt, play: "Reproduzir" }, it: { ...I18N.it, play: "Riproduci" }, ru: { ...I18N.ru, play: "Воспроизвести" }, ar: { ...I18N.ar, play: "تشغيل" }, hi: { ...I18N.hi, play: "चलाएँ" }, id: { ...I18N.id, play: "Putar" }, vi: { ...I18N.vi, play: "Phát" }, th: { ...I18N.th, play: "เล่น" }, tr: { ...I18N.tr, play: "Oynat" }, pl: { ...I18N.pl, play: "Odtwórz" }, nl: { ...I18N.nl, play: "Afspelen" }, sv: { ...I18N.sv, play: "Spela" }, no: { ...I18N.no, play: "Spill" }, da: { ...I18N.da, play: "Afspil" }, fi: { ...I18N.fi, play: "Toista" }, cs: { ...I18N.cs, play: "Přehrát" }, ro: { ...I18N.ro, play: "Redă" }, hu: { ...I18N.hu, play: "Lejátszás" }, uk: { ...I18N.uk, play: "Відтворити" }
     });
     const TEMPLATES = {
       upbeat_pop: { prompt: "Upbeat pop song with catchy melody, bright synthesizer, driving drum beat, feel-good energy, modern production, radio-ready", genre: "pop", mood: "happy, energetic", instruments: "synth, drums, bass, guitar" },
@@ -2795,7 +2795,7 @@ INDEX_HTML = r"""<!doctype html>
     function setPlayerPlayIcon() {
       const isPaused = audioPlayer.paused;
       playerPlay.innerHTML = isPaused ? ICON_PLAY : ICON_PAUSE;
-      playerPlay.setAttribute("aria-label", isPaused ? "Play" : "Pause");
+      playerPlay.setAttribute("aria-label", isPaused ? t("play") : t("pause"));
     }
     function parseLyrics(rawLyrics) {
       return String(rawLyrics || "")
@@ -3935,19 +3935,19 @@ INDEX_HTML = r"""<!doctype html>
       <div class="lfm-bg"></div>
       <div class="lfm-header">
         <div class="lfm-track-info">
-          <div class="lfm-title" id="lfmTitle">Song Title</div>
-          <div class="lfm-artist" id="lfmArtist">Music Speaks</div>
+          <div class="lfm-title" id="lfmTitle"></div>
+          <div class="lfm-artist" id="lfmArtist"></div>
         </div>
-        <button class="lfm-close" id="lfmClose" aria-label="Close fullscreen lyrics">✕</button>
+        <button class="lfm-close" id="lfmClose" aria-label="${t("closeFullscreenLyrics")}">✕</button>
       </div>
       <div class="lfm-body" id="lfmBody">
         <div class="lfm-lines" id="lfmLines"></div>
       </div>
       <div class="lfm-footer">
         <div class="lfm-controls">
-          <button class="lfm-btn" id="lfmPrev" aria-label="Previous"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M19 4H9l-7 8 7 8h10V4z"/></svg></button>
-          <button class="lfm-btn lfm-play" id="lfmPlay" aria-label="Play/Pause"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path class="play-path" d="M8 5v14l11-7L8 5Z"/></svg></button>
-          <button class="lfm-btn" id="lfmNext" aria-label="Next"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 4l10 8-10 8V4z"/><rect x="17" y="4" width="2" height="16"/></svg></button>
+          <button class="lfm-btn" id="lfmPrev" aria-label="${t("previous")}"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M19 4H9l-7 8 7 8h10V4z"/></svg></button>
+          <button class="lfm-btn lfm-play" id="lfmPlay" aria-label="${t("playPause")}"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path class="play-path" d="M8 5v14l11-7L8 5Z"/></svg></button>
+          <button class="lfm-btn" id="lfmNext" aria-label="${t("next")}"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 4l10 8-10 8V4z"/><rect x="17" y="4" width="2" height="16"/></svg></button>
         </div>
         <div class="lfm-progress-row">
           <span class="lfm-time" id="lfmCurrentTime">0:00</span>
@@ -3972,11 +3972,11 @@ INDEX_HTML = r"""<!doctype html>
     function _syncLfmFromPlayer() {
       if (!currentTrack) return;
       document.getElementById("lfmTitle").textContent = currentTrack.title || t("untitled");
-      document.getElementById("lfmArtist").textContent = "Music Speaks";
+      document.getElementById("lfmArtist").textContent = t("artistName");
       const rows = getLyricRows();
       const playableRows = rows.filter(r => !r.isSection && r.text);
       if (!playableRows.length) {
-        document.getElementById("lfmLines").innerHTML = '<div class="lfm-empty">No lyrics available.</div>';
+        document.getElementById("lfmLines").innerHTML = '<div class="lfm-empty">' + escapeHtml(t("noLyrics")) + '</div>';
         return;
       }
       document.getElementById("lfmLines").innerHTML = rows.map(row => {
@@ -4019,9 +4019,11 @@ INDEX_HTML = r"""<!doctype html>
       _openLyricsModal();
       _syncLfmFromPlayer();
       _updateLfmProgress();
-      // Attach continuous timeupdate when modal is open
-      _lfmTimeUpdateHandler = () => _updateLfmProgress();
-      audioPlayer.addEventListener("timeupdate", _lfmTimeUpdateHandler);
+      // Attach one continuous timeupdate handler while modal is open.
+      if (!_lfmTimeUpdateHandler) {
+        _lfmTimeUpdateHandler = () => _updateLfmProgress();
+        audioPlayer.addEventListener("timeupdate", _lfmTimeUpdateHandler);
+      }
     });
     function _closeLyricsModal() {
       lyricsModal.classList.remove("open");
@@ -4144,7 +4146,7 @@ ADMIN_HTML = r"""<!doctype html>
       }
       jobsBox.innerHTML = jobs.map(job => {
         const download = job.download_url ? `<a class="button" href="${escapeHtml(job.download_url)}" download="${escapeHtml(job.file_name || "terry-music.mp3")}">Download MP3</a>` : "";
-        const title = escapeHtml(job.song_title || job.prompt || t("untitled"));
+        const title = escapeHtml(job.song_title || job.prompt || "Untitled");
         const details = [
           job.prompt ? `<details><summary>Music prompt</summary><pre>${escapeHtml(job.prompt)}</pre></details>` : "",
           job.lyrics_idea ? `<details><summary>Lyrics brief</summary><pre>${escapeHtml(job.lyrics_idea)}</pre></details>` : "",
