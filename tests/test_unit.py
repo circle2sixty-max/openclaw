@@ -19,6 +19,7 @@ from app import (
     clean_draft_payload,
     public_job,
     admin_job,
+    refresh_job_lyric_timing,
 )
 
 
@@ -237,6 +238,19 @@ class TestPublicJob:
         assert "lyrics" not in result
         assert result["email"] == "hidden@example.com"
 
+    def test_includes_lyric_timing_when_requested(self):
+        job = {
+            "id": "job1",
+            "status": "completed",
+            "lyrics": "hello",
+            "lyric_timestamps": [{"time": 0.0, "end": 3.0, "row_index": 0, "text": "hello"}],
+            "lyric_timing_source": "audio-segment",
+            "file_path": "/tmp/demo.mp3",
+        }
+        result = public_job(job, include_lyrics=True)
+        assert result["lyric_timestamps"][0]["row_index"] == 0
+        assert result["lyric_timing_source"] == "audio-segment"
+
     def test_adds_download_url_when_completed(self):
         job = {
             "id": "job1",
@@ -263,3 +277,8 @@ class TestAdminJob:
         job = {"id": "job1", "lyrics": "test lyrics"}
         result = admin_job(job)
         assert result["lyrics"] == "test lyrics"
+
+
+class TestRefreshJobLyricTiming:
+    def test_skips_non_completed_jobs(self):
+        assert refresh_job_lyric_timing({"status": "queued"}) is False
