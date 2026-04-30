@@ -9,6 +9,7 @@ RUN apt-get update \
 WORKDIR /app
 
 COPY app.py /app/app.py
+COPY music_speaks /app/music_speaks
 
 ENV HOST=0.0.0.0
 ENV PYTHONUNBUFFERED=1

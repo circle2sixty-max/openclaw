@@ -273,12 +273,12 @@ class TestAdminJob:
         result = admin_job(job)
         assert result["owner_id"] == "owner123"
 
-
-class TestRefreshJobLyricTiming:
-    def test_skips_non_completed_jobs(self):
-        assert refresh_job_lyric_timing({"status": "queued"}) is False
-
     def test_includes_lyrics(self):
         job = {"id": "job1", "lyrics": "test lyrics"}
         result = admin_job(job)
         assert result["lyrics"] == "test lyrics"
+
+
+class TestRefreshJobLyricTiming:
+    def test_skips_non_completed_jobs(self):
+        assert refresh_job_lyric_timing({"status": "queued"}) is False
