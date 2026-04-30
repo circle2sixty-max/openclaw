@@ -308,7 +308,7 @@ INDEX_HTML = r"""<!doctype html>
       letter-spacing: 0.06em;
       text-transform: uppercase;
     }
-    .lang-menu-list { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 6px 0; }
+    .lang-menu-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 6px 0; }
     .lang-menu-section-label { padding: 10px 16px 6px; font-size: 11px; color: var(--text-muted); border-top: 1px solid var(--panel-border); margin-top: 4px; }
     .lang-menu-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; font-size: 14px; color: var(--text-secondary); transition: var(--transition); }
     .lang-menu-item:hover { background: var(--bg-tertiary); color: var(--text-primary); }
@@ -371,7 +371,14 @@ INDEX_HTML = r"""<!doctype html>
     /* Voice Picker */
     .voice-picker-section { margin-bottom: 16px; }
     .voice-picker-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .voice-picker-selected { font-size: 12px; color: var(--accent); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+    .voice-search-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .voice-search-box { flex: 1; height: 32px; padding: 0 10px; background: var(--glass-raised); border: 1px solid var(--panel-border); border-radius: 8px; color: var(--text-primary); font-size: 12px; outline: none; transition: var(--transition); }
+    .voice-search-box:focus { border-color: var(--accent); }
+    .voice-search-box::placeholder { color: var(--text-muted); }
+    .voice-filter-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .voice-filter-chip { padding: 4px 10px; border-radius: 999px; font-size: 10px; font-weight: 700; cursor: pointer; background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-secondary); transition: var(--transition); }
+    .voice-filter-chip:hover { border-color: var(--accent); color: var(--text-primary); }
+    .voice-filter-chip.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
     .voice-picker-scroll { position: relative; isolation: isolate; height: 308px; overflow: hidden; overscroll-behavior: contain; border: 1px solid var(--panel-border); border-radius: 14px; background: var(--glass-surface); box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px var(--panel-outline), 0 20px 40px rgba(0,0,0,0.18); padding: 8px; }
     .voice-picker-scroll::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.58; background: linear-gradient(180deg, rgba(103,232,249,0.08), transparent 22%), repeating-linear-gradient(135deg, rgba(103,232,249,0.06) 0 1px, transparent 1px 18px); }
     .voice-picker-shell { display: grid; grid-template-columns: 156px minmax(0, 1fr); gap: 8px; height: 100%; min-height: 0; }
@@ -897,6 +904,18 @@ INDEX_HTML = r"""<!doctype html>
               <div class="voice-picker-label">
                 <label class="form-label" data-i18n="voicePickerLabel">Voice Style</label>
                 <span id="voicePickerSelected" class="voice-picker-selected" data-i18n="voicePickerDefault">Click to select — this sets the lyrics language</span>
+              </div>
+              <div class="voice-search-row">
+                <input type="text" id="voiceSearchBox" class="voice-search-box" placeholder="Search voices..." autocomplete="off">
+              </div>
+              <div class="voice-filter-chips" id="voiceFilterChips">
+                <button type="button" class="voice-filter-chip" data-filter="all">All</button>
+                <button type="button" class="voice-filter-chip" data-filter="Warm">Warm</button>
+                <button type="button" class="voice-filter-chip" data-filter="Youthful">Youthful</button>
+                <button type="button" class="voice-filter-chip" data-filter="Professional">Professional</button>
+                <button type="button" class="voice-filter-chip" data-filter="Character">Character</button>
+                <button type="button" class="voice-filter-chip" data-filter="calm">Calm</button>
+                <button type="button" class="voice-filter-chip" data-filter="energetic">Energetic</button>
               </div>
               <div id="voicePickerScroll" class="voice-picker-scroll">
                 <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;" id="voicePickerLoading">
@@ -2339,6 +2358,8 @@ INDEX_HTML = r"""<!doctype html>
     let _voicePreviewUtterance = null;
     let _selectedVoiceId = "";
     let _activeVoiceLang = "Chinese (Mandarin)";
+    let _voiceSearchQuery = "";
+    let _voiceStyleFilter = "all";
     // Set default prompt value if empty
     const promptEl = document.getElementById("prompt");
     if (!promptEl.value.trim()) {
@@ -3713,6 +3734,17 @@ INDEX_HTML = r"""<!doctype html>
       html += '<div class="voice-items">';
       for (const voice of activeGroup.voices) {
         const meta = _voiceMetaForId(voice);
+        // Filter by search query
+        if (_voiceSearchQuery) {
+          const searchable = (voice + ' ' + (meta && meta.display_name ? meta.display_name : '') + ' ' + (meta && meta.language ? meta.language : '') + ' ' + (meta && meta.persona ? meta.persona : '') + ' ' + ((meta && Array.isArray(meta.style_tags)) ? meta.style_tags.join(' ') : '')).toLowerCase();
+          if (!searchable.includes(_voiceSearchQuery)) continue;
+        }
+        // Filter by style chip
+        if (_voiceStyleFilter && _voiceStyleFilter !== "all") {
+          if (!meta) continue;
+          const matchFilter = meta.persona === _voiceStyleFilter || meta.mood === _voiceStyleFilter || ((Array.isArray(meta.style_tags) && meta.style_tags.includes(_voiceStyleFilter)));
+          if (!matchFilter) continue;
+        }
         const displayName = _voiceDisplayName(voice, activeGroup.lang);
         const summary = _voiceSummaryText(voice, activeGroup.lang);
         const isSelected = voice === _selectedVoiceId ? " selected" : "";
@@ -3731,6 +3763,26 @@ INDEX_HTML = r"""<!doctype html>
       container.innerHTML = html;
       _attachScrollSound(document.getElementById("voiceLangList"));
       _attachScrollSound(document.getElementById("voiceOptionList"));
+      // Search box
+      const searchBox = document.getElementById("voiceSearchBox");
+      if (searchBox) {
+        searchBox.value = _voiceSearchQuery || "";
+        searchBox.addEventListener("input", function() {
+          _voiceSearchQuery = searchBox.value.trim().toLowerCase();
+          _buildVoicePicker();
+        });
+      }
+      // Filter chips
+      document.querySelectorAll(".voice-filter-chip").forEach(function(chip) {
+        chip.classList.toggle("active", chip.getAttribute("data-filter") === _voiceStyleFilter);
+        chip.addEventListener("click", function() {
+          const filter = chip.getAttribute("data-filter");
+          _voiceStyleFilter = filter || "all";
+          document.querySelectorAll(".voice-filter-chip").forEach(function(c) { c.classList.remove("active"); });
+          chip.classList.add("active");
+          _buildVoicePicker();
+        });
+      });
       container.querySelectorAll(".voice-lang-btn").forEach(function(btn) {
         btn.addEventListener("click", function(e) {
           e.stopPropagation();
