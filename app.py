@@ -299,6 +299,11 @@ INDEX_HTML = r"""<!doctype html>
       max-height: min(68vh, 560px);
       border-radius: 20px;
     }
+    .lang-menu.mobile .lang-menu-list {
+      max-height: min(calc(68vh - 80px), 480px);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
     .lang-menu-head {
       padding: 11px 16px;
       font-size: 11px;
