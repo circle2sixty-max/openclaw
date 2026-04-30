@@ -268,8 +268,49 @@ INDEX_HTML = r"""<!doctype html>
     .header-btn { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 1px solid var(--panel-border); border-radius: 50%; background: var(--glass-raised); color: var(--text-secondary); cursor: pointer; font-size: 18px; transition: var(--transition); box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); }
     .header-btn .ui-icon { width: 18px; height: 18px; }
     .header-btn:hover { background: var(--glass-raised); color: var(--text-primary); transform: scale(1.05); border-color: rgba(29,185,84,0.36); }
+    .lang-btn-dropdown { position: relative; }
     .lang-toggle { width: auto; padding: 0 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
-    .lang-menu-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; cursor: pointer; font-size: 14px; color: var(--text-secondary); transition: var(--transition); }
+    .lang-menu-backdrop { position: fixed; inset: 0; z-index: 1490; background: rgba(5,8,15,0); opacity: 0; pointer-events: none; transition: opacity 0.2s ease, background 0.2s ease; }
+    .lang-menu-backdrop.open { opacity: 1; pointer-events: auto; background: rgba(5,8,15,0.16); }
+    .lang-menu {
+      position: fixed;
+      display: none;
+      flex-direction: column;
+      width: min(280px, calc(100vw - 32px));
+      min-width: 220px;
+      max-height: min(72vh, 560px);
+      border: 1px solid var(--panel-border);
+      border-radius: 18px;
+      background: var(--glass-surface);
+      box-shadow: 0 22px 52px rgba(0,0,0,0.24), 0 0 0 1px rgba(255,255,255,0.05) inset;
+      overflow: hidden;
+      z-index: 1500;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+    .lang-menu.open { display: flex; }
+    .lang-menu.mobile {
+      left: 12px !important;
+      right: 12px !important;
+      top: auto !important;
+      bottom: 12px !important;
+      width: auto;
+      min-width: 0;
+      max-height: min(68vh, 560px);
+      border-radius: 20px;
+    }
+    .lang-menu-head {
+      padding: 11px 16px;
+      font-size: 11px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--panel-border);
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .lang-menu-list { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 6px 0; }
+    .lang-menu-section-label { padding: 10px 16px 6px; font-size: 11px; color: var(--text-muted); border-top: 1px solid var(--panel-border); margin-top: 4px; }
+    .lang-menu-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; font-size: 14px; color: var(--text-secondary); transition: var(--transition); }
     .lang-menu-item:hover { background: var(--bg-tertiary); color: var(--text-primary); }
     .lang-menu-item.active { color: var(--accent); font-weight: 600; }
     .lang-menu-item .lang-check { font-size: 12px; }
@@ -564,6 +605,9 @@ INDEX_HTML = r"""<!doctype html>
     @media (max-width: 768px) {
       .sidebar { display: none; }
       .main-content { padding: 20px 16px 142px; }
+      .lang-menu-backdrop.open { background: rgba(5,8,15,0.52); }
+      .lang-menu.mobile { bottom: 16px !important; }
+      .lang-menu-item { padding: 13px 16px; }
       .player { min-height: 126px; padding: 12px 16px; gap: 10px; flex-wrap: wrap; }
       .player-track { width: calc(100% - 96px); flex: 1 1 220px; }
       .player-art { width: 52px; height: 52px; border-radius: 8px; }
@@ -782,11 +826,11 @@ INDEX_HTML = r"""<!doctype html>
       <div class="header-actions">
         <button id="soundBtn" class="header-btn sound-toggle on" title="Toggle sound" aria-label="Mute sounds" onclick="toggleSound()"><svg class="ui-icon"><use href="#icon-volume"></use></svg></button>
         <button id="themeBtn" class="header-btn" title="Switch to theme" aria-label="Switch to light theme"><svg class="ui-icon"><use href="#icon-moon"></use></svg></button>
-        <div id="langBtnDropdown" style="position:relative;">
+        <div id="langBtnDropdown" class="lang-btn-dropdown">
           <button id="langBtn" class="header-btn lang-toggle" aria-haspopup="listbox" aria-expanded="false">EN ▾</button>
-          <div id="langMenu" class="lang-menu" role="listbox" style="display:none;position:absolute;top:100%;right:0;min-width:160px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:8px;padding:6px 0;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.15);">
-          </div>
+          <div id="langMenu" class="lang-menu" role="listbox" aria-hidden="true"></div>
         </div>
+        <div id="langMenuBackdrop" class="lang-menu-backdrop" aria-hidden="true"></div>
       </div>
     </header>
     <div class="app-body">
@@ -2720,7 +2764,7 @@ INDEX_HTML = r"""<!doctype html>
         _lyricsLanguage = savedLang;
       }
     }
-    // ── Language menu (dropdown) ──────────────────────────────────────
+    // ── Language menu (desktop popover + mobile sheet) ───────────────
     const LANG_LABELS = {
       "en": "English", "zh": "中文", "yue": "粤语", "ko": "한국어",
       "ja": "日本語", "es": "Español", "fr": "Français", "de": "Deutsch",
@@ -2730,6 +2774,7 @@ INDEX_HTML = r"""<!doctype html>
       "sv": "Svenska", "no": "Norsk", "da": "Dansk", "fi": "Suomi",
       "cs": "Čeština", "ro": "Română", "hu": "Magyar", "uk": "Українська"
     };
+    const ALL_INTERFACE_LANGS = ["en", "zh", "yue", "ko", "ja", "es", "fr", "de", "pt", "it", "ru", "ar", "hi", "id", "vi", "th", "tr", "pl", "nl", "sv", "no", "da", "fi", "cs", "ro", "hu", "uk"];
 
     // Map voice lang (from API) → IETF tag used in LANG_LABELS
     const VOICE_LANG_TO_IETF = {
@@ -2742,6 +2787,8 @@ INDEX_HTML = r"""<!doctype html>
       "Czech": "cs", "Romanian": "ro", "Hungarian": "hu", "Ukrainian": "uk"
     };
 
+    let _langMenuOpen = false;
+
     function _getAvailableUIVoices() {
       const groups = _voiceGroupsFromCache();
       const langSet = new Set();
@@ -2752,40 +2799,42 @@ INDEX_HTML = r"""<!doctype html>
       return uniqueLangs;
     }
 
+    function _langMenuUsesMobileLayout() {
+      return window.matchMedia("(max-width: 768px)").matches;
+    }
+
     function _buildLangMenu() {
       const menu = document.getElementById("langMenu");
       if (!menu) return;
       const voices = _getAvailableUIVoices();
       const current = lang;
-      let html = '<div style="padding:8px 16px;font-size:11px;color:var(--text-muted);border-bottom:1px solid var(--border);">' + escapeHtml(t("langMenuLabel")) + '</div>';
-      // Add all interface languages first
-      const allLangs = ["en", "zh", "yue", "ko", "ja", "es", "fr", "de", "pt", "it", "ru", "ar", "hi", "id", "vi", "th", "tr", "pl", "nl", "sv", "no", "da", "fi", "cs", "ro", "hu", "uk"];
-      for (const l of allLangs) {
-        const label = LANG_LABELS[l] || l;
-        const isActive = l === current ? " active" : "";
-        const check = l === current ? '<span class="lang-check">✓</span>' : "";
-        html += '<div class="lang-menu-item' + isActive + '" data-lang="' + escapeHtml(l) + '" role="option">' + escapeHtml(label) + check + '</div>';
+      const voiceOnlyLangs = voices.filter(voiceLang => !VOICE_LANG_TO_IETF[voiceLang]);
+      let html = '<div class="lang-menu-head">' + escapeHtml(t("langMenuLabel")) + '</div><div class="lang-menu-list">';
+      for (const langCode of ALL_INTERFACE_LANGS) {
+        const label = LANG_LABELS[langCode] || langCode;
+        const isActive = langCode === current ? " active" : "";
+        const check = langCode === current ? '<span class="lang-check">✓</span>' : "";
+        html += '<div class="lang-menu-item' + isActive + '" data-lang="' + escapeHtml(langCode) + '" role="option">' + escapeHtml(label) + check + '</div>';
       }
-      // If voice languages include something not in interface list, add a divider + section
-      const voiceOnlyLangs = voices.filter(v => !VOICE_LANG_TO_IETF[v] && !["en", "zh", "yue", "ko", "ja", "es", "fr", "de", "pt", "it", "ru", "ar", "hi", "id", "vi", "th", "tr", "pl", "nl", "sv", "no", "da", "fi", "cs", "ro", "hu", "uk"].includes(VOICE_LANG_TO_IETF[v] || ""));
       if (voiceOnlyLangs.length > 0) {
-        html += '<div style="padding:8px 16px;font-size:11px;color:var(--text-muted);border-top:1px solid var(--border);margin-top:4px;">Voice Languages</div>';
-        for (const v of voiceOnlyLangs) {
-          html += '<div class="lang-menu-item" data-lang="voice:' + escapeHtml(v) + '" role="option">' + escapeHtml(v) + '</div>';
+        html += '<div class="lang-menu-section-label">Voice Languages</div>';
+        for (const voiceLang of voiceOnlyLangs) {
+          html += '<div class="lang-menu-item" data-lang="voice:' + escapeHtml(voiceLang) + '" role="option">' + escapeHtml(voiceLang) + '</div>';
         }
       }
+      html += '</div>';
       menu.innerHTML = html;
       menu.querySelectorAll(".lang-menu-item").forEach(item => {
-        item.addEventListener("click", e => {
-          e.stopPropagation();
-          const val = item.getAttribute("data-lang");
-          if (val.startsWith("voice:")) {
-            // Switch to a voice-language-only mode — set UI to best match
-            const voiceLang = val.slice(6);
-            const ifaceLang = VOICE_LANG_TO_IETF[voiceLang] || "en";
-            lang = ifaceLang;
+        item.addEventListener("click", event => {
+          event.preventDefault();
+          event.stopPropagation();
+          const value = item.getAttribute("data-lang") || "";
+          if (!value) return;
+          if (value.startsWith("voice:")) {
+            const voiceLang = value.slice(6);
+            lang = VOICE_LANG_TO_IETF[voiceLang] || "en";
           } else {
-            lang = val;
+            lang = value;
           }
           applyLang();
           _closeLangMenu();
@@ -2793,30 +2842,87 @@ INDEX_HTML = r"""<!doctype html>
       });
     }
 
-    function _openLangMenu() {
-      _buildLangMenu();
+    function _positionLangMenu() {
       const menu = document.getElementById("langMenu");
       const btn = document.getElementById("langBtn");
-      if (menu && btn) { menu.style.display = "block"; btn.setAttribute("aria-expanded", "true"); }
-      // Close on outside click
-      setTimeout(() => {
-        document.addEventListener("click", _closeLangMenu, { once: true });
-      }, 0);
+      if (!menu || !btn) return;
+      menu.classList.remove("mobile");
+      menu.style.left = "";
+      menu.style.right = "";
+      menu.style.top = "";
+      menu.style.bottom = "";
+      menu.style.width = "";
+      if (_langMenuUsesMobileLayout()) {
+        menu.classList.add("mobile");
+        return;
+      }
+      const rect = btn.getBoundingClientRect();
+      const width = Math.min(280, Math.max(220, Math.round(rect.width + 84)));
+      const left = Math.min(window.innerWidth - width - 16, Math.max(16, rect.right - width));
+      menu.style.width = width + "px";
+      menu.style.left = Math.round(left) + "px";
+      menu.style.top = Math.round(rect.bottom + 10) + "px";
+    }
+
+    function _handleLangMenuViewportChange() {
+      if (_langMenuOpen) _positionLangMenu();
+    }
+
+    function _handleLangMenuKeydown(event) {
+      if (event.key === "Escape") _closeLangMenu();
+    }
+
+    function _openLangMenu() {
+      const menu = document.getElementById("langMenu");
+      const btn = document.getElementById("langBtn");
+      const backdrop = document.getElementById("langMenuBackdrop");
+      if (!menu || !btn || !backdrop) return;
+      _buildLangMenu();
+      _positionLangMenu();
+      menu.classList.add("open");
+      menu.setAttribute("aria-hidden", "false");
+      backdrop.classList.add("open");
+      backdrop.setAttribute("aria-hidden", "false");
+      btn.setAttribute("aria-expanded", "true");
+      _langMenuOpen = true;
+      window.addEventListener("resize", _handleLangMenuViewportChange);
+      window.addEventListener("orientationchange", _handleLangMenuViewportChange);
+      document.addEventListener("keydown", _handleLangMenuKeydown);
+      const activeItem = menu.querySelector(".lang-menu-item.active");
+      if (activeItem) activeItem.scrollIntoView({ block: "nearest" });
     }
 
     function _closeLangMenu() {
       const menu = document.getElementById("langMenu");
       const btn = document.getElementById("langBtn");
-      if (menu) menu.style.display = "none";
+      const backdrop = document.getElementById("langMenuBackdrop");
+      if (menu) {
+        menu.classList.remove("open", "mobile");
+        menu.setAttribute("aria-hidden", "true");
+        menu.style.left = "";
+        menu.style.right = "";
+        menu.style.top = "";
+        menu.style.bottom = "";
+        menu.style.width = "";
+      }
       if (btn) btn.setAttribute("aria-expanded", "false");
+      if (backdrop) {
+        backdrop.classList.remove("open");
+        backdrop.setAttribute("aria-hidden", "true");
+      }
+      _langMenuOpen = false;
+      window.removeEventListener("resize", _handleLangMenuViewportChange);
+      window.removeEventListener("orientationchange", _handleLangMenuViewportChange);
+      document.removeEventListener("keydown", _handleLangMenuKeydown);
     }
 
-    document.getElementById("langBtn").addEventListener("click", e => {
-      e.stopPropagation();
-      const menu = document.getElementById("langMenu");
-      if (menu && menu.style.display === "block") { _closeLangMenu(); }
-      else { _openLangMenu(); }
+    document.getElementById("langBtn").addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (_langMenuOpen) _closeLangMenu();
+      else _openLangMenu();
     });
+    document.getElementById("langMenuBackdrop").addEventListener("click", _closeLangMenu);
 
     // ── Lyrics language mismatch check ───────────────────────────────
     function _checkLyricsLanguageMismatch(voiceLang) {
