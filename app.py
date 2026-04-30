@@ -2147,6 +2147,22 @@ INDEX_HTML = r"""<!doctype html>
       }
     });
 
+    Object.assign(I18N, {
+      en: { ...I18N.en, recPreparing: "Preparing...", recCancel: "Cancel", recSegment: "Segment", recStartingIn: "Starting in {seconds}...", recStartRecording: "Start Recording", recRecordingFailed: "Recording failed — no audio data captured. Please try again.", recTooSmall: "Recording too small — check microphone. Please try again.", recRecording: "Recording...", recRecordingCountdown: "Recording... {seconds}s", recMicDenied: "Microphone access denied. Please allow microphone access.", recRerecord: "Re-record", recNext: "Next →", recAllDone: "All recordings complete! Merging...", recUploadingCloning: "Uploading & cloning...", recCloneFailed: "Clone failed.", recVoiceReady: "Voice cloned! Use Preview to listen.", recCloneFailedPrefix: "Clone failed: ", recClose: "Close", recRerecordConfirm: "Re-record voice? This will create a new voice clone.", untitled: "Untitled", muteSounds: "Mute sounds", unmuteSounds: "Unmute sounds" },
+      zh: { ...I18N.zh, recPreparing: "准备中...", recCancel: "取消", recSegment: "段落", recStartingIn: "{seconds}秒后开始...", recStartRecording: "开始录制", recRecordingFailed: "录音失败 — 未捕获到音频数据，请重试。", recTooSmall: "录音文件过小 — 请检查麦克风后重试。", recRecording: "录制中...", recRecordingCountdown: "录制中... {seconds}s", recMicDenied: "麦克风访问被拒绝，请允许麦克风权限。", recRerecord: "重新录制", recNext: "下一个 →", recAllDone: "全部录制完成！正在合并...", recUploadingCloning: "上传中并复刻声音...", recCloneFailed: "声音复刻失败。", recVoiceReady: "声音复刻完成！点击预览试听。", recCloneFailedPrefix: "复刻失败：", recClose: "关闭", recRerecordConfirm: "重新录制？这将创建新的声音复刻。", untitled: "未命名", muteSounds: "静音", unmuteSounds: "取消静音" },
+      yue: { ...I18N.yue, recPreparing: "準備中...", recCancel: "取消", recSegment: "段落", recStartingIn: "{seconds}秒後開始...", recStartRecording: "開始錄製", recRecordingFailed: "錄音失敗 — 未捕獲音訊資料，請重試。", recTooSmall: "錄音檔案太細 — 請檢查咪高峰後重試。", recRecording: "錄製中...", recRecordingCountdown: "錄製中... {seconds}s", recMicDenied: "咪高峰存取被拒，請允許權限。", recRerecord: "重新錄製", recNext: "下一個 →", recAllDone: "全部錄製完成！正在合併...", recUploadingCloning: "上載並復刻聲音中...", recCloneFailed: "聲音復刻失敗。", recVoiceReady: "聲音復刻完成！點擊預覽試聽。", recCloneFailedPrefix: "復刻失敗：", recClose: "關閉", recRerecordConfirm: "重新錄製？這會建立新的聲音復刻。", untitled: "未命名", muteSounds: "靜音", unmuteSounds: "取消靜音" },
+      ko: { ...I18N.ko, recPreparing: "준비 중...", recCancel: "취소", recSegment: "구간", recStartingIn: "{seconds}초 후 시작...", recStartRecording: "녹음 시작", recRecordingFailed: "녹음 실패 — 오디오가 캡처되지 않았습니다. 다시 시도하세요.", recTooSmall: "녹음 파일이 너무 작습니다 — 마이크를 확인하고 다시 시도하세요.", recRecording: "녹음 중...", recRecordingCountdown: "녹음 중... {seconds}초", recMicDenied: "마이크 접근이 거부되었습니다. 권한을 허용하세요.", recRerecord: "다시 녹음", recNext: "다음 →", recAllDone: "모든 녹음 완료! 병합 중...", recUploadingCloning: "업로드 및 음성 복제 중...", recCloneFailed: "음성 복제 실패.", recVoiceReady: "음성 복제 완료! 미리듣기로 확인하세요.", recCloneFailedPrefix: "복제 실패: ", recClose: "닫기", recRerecordConfirm: "다시 녹음할까요? 새 음성 복제가 생성됩니다.", untitled: "제목 없음", muteSounds: "소리 끄기", unmuteSounds: "소리 켜기" },
+      ja: { ...I18N.ja, recPreparing: "準備中...", recCancel: "キャンセル", recSegment: "セグメント", recStartingIn: "{seconds}秒後に開始...", recStartRecording: "録音開始", recRecordingFailed: "録音に失敗しました — 音声データが取得できません。もう一度お試しください。", recTooSmall: "録音が短すぎます — マイクを確認してもう一度お試しください。", recRecording: "録音中...", recRecordingCountdown: "録音中... {seconds}秒", recMicDenied: "マイクへのアクセスが拒否されました。権限を許可してください。", recRerecord: "再録音", recNext: "次へ →", recAllDone: "すべての録音が完了しました！結合中...", recUploadingCloning: "アップロードして音声を複製中...", recCloneFailed: "音声複製に失敗しました。", recVoiceReady: "音声複製完了！プレビューで確認してください。", recCloneFailedPrefix: "複製失敗: ", recClose: "閉じる", recRerecordConfirm: "再録音しますか？新しい音声複製が作成されます。", untitled: "無題", muteSounds: "ミュート", unmuteSounds: "ミュート解除" },
+      es: { ...I18N.es, recPreparing: "Preparando...", recCancel: "Cancelar", recSegment: "Segmento", recStartingIn: "Empieza en {seconds}...", recStartRecording: "Iniciar grabación", recRecordingFailed: "La grabación falló: no se capturó audio. Inténtalo de nuevo.", recTooSmall: "La grabación es demasiado pequeña: revisa el micrófono e inténtalo de nuevo.", recRecording: "Grabando...", recRecordingCountdown: "Grabando... {seconds}s", recMicDenied: "Acceso al micrófono denegado. Permite el acceso.", recRerecord: "Volver a grabar", recNext: "Siguiente →", recAllDone: "¡Grabaciones completas! Mezclando...", recUploadingCloning: "Subiendo y clonando voz...", recCloneFailed: "Clonación de voz fallida.", recVoiceReady: "¡Voz clonada! Usa Vista previa para escuchar.", recCloneFailedPrefix: "Clonación fallida: ", recClose: "Cerrar", recRerecordConfirm: "¿Volver a grabar? Esto creará una nueva voz clonada.", untitled: "Sin título", muteSounds: "Silenciar sonidos", unmuteSounds: "Activar sonidos" },
+      fr: { ...I18N.fr, recPreparing: "Préparation...", recCancel: "Annuler", recSegment: "Segment", recStartingIn: "Début dans {seconds}...", recStartRecording: "Démarrer l'enregistrement", recRecordingFailed: "Échec de l'enregistrement — aucun audio capturé. Réessayez.", recTooSmall: "Enregistrement trop court — vérifiez le micro et réessayez.", recRecording: "Enregistrement...", recRecordingCountdown: "Enregistrement... {seconds}s", recMicDenied: "Accès au micro refusé. Autorisez l'accès.", recRerecord: "Réenregistrer", recNext: "Suivant →", recAllDone: "Tous les enregistrements sont terminés ! Fusion...", recUploadingCloning: "Téléversement et clonage de voix...", recCloneFailed: "Échec du clonage vocal.", recVoiceReady: "Voix clonée ! Utilisez l’aperçu pour écouter.", recCloneFailedPrefix: "Échec du clonage : ", recClose: "Fermer", recRerecordConfirm: "Réenregistrer ? Cela créera une nouvelle voix clonée.", untitled: "Sans titre", muteSounds: "Couper les sons", unmuteSounds: "Activer les sons" },
+      de: { ...I18N.de, recPreparing: "Vorbereitung...", recCancel: "Abbrechen", recSegment: "Segment", recStartingIn: "Start in {seconds}...", recStartRecording: "Aufnahme starten", recRecordingFailed: "Aufnahme fehlgeschlagen — keine Audiodaten erfasst. Bitte erneut versuchen.", recTooSmall: "Aufnahme zu klein — Mikrofon prüfen und erneut versuchen.", recRecording: "Aufnahme läuft...", recRecordingCountdown: "Aufnahme läuft... {seconds}s", recMicDenied: "Mikrofonzugriff verweigert. Bitte Zugriff erlauben.", recRerecord: "Neu aufnehmen", recNext: "Weiter →", recAllDone: "Alle Aufnahmen fertig! Wird zusammengeführt...", recUploadingCloning: "Hochladen und Stimme klonen...", recCloneFailed: "Stimmenklon fehlgeschlagen.", recVoiceReady: "Stimme geklont! Vorschau zum Anhören nutzen.", recCloneFailedPrefix: "Klonen fehlgeschlagen: ", recClose: "Schließen", recRerecordConfirm: "Neu aufnehmen? Dadurch wird ein neuer Stimmenklon erstellt.", untitled: "Ohne Titel", muteSounds: "Töne stummschalten", unmuteSounds: "Töne aktivieren" },
+      ru: { ...I18N.ru, recPreparing: "Подготовка...", recCancel: "Отмена", recSegment: "Сегмент", recStartingIn: "Начало через {seconds}...", recStartRecording: "Начать запись", recRecordingFailed: "Запись не удалась — аудио не получено. Попробуйте снова.", recTooSmall: "Запись слишком короткая — проверьте микрофон и попробуйте снова.", recRecording: "Запись...", recRecordingCountdown: "Запись... {seconds}с", recMicDenied: "Доступ к микрофону запрещен. Разрешите доступ.", recRerecord: "Записать заново", recNext: "Далее →", recAllDone: "Все записи готовы! Объединение...", recUploadingCloning: "Загрузка и клонирование голоса...", recCloneFailed: "Клонирование голоса не удалось.", recVoiceReady: "Голос клонирован! Нажмите предпросмотр.", recCloneFailedPrefix: "Ошибка клонирования: ", recClose: "Закрыть", recRerecordConfirm: "Записать заново? Будет создан новый клон голоса.", untitled: "Без названия", muteSounds: "Выключить звуки", unmuteSounds: "Включить звуки" },
+    });
+
+
+    Object.assign(I18N, {
+      en: { ...I18N.en, play: "Play" }, zh: { ...I18N.zh, play: "播放" }, yue: { ...I18N.yue, play: "播放" }, ko: { ...I18N.ko, play: "재생" }, ja: { ...I18N.ja, play: "再生" }, es: { ...I18N.es, play: "Reproducir" }, fr: { ...I18N.fr, play: "Lire" }, de: { ...I18N.de, play: "Abspielen" }, pt: { ...I18N.pt, play: "Reproduzir" }, it: { ...I18N.it, play: "Riproduci" }, ru: { ...I18N.ru, play: "Воспроизвести" }, ar: { ...I18N.ar, play: "تشغيل" }, hi: { ...I18N.hi, play: "चलाएँ" }, id: { ...I18N.id, play: "Putar" }, vi: { ...I18N.vi, play: "Phát" }, th: { ...I18N.th, play: "เล่น" }, tr: { ...I18N.tr, play: "Oynat" }, pl: { ...I18N.pl, play: "Odtwórz" }, nl: { ...I18N.nl, play: "Afspelen" }, sv: { ...I18N.sv, play: "Spela" }, no: { ...I18N.no, play: "Spill" }, da: { ...I18N.da, play: "Afspil" }, fi: { ...I18N.fi, play: "Toista" }, cs: { ...I18N.cs, play: "Přehrát" }, ro: { ...I18N.ro, play: "Redă" }, hu: { ...I18N.hu, play: "Lejátszás" }, uk: { ...I18N.uk, play: "Відтворити" }
+    });
     const TEMPLATES = {
       upbeat_pop: { prompt: "Upbeat pop song with catchy melody, bright synthesizer, driving drum beat, feel-good energy, modern production, radio-ready", genre: "pop", mood: "happy, energetic", instruments: "synth, drums, bass, guitar" },
       chill_ambient: { prompt: "Chill ambient electronic music, soft pad drones, gentle arpeggios, relaxed atmosphere, meditative, soundscape", genre: "ambient, electronic", mood: "calm, peaceful", instruments: "synth pads, soft percussion" },
@@ -2225,7 +2241,13 @@ INDEX_HTML = r"""<!doctype html>
     let draftTimer = null;
     let restoringDraft = false;
 
-    function t(key) { return (I18N[lang] && I18N[lang][key]) || (I18N.en && I18N.en[key]) || key; }
+    function t(key, vars = {}) {
+      let text = (I18N[lang] && I18N[lang][key]) || (I18N.en && I18N.en[key]) || key;
+      for (const [name, value] of Object.entries(vars || {})) {
+        text = String(text).replaceAll(`{${name}}`, String(value));
+      }
+      return text;
+    }
     function headers(extra = {}) { return {"X-Client-Id": clientId, ...extra}; }
     function escapeHtml(value) {
       return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
@@ -2267,7 +2289,8 @@ INDEX_HTML = r"""<!doctype html>
     function formatDate(value) {
       const date = new Date(value);
       if (Number.isNaN(date.getTime())) return "";
-      return date.toLocaleString(lang === "en" ? "en-GB" : "zh-CN", {month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit"});
+      const dateLocales = {en:"en-GB", zh:"zh-CN", yue:"zh-HK", ko:"ko-KR", ja:"ja-JP", es:"es-ES", fr:"fr-FR", de:"de-DE", pt:"pt-PT", it:"it-IT", ru:"ru-RU", ar:"ar-SA", hi:"hi-IN", id:"id-ID", vi:"vi-VN", th:"th-TH", tr:"tr-TR", pl:"pl-PL", nl:"nl-NL", sv:"sv-SE", no:"nb-NO", da:"da-DK", fi:"fi-FI", cs:"cs-CZ", ro:"ro-RO", hu:"hu-HU", uk:"uk-UA"};
+      return date.toLocaleString(dateLocales[lang] || "en-GB", {month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit"});
     }
     function _jobsForView(view, jobs) {
       const list = jobs || [];
@@ -2276,9 +2299,9 @@ INDEX_HTML = r"""<!doctype html>
       return list;
     }
     function _emptyJobsMessage(view) {
-      if (view === "favorites") return "No favorite tracks yet.";
-      if (view === "history") return "No recent tracks yet.";
-      if (view === "library") return "Your generated tracks will appear here.";
+      if (view === "favorites") return t("favoritesDesc");
+      if (view === "history") return t("historyDesc");
+      if (view === "library") return t("libraryDesc");
       return t("empty");
     }
     function _renderJobList(box, jobs, view) {
@@ -2293,14 +2316,14 @@ INDEX_HTML = r"""<!doctype html>
     function _renderJobCard(job, idx) {
       const status = escapeHtml(job.status || "unknown");
       const fileName = escapeHtml(job.file_name || "terry-music.mp3");
-      const title = escapeHtml(job.song_title || job.prompt || "Untitled");
+      const title = escapeHtml(job.song_title || job.prompt || t("untitled"));
       const mode = job.is_instrumental ? t("instrumentalMode") : t("vocalMode");
       const downloadUrl = job.download_url ? `${escapeHtml(job.download_url)}?client_id=${encodeURIComponent(clientId)}` : "";
       const isRunning = job.status === "running" || job.status === "queued";
       const completedClass = job.status === "completed" ? "animate-bounce-in" : "";
       const deleteAction = !isRunning ? `<button class="job-action-btn" onclick="deleteJob('${escapeHtml(job.id)}')">${UI_ICONS.error}<span>${t("delete")}</span></button>` : "";
       const actions = job.status === "completed" && job.download_url
-        ? `<button class="job-action-btn download" onclick="playJob('${escapeHtml(job.id)}')">${UI_ICONS.play}<span>Play</span></button><a class="job-action-btn download" href="${downloadUrl}" download="${fileName}">${t("download")}</a>${deleteAction}`
+        ? `<button class="job-action-btn download" onclick="playJob('${escapeHtml(job.id)}')">${UI_ICONS.play}<span>${t("play")}</span></button><a class="job-action-btn download" href="${downloadUrl}" download="${fileName}">${t("download")}</a>${deleteAction}`
         : isRunning ? `<span style="font-size:12px;color:var(--text-muted);"><span class="spinner" style="width:12px;height:12px;border-width:1.5px;"></span> ${statusLabel(status)}...</span>` : deleteAction;
       return `<div class="job-card ${completedClass}" data-job-id="${escapeHtml(job.id)}" style="animation-delay:${idx * 50}ms">
         <div class="job-art">${statusIcon(job.status)}</div>
@@ -2323,7 +2346,7 @@ INDEX_HTML = r"""<!doctype html>
       if (!job || !job.download_url) return;
       const url = job.download_url + (job.download_url.includes('?') ? '&' : '?') + 'client_id=' + encodeURIComponent(clientId);
       const lyrics = job.lyrics || "";
-      currentTrack = { id: job.id, title: job.song_title || job.prompt || 'Untitled', url: url, lyrics: lyrics };
+      currentTrack = { id: job.id, title: job.song_title || job.prompt || t("untitled"), url: url, lyrics: lyrics };
       audioPlayer.src = url;
       audioPlayer.play();
       updatePlayerUI();
@@ -2339,7 +2362,7 @@ INDEX_HTML = r"""<!doctype html>
           const prev = prevJobs[job.id];
           if (prev && prev.status !== "completed" && job.status === "completed") {
             SoundSystem.play("complete");
-            showToast(t("toastMusicReady") + (job.song_title || job.prompt || "Untitled"), "success", 5000);
+            showToast(t("toastMusicReady") + (job.song_title || job.prompt || t("untitled")), "success", 5000);
           }
         });
         window._prevJobs = Object.fromEntries(newJobs.map(j => [j.id, j]));
@@ -2719,7 +2742,7 @@ INDEX_HTML = r"""<!doctype html>
       const enabled = SoundSystem.toggle();
       const soundBtn = document.getElementById("soundBtn");
       soundBtn.innerHTML = enabled ? '<svg class="ui-icon"><use href="#icon-volume"></use></svg>' : '<svg class="ui-icon"><use href="#icon-volume-off"></use></svg>';
-      soundBtn.setAttribute("aria-label", enabled ? "Mute sounds" : "Unmute sounds");
+      soundBtn.setAttribute("aria-label", enabled ? t("muteSounds") : t("unmuteSounds"));
       soundBtn.className = "header-btn sound-toggle " + (enabled ? "on" : "off");
     }
     // Advanced panel toggle
@@ -3620,7 +3643,7 @@ INDEX_HTML = r"""<!doctype html>
       const segs = getSegments();
       const scrs = getScripts();
       const container = document.getElementById("recModalBody");
-      container.innerHTML = `<div class="rec-progress"><div class="rec-step">${lang === "en" ? "Preparing..." : "准备中..."}</div></div><div class="rec-script-box"></div><div class="rec-controls-row"><button id="recModalClose" class="secondary-btn" type="button">${lang === "en" ? "Cancel" : "取消"}</button></div>`;
+      container.innerHTML = `<div class="rec-progress"><div class="rec-step">${t("recPreparing")}</div></div><div class="rec-script-box"></div><div class="rec-controls-row"><button id="recModalClose" class="secondary-btn" type="button">${t("recCancel")}</button></div>`;
       document.getElementById("recModal").style.display = "flex";
       document.getElementById("recModalClose").addEventListener("click", closeVoiceRecorder);
       setTimeout(() => showSegment(0), 300);
@@ -3651,17 +3674,17 @@ INDEX_HTML = r"""<!doctype html>
       const body = document.getElementById("recModalBody");
       body.innerHTML = `
         <div class="rec-progress">
-          <div class="rec-step">${lang === "en" ? "Segment" : "段落"} ${idx + 1} / ${total} — ${seg.label}</div>
+          <div class="rec-step">${t("recSegment")} ${idx + 1} / ${total} — ${seg.label}</div>
           <div class="rec-bar"><div class="rec-bar-fill" style="width:${progress}%"></div></div>
         </div>
         <div class="rec-script-box">
           <div class="rec-instruction">${seg.desc}</div>
           <div class="rec-script">"${script}"</div>
         </div>
-        <div class="rec-countdown" id="recCountdown">${lang === "en" ? "Starting in 3..." : "3秒后开始..."}</div>
+        <div class="rec-countdown" id="recCountdown">${t("recStartingIn", {seconds: 3})}</div>
         <div class="rec-controls-row">
-          <button id="recStartSeg" class="secondary-btn" type="button">${lang === "en" ? "Start Recording" : "开始录制"}</button>
-          <button id="recModalClose" class="ghost" type="button">${lang === "en" ? "Cancel" : "取消"}</button>
+          <button id="recStartSeg" class="secondary-btn" type="button">${t("recStartRecording")}</button>
+          <button id="recModalClose" class="ghost" type="button">${t("recCancel")}</button>
         </div>
       `;
       document.getElementById("recStartSeg").addEventListener("click", () => showCountdownAndRecord(idx));
@@ -3674,7 +3697,7 @@ INDEX_HTML = r"""<!doctype html>
       countdownInterval = setInterval(() => {
         count--;
         if (count > 0) {
-          countdownEl.textContent = (lang === "en" ? `Starting in ${count}...` : `${count}秒后开始...`);
+          countdownEl.textContent = t("recStartingIn", {seconds: count});
         } else {
           clearInterval(countdownInterval);
           countdownInterval = null;
@@ -3695,13 +3718,13 @@ INDEX_HTML = r"""<!doctype html>
         mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
         mediaRecorder.onstop = async () => {
           if (recordedChunks.length === 0) {
-            alert(lang === "en" ? "Recording failed — no audio data captured. Please try again." : "录音失败 — 未捕获到音频数据，请重试。");
+            alert(t("recRecordingFailed"));
             closeVoiceRecorder();
             return;
           }
           const rawBlob = new Blob(recordedChunks, { type: mimeType });
           if (rawBlob.size < 1000) {
-            alert(lang === "en" ? "Recording too small — check microphone. Please try again." : "录音文件过小 — 请检查麦克风后重试。");
+            alert(t("recTooSmall"));
             closeVoiceRecorder();
             return;
           }
@@ -3717,19 +3740,19 @@ INDEX_HTML = r"""<!doctype html>
         };
         mediaRecorder.start(100); // timeslice=100ms ensures regular data events
         document.getElementById("recStartSeg").disabled = true;
-        document.getElementById("recStartSeg").textContent = lang === "en" ? "Recording..." : "录制中...";
+        document.getElementById("recStartSeg").textContent = t("recRecording");
         const countdownEl = document.getElementById("recCountdown");
         let remaining = 5;
-        countdownEl.textContent = lang === "en" ? `Recording... ${remaining}s` : `录制中... ${remaining}s`;
+        countdownEl.textContent = t("recRecordingCountdown", {seconds: remaining});
         recordingTimer = setInterval(() => {
           remaining--;
           if (remaining > 0) {
-            countdownEl.textContent = lang === "en" ? `Recording... ${remaining}s` : `录制中... ${remaining}s`;
+            countdownEl.textContent = t("recRecordingCountdown", {seconds: remaining});
           }
         }, 1000);
         setTimeout(() => { if (mediaRecorder.state === "recording") mediaRecorder.stop(); }, SEGMENT_DURATION);
       } catch (err) {
-        alert(lang === "en" ? "Microphone access denied. Please allow microphone access." : "麦克风访问被拒绝，请允许麦克风权限。");
+        alert(t("recMicDenied"));
         closeVoiceRecorder();
       }
     }
@@ -3780,7 +3803,7 @@ INDEX_HTML = r"""<!doctype html>
       const body = document.getElementById("recModalBody");
       body.innerHTML = `
         <div class="rec-progress">
-          <div class="rec-step">${lang === "en" ? "Segment" : "段落"} ${idx + 1} / ${segs.length} — ${seg.label} ${UI_ICONS.check}</div>
+          <div class="rec-step">${t("recSegment")} ${idx + 1} / ${segs.length} — ${seg.label} ${UI_ICONS.check}</div>
           <div class="rec-bar"><div class="rec-bar-fill" style="width:${((idx + 1) / segs.length) * 100}%"></div></div>
         </div>
         <div class="rec-script-box">
@@ -3789,8 +3812,8 @@ INDEX_HTML = r"""<!doctype html>
         </div>
         <div class="rec-review-audio"><audio src="${url}" controls style="height:40px; width:100%;"></audio></div>
         <div class="rec-controls-row">
-          <button id="recRerecord" class="ghost" type="button"><svg class="ui-icon" aria-hidden="true"><use href="#icon-refresh"></use></svg> ${lang === "en" ? "Re-record" : "重新录制"}</button>
-          <button id="recNext" class="secondary-btn" type="button">${lang === "en" ? "Next →" : "下一个 →"}</button>
+          <button id="recRerecord" class="ghost" type="button"><svg class="ui-icon" aria-hidden="true"><use href="#icon-refresh"></use></svg> ${t("recRerecord")}</button>
+          <button id="recNext" class="secondary-btn" type="button">${t("recNext")}</button>
         </div>
       `;
       document.getElementById("recRerecord").addEventListener("click", () => showSegment(idx));
@@ -3799,17 +3822,17 @@ INDEX_HTML = r"""<!doctype html>
 
     async function showAllDone() {
       const body = document.getElementById("recModalBody");
-      body.innerHTML = `<div class="rec-done">${lang === "en" ? "All recordings complete! Merging..." : "全部录制完成！正在合并..."}</div>`;
+      body.innerHTML = `<div class="rec-done">${t("recAllDone")}</div>`;
       try {
         const combined = await mergeAudioBlobs(recordedSegments);
         const fd = new FormData();
         fd.append("audio", combined, "voice_sample.wav");
-        voiceStatus.textContent = lang === "en" ? "Uploading & cloning..." : "上传中并复刻声音...";
+        voiceStatus.textContent = t("recUploadingCloning");
         voiceStatus.style.color = "var(--muted)";
         const res = await fetch("/api/voice/clone", { method: "POST", headers: headers(), body: fd });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          const errMsg = typeof data.error === "string" ? data.error : data.error?.message || (lang === "en" ? "Clone failed." : "声音复刻失败。");
+          const errMsg = typeof data.error === "string" ? data.error : data.error?.message || (t("recCloneFailed"));
           throw new Error(errMsg);
         }
         clonedVoiceId = data.voice_id || "";
@@ -3822,13 +3845,13 @@ INDEX_HTML = r"""<!doctype html>
         if (data.voice_wav_path) localStorage.setItem("terry_music_voice_wav", data.voice_wav_path);
         voicePreviewRow.style.display = "flex";
         closeVoiceRecorder();
-        voiceStatus.textContent = lang === "en" ? "Voice cloned! Use Preview to listen." : "声音复刻完成！点击预览试听。";
+        voiceStatus.textContent = t("recVoiceReady");
         voiceStatus.style.color = "var(--accent)";
         voiceStatus.classList.add("animate-bounce-in");
         SoundSystem.play("success");
         showToast(t("toastVoiceCloneSuccess"), "success");
       } catch (err) {
-        body.innerHTML = `<div class="rec-done rec-error">${lang === "en" ? "Clone failed: " : "复刻失败："}${err.message}</div><div class="rec-controls-row"><button id="recModalClose2" class="secondary-btn" type="button">${lang === "en" ? "Close" : "关闭"}</button></div>`;
+        body.innerHTML = `<div class="rec-done rec-error">${t("recCloneFailedPrefix")}${err.message}</div><div class="rec-controls-row"><button id="recModalClose2" class="secondary-btn" type="button">${t("recClose")}</button></div>`;
         SoundSystem.play("error");
         showToast(t("toastVoiceCloneError") + " " + err.message, "error");
         document.getElementById("recModalClose2").addEventListener("click", closeVoiceRecorder);
@@ -3892,7 +3915,7 @@ INDEX_HTML = r"""<!doctype html>
     document.getElementById("voiceRecordBtn").addEventListener("click", () => {
       SoundSystem.play("click");
       if (clonedVoiceId && voiceCloneExpires && parseInt(voiceCloneExpires) > Date.now()) {
-        if (confirm(lang === "en" ? "Re-record voice? This will create a new voice clone." : "重新录制？这将创建新的声音复刻。")) {
+        if (confirm(t("recRerecordConfirm"))) {
           localStorage.removeItem("terry_music_voice_id");
           localStorage.removeItem("terry_music_voice_expires");
           localStorage.removeItem("terry_music_voice_lang");
@@ -3948,7 +3971,7 @@ INDEX_HTML = r"""<!doctype html>
     }
     function _syncLfmFromPlayer() {
       if (!currentTrack) return;
-      document.getElementById("lfmTitle").textContent = currentTrack.title || "Untitled";
+      document.getElementById("lfmTitle").textContent = currentTrack.title || t("untitled");
       document.getElementById("lfmArtist").textContent = "Music Speaks";
       const rows = getLyricRows();
       const playableRows = rows.filter(r => !r.isSection && r.text);
@@ -4121,7 +4144,7 @@ ADMIN_HTML = r"""<!doctype html>
       }
       jobsBox.innerHTML = jobs.map(job => {
         const download = job.download_url ? `<a class="button" href="${escapeHtml(job.download_url)}" download="${escapeHtml(job.file_name || "terry-music.mp3")}">Download MP3</a>` : "";
-        const title = escapeHtml(job.song_title || job.prompt || "Untitled");
+        const title = escapeHtml(job.song_title || job.prompt || t("untitled"));
         const details = [
           job.prompt ? `<details><summary>Music prompt</summary><pre>${escapeHtml(job.prompt)}</pre></details>` : "",
           job.lyrics_idea ? `<details><summary>Lyrics brief</summary><pre>${escapeHtml(job.lyrics_idea)}</pre></details>` : "",
