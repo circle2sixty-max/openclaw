@@ -620,6 +620,8 @@ INDEX_HTML = r"""<!doctype html>
       .lang-menu-backdrop.open { background: rgba(5,8,15,0.52); }
       .lang-menu.mobile { bottom: 16px !important; }
       .lang-menu-item { padding: 13px 16px; }
+      .lang-toggle { display: none; }
+      .lang-select-mobile { display: block; width: 100%; margin-bottom: 8px; padding: 10px 12px; font-size: 15px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; cursor: pointer; }
       .player { min-height: 126px; padding: 12px 16px; gap: 10px; flex-wrap: wrap; }
       .player-track { width: calc(100% - 96px); flex: 1 1 220px; }
       .player-art { width: 52px; height: 52px; border-radius: 8px; }
@@ -840,6 +842,7 @@ INDEX_HTML = r"""<!doctype html>
         <button id="themeBtn" class="header-btn" title="Switch to theme" aria-label="Switch to light theme"><svg class="ui-icon"><use href="#icon-moon"></use></svg></button>
         <div id="langBtnDropdown" class="lang-btn-dropdown">
           <button id="langBtn" class="header-btn lang-toggle" aria-haspopup="listbox" aria-expanded="false">EN ▾</button>
+          <select id="langSelectMobile" class="lang-select-mobile" aria-label="Language"></select>
           <div id="langMenu" class="lang-menu" role="listbox" aria-hidden="true"></div>
         </div>
         <div id="langMenuBackdrop" class="lang-menu-backdrop" aria-hidden="true"></div>
@@ -2949,6 +2952,23 @@ INDEX_HTML = r"""<!doctype html>
       else _openLangMenu();
     });
     document.getElementById("langMenuBackdrop").addEventListener("click", _closeLangMenu);
+
+    // Mobile: populate native select and handle change
+    (function _initMobileLangSelect() {
+      const select = document.getElementById("langSelectMobile");
+      if (!select) return;
+      ALL_INTERFACE_LANGS.forEach(code => {
+        const opt = document.createElement("option");
+        opt.value = code;
+        opt.textContent = LANG_LABELS[code] || code;
+        select.appendChild(opt);
+      });
+      select.addEventListener("change", () => {
+        const lang = select.value;
+        applyLang();
+        document.getElementById("langBtn").textContent = (LANG_LABELS[lang] || lang) + " ▾";
+      });
+    })();
 
     // ── Lyrics language mismatch check ───────────────────────────────
     function _checkLyricsLanguageMismatch(voiceLang) {
