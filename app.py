@@ -56,7 +56,9 @@ VOICE_LIST_TIMEOUT = float(os.getenv("VOICE_LIST_TIMEOUT", "15"))
 VOICE_CACHE_TTL_SECONDS = int(os.getenv("VOICE_CACHE_TTL_SECONDS", "900"))
 JOB_TIMEOUT_SECONDS = int(os.getenv("JOB_TIMEOUT_SECONDS", "900"))
 JOB_RETENTION_SECONDS = int(os.getenv("JOB_RETENTION_SECONDS", "604800"))
+LYRIC_TIMING_VERSION = 1
 
+from music_speaks.lyric_timing import build_lyric_timestamps
 from music_speaks.voice_data import (
     DEFAULT_SYSTEM_VOICES,
     UI_LANGUAGE_LABELS,
@@ -155,7 +157,19 @@ INDEX_HTML = r"""<!doctype html>
       --warning: #ffab00;
       --gradient-green: linear-gradient(135deg, #1db954, #1ed760);
       --accent-cyan: #67e8f9;
+      --accent-pink: #ff4fd8;
       --cyber-grid: rgba(103, 232, 249, 0.08);
+      --glass-surface: linear-gradient(145deg, rgba(18,18,26,0.96), rgba(9,14,16,0.94));
+      --glass-surface-soft: linear-gradient(180deg, rgba(17,22,31,0.96), rgba(10,10,18,0.92));
+      --glass-raised: linear-gradient(135deg, rgba(25,25,36,0.96), rgba(16,19,28,0.92));
+      --panel-border: rgba(103,232,249,0.16);
+      --panel-outline: rgba(29,185,84,0.08);
+      --panel-glow: 0 24px 60px rgba(0,0,0,0.26), 0 0 0 1px rgba(255,255,255,0.03) inset;
+      --voice-icon-surface: linear-gradient(135deg, rgba(103,232,249,0.12), rgba(255,255,255,0.08));
+      --voice-icon-surface-hover: linear-gradient(135deg, rgba(103,232,249,0.18), rgba(255,255,255,0.12));
+      --voice-disabled-surface: rgba(255,255,255,0.06);
+      --hero-blur: rgba(103,232,249,0.08);
+      --hero-glow: rgba(255,79,216,0.12);
       --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
       --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
       --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
@@ -180,6 +194,18 @@ INDEX_HTML = r"""<!doctype html>
       --border-light: #e5e5ea;
       --danger: #ff3b30;
       --warning: #ff9500;
+      --cyber-grid: rgba(14, 165, 233, 0.08);
+      --glass-surface: linear-gradient(145deg, rgba(255,255,255,0.96), rgba(241,247,255,0.94));
+      --glass-surface-soft: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.95));
+      --glass-raised: linear-gradient(135deg, rgba(255,255,255,0.98), rgba(237,243,252,0.95));
+      --panel-border: rgba(14,165,233,0.16);
+      --panel-outline: rgba(29,185,84,0.05);
+      --panel-glow: 0 18px 42px rgba(8,26,62,0.08), 0 0 0 1px rgba(255,255,255,0.45) inset;
+      --voice-icon-surface: linear-gradient(135deg, rgba(14,165,233,0.1), rgba(255,255,255,0.92));
+      --voice-icon-surface-hover: linear-gradient(135deg, rgba(14,165,233,0.14), rgba(255,255,255,1));
+      --voice-disabled-surface: rgba(207,218,233,0.55);
+      --hero-blur: rgba(14,165,233,0.08);
+      --hero-glow: rgba(236,72,153,0.08);
       --shadow-sm: 0 2px 8px rgba(0,0,0,0.08);
       --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
       --shadow-lg: 0 8px 32px rgba(0,0,0,0.16);
@@ -187,24 +213,61 @@ INDEX_HTML = r"""<!doctype html>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; }
     body {
-      background: var(--bg-primary);
+      background:
+        radial-gradient(circle at 16% 18%, var(--hero-blur), transparent 26%),
+        radial-gradient(circle at 82% 12%, var(--hero-glow), transparent 24%),
+        linear-gradient(180deg, rgba(255,255,255,0.02), transparent 24%),
+        var(--bg-primary);
       color: var(--text-primary);
       font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       font-size: 14px;
       line-height: 1.5;
       overflow: hidden;
+      position: relative;
+    }
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      background:
+        linear-gradient(var(--cyber-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--cyber-grid) 1px, transparent 1px);
+      background-size: 24px 24px;
+      mask-image: linear-gradient(180deg, rgba(0,0,0,0.48), transparent 82%);
+      opacity: 0.5;
+    }
+    body::after {
+      background: radial-gradient(circle at 50% 0%, rgba(103,232,249,0.09), transparent 42%);
+      opacity: 0.9;
     }
     /* App Layout */
-    .app { display: flex; flex-direction: column; height: 100vh; }
-    .app-header { display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 64px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-    .logo { display: flex; align-items: center; gap: 10px; font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: var(--text-primary); text-decoration: none; }
+    .app { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100vh; }
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      height: 64px;
+      background: var(--glass-surface);
+      border-bottom: 1px solid var(--panel-border);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow: 0 14px 36px rgba(0,0,0,0.12);
+      flex-shrink: 0;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: var(--text-primary); text-decoration: none; letter-spacing: 0.02em; }
     .ui-icon { width: 1.1em; height: 1.1em; display: inline-block; fill: currentColor; flex: 0 0 auto; }
-    .logo-icon { width: 36px; height: 36px; background: var(--gradient-green); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #06100b; animation: glow 3s ease-in-out infinite; }
+    .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, #1db954 0%, #34d399 42%, var(--accent-cyan) 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #06100b; animation: glow 3s ease-in-out infinite; box-shadow: 0 0 0 1px rgba(255,255,255,0.1) inset, 0 0 24px rgba(29,185,84,0.18); }
     .logo-icon .ui-icon { width: 20px; height: 20px; }
     .header-actions { display: flex; gap: 8px; align-items: center; }
-    .header-btn { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: none; border-radius: 50%; background: var(--bg-tertiary); color: var(--text-secondary); cursor: pointer; font-size: 18px; transition: var(--transition); }
+    .header-btn { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 1px solid var(--panel-border); border-radius: 50%; background: var(--glass-raised); color: var(--text-secondary); cursor: pointer; font-size: 18px; transition: var(--transition); box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); }
     .header-btn .ui-icon { width: 18px; height: 18px; }
-    .header-btn:hover { background: var(--bg-elevated); color: var(--text-primary); transform: scale(1.05); }
+    .header-btn:hover { background: var(--glass-raised); color: var(--text-primary); transform: scale(1.05); border-color: rgba(29,185,84,0.36); }
     .lang-toggle { width: auto; padding: 0 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
     .lang-menu-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; cursor: pointer; font-size: 14px; color: var(--text-secondary); transition: var(--transition); }
     .lang-menu-item:hover { background: var(--bg-tertiary); color: var(--text-primary); }
@@ -213,32 +276,35 @@ INDEX_HTML = r"""<!doctype html>
     /* Main Layout */
     .app-body { display: flex; flex: 1; overflow: hidden; }
     /* Sidebar */
-    .sidebar { width: 280px; background: var(--bg-secondary); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+    .sidebar { width: 280px; background: var(--glass-surface); border-right: 1px solid var(--panel-border); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); display: flex; flex-direction: column; flex-shrink: 0; box-shadow: inset -1px 0 0 rgba(255,255,255,0.03); }
     .sidebar-nav { padding: 16px 12px; }
-    .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: var(--radius-md); color: var(--text-secondary); text-decoration: none; font-weight: 500; cursor: pointer; transition: var(--transition); }
-    .nav-item:hover { background: var(--bg-tertiary); color: var(--text-primary); }
-    .nav-item.active { background: var(--accent-dim); color: var(--accent); }
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid transparent; border-radius: var(--radius-md); color: var(--text-secondary); text-decoration: none; font-weight: 500; cursor: pointer; transition: var(--transition); }
+    .nav-item:hover { background: var(--glass-raised); color: var(--text-primary); border-color: rgba(103,232,249,0.16); }
+    .nav-item.active { background: linear-gradient(135deg, rgba(29,185,84,0.18), rgba(103,232,249,0.08)); color: var(--accent); border-color: rgba(29,185,84,0.34); box-shadow: inset 3px 0 0 var(--accent), 0 12px 28px rgba(29,185,84,0.08); }
     .nav-icon { width: 24px; display: inline-flex; align-items: center; justify-content: center; color: currentColor; }
     .nav-icon .ui-icon { width: 19px; height: 19px; }
     .sidebar-section { padding: 8px 12px; }
     .sidebar-section-title { padding: 8px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
-    .playlist-item { display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-radius: var(--radius-sm); color: var(--text-secondary); cursor: pointer; transition: var(--transition); }
+    .playlist-item { display: flex; align-items: center; gap: 10px; padding: 8px 16px; border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--text-secondary); cursor: pointer; transition: var(--transition); }
     .playlist-icon { width: 18px; display: inline-flex; align-items: center; justify-content: center; }
     .playlist-icon .ui-icon { width: 17px; height: 17px; }
-    .playlist-item:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+    .playlist-item:hover { color: var(--text-primary); background: var(--glass-raised); border-color: rgba(103,232,249,0.14); }
     .playlist-item:hover { color: var(--text-primary); }
     /* Main Content */
-    .main-content { flex: 1; overflow-y: auto; padding: 32px 40px 120px; background: var(--bg-primary); }
-    .page-header { margin-bottom: 32px; }
-    .page-title { font-size: 32px; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; }
-    .page-desc { color: var(--text-secondary); font-size: 14px; }
+    .main-content { flex: 1; overflow-y: auto; padding: 32px 40px 120px; background: transparent; position: relative; }
+    .page-header { position: relative; margin-bottom: 32px; max-width: 900px; padding: 24px 26px; border: 1px solid var(--panel-border); border-radius: 24px; background: var(--glass-surface); box-shadow: var(--panel-glow); overflow: hidden; }
+    .page-header::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(135deg, rgba(103,232,249,0.12), transparent 30%, transparent 70%, rgba(255,79,216,0.1)); opacity: 0.9; }
+    .page-header::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(135deg, rgba(103,232,249,0.05) 0 1px, transparent 1px 22px); opacity: 0.45; }
+    .page-title { position: relative; font-size: 32px; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; letter-spacing: -0.02em; }
+    .page-desc { position: relative; color: var(--text-secondary); font-size: 14px; max-width: 720px; }
     /* Create Form */
-    .create-form { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px; max-width: 900px; }
+    .create-form { position: relative; background: var(--glass-surface); border: 1px solid var(--panel-border); border-radius: 24px; padding: 28px; max-width: 900px; box-shadow: var(--panel-glow); overflow: hidden; }
+    .create-form::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(103,232,249,0.05), transparent 26%), radial-gradient(circle at top right, rgba(255,79,216,0.08), transparent 28%); }
     .form-section { margin-bottom: 24px; }
     .form-section:last-child { margin-bottom: 0; }
     .form-label { display: block; font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
     .form-hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
-    .form-input { width: 100%; padding: 12px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-primary); font-size: 14px; transition: var(--transition); }
+    .form-input { width: 100%; padding: 12px 16px; background: var(--glass-raised); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-primary); font-size: 14px; transition: var(--transition); box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }
     .form-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
     .form-input::placeholder { color: var(--text-muted); }
     textarea.form-input { min-height: 120px; resize: vertical; line-height: 1.6; }
@@ -256,7 +322,7 @@ INDEX_HTML = r"""<!doctype html>
     .checkbox-item span { font-size: 13px; font-weight: 500; color: var(--text-primary); }
     .checkbox-item small { display: block; font-size: 11px; color: var(--text-muted); }
     /* Voice Clone */
-    .voice-section { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; }
+    .voice-section { background: var(--glass-surface-soft); border: 1px solid var(--panel-border); border-radius: 18px; padding: 16px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }
     .voice-top-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
     .voice-status { font-size: 13px; color: var(--text-secondary); }
     .voice-status.success { color: var(--accent); }
@@ -265,8 +331,8 @@ INDEX_HTML = r"""<!doctype html>
     .voice-picker-section { margin-bottom: 16px; }
     .voice-picker-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .voice-picker-selected { font-size: 12px; color: var(--accent); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
-    .voice-picker-scroll { position: relative; isolation: isolate; height: 308px; overflow: hidden; overscroll-behavior: contain; border: 1px solid rgba(103,232,249,0.18); border-radius: 8px; background: linear-gradient(145deg, rgba(18,18,26,0.98), rgba(9,14,16,0.98)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(29,185,84,0.08), 0 20px 40px rgba(0,0,0,0.24); padding: 8px; }
-    .voice-picker-scroll::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.5; background: linear-gradient(180deg, rgba(103,232,249,0.08), transparent 22%), repeating-linear-gradient(135deg, rgba(103,232,249,0.06) 0 1px, transparent 1px 18px); }
+    .voice-picker-scroll { position: relative; isolation: isolate; height: 308px; overflow: hidden; overscroll-behavior: contain; border: 1px solid var(--panel-border); border-radius: 14px; background: var(--glass-surface); box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px var(--panel-outline), 0 20px 40px rgba(0,0,0,0.18); padding: 8px; }
+    .voice-picker-scroll::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.58; background: linear-gradient(180deg, rgba(103,232,249,0.08), transparent 22%), repeating-linear-gradient(135deg, rgba(103,232,249,0.06) 0 1px, transparent 1px 18px); }
     .voice-picker-shell { display: grid; grid-template-columns: 156px minmax(0, 1fr); gap: 8px; height: 100%; min-height: 0; }
     .voice-lang-list,
     .voice-option-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: var(--border-light) transparent; }
@@ -278,38 +344,39 @@ INDEX_HTML = r"""<!doctype html>
     .voice-option-list::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
     .voice-lang-list::-webkit-scrollbar-thumb:hover,
     .voice-option-list::-webkit-scrollbar-thumb:hover { background: var(--accent); }
-    .voice-lang-list { display: flex; flex-direction: column; gap: 6px; padding: 4px; border: 1px solid rgba(103,232,249,0.14); border-radius: 8px; background: linear-gradient(180deg, rgba(15,20,28,0.96), rgba(10,10,18,0.92)); }
+    .voice-lang-list { display: flex; flex-direction: column; gap: 6px; padding: 4px; border: 1px solid var(--panel-border); border-radius: 10px; background: var(--glass-surface-soft); }
     .voice-lang-btn { width: 100%; min-height: 34px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 8px 9px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text-secondary); font-size: 11px; font-weight: 700; text-align: left; cursor: pointer; transition: var(--transition); }
     .voice-lang-btn:hover { color: var(--text-primary); background: var(--bg-tertiary); border-color: var(--border); }
     .voice-lang-btn.active { color: var(--accent); background: linear-gradient(135deg, rgba(29,185,84,0.16), rgba(103,232,249,0.08)); border-color: rgba(29,185,84,0.55); box-shadow: inset 3px 0 0 var(--accent), 0 0 24px rgba(29,185,84,0.12); }
     .voice-lang-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .voice-lang-count { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 18px; padding: 0 6px; border-radius: 999px; background: var(--bg-elevated); color: var(--text-muted); font-size: 10px; font-weight: 700; }
     .voice-lang-btn.active .voice-lang-count { background: rgba(29,185,84,0.2); color: var(--accent); }
-    .voice-custom-row { margin-top: auto; padding-top: 6px; border-top: 1px solid var(--border); }
+    .voice-custom-row { margin-top: auto; padding-top: 6px; border-top: 1px solid var(--panel-border); }
     .voice-custom-btn { width: 100%; min-height: 34px; padding: 8px 9px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; font-size: 11px; font-weight: 700; color: var(--text-primary); cursor: pointer; transition: var(--transition); text-align: left; display: inline-flex; align-items: center; gap: 7px; }
     .voice-custom-btn .ui-icon { width: 14px; height: 14px; }
     .voice-custom-btn:hover { border-color: var(--accent); color: var(--accent); }
     .voice-custom-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
     .voice-custom-label { display: block; margin-top: 5px; font-size: 10px; line-height: 1.3; color: var(--text-muted); }
-    .voice-option-list { border: 1px solid rgba(103,232,249,0.14); border-radius: 8px; background: linear-gradient(180deg, rgba(14,18,26,0.98), rgba(10,10,18,0.94)); }
-    .voice-options-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; background: linear-gradient(180deg, rgba(18,18,26,0.98), rgba(14,18,26,0.92)); border-bottom: 1px solid rgba(103,232,249,0.14); backdrop-filter: blur(10px); box-shadow: 0 10px 26px rgba(0,0,0,0.18); }
+    .voice-option-list { border: 1px solid var(--panel-border); border-radius: 10px; background: var(--glass-surface-soft); }
+    .voice-options-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; background: var(--glass-surface); border-bottom: 1px solid var(--panel-border); backdrop-filter: blur(10px); box-shadow: 0 10px 26px rgba(0,0,0,0.12); }
     .voice-options-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 800; color: var(--text-primary); }
     .voice-options-meta { flex: 0 0 auto; color: var(--text-muted); font-size: 10px; font-weight: 700; }
     .voice-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 7px; padding: 9px; align-content: start; }
-    .voice-pill { position: relative; width: 100%; min-width: 0; min-height: 48px; display: grid; grid-template-columns: minmax(0, 1fr) 28px; align-items: center; gap: 10px; padding: 8px 8px 8px 11px; background: linear-gradient(135deg, rgba(25,25,36,0.96), rgba(16,19,28,0.92)); border: 1px solid rgba(103,232,249,0.12); border-radius: 10px; font-size: 11px; color: var(--text-secondary); cursor: pointer; transition: var(--transition); line-height: 1.2; text-align: left; overflow: hidden; }
+    .voice-pill { position: relative; width: 100%; min-width: 0; min-height: 48px; display: grid; grid-template-columns: minmax(0, 1fr) 28px; align-items: center; gap: 10px; padding: 8px 8px 8px 11px; background: var(--glass-raised); border: 1px solid rgba(103,232,249,0.12); border-radius: 10px; font-size: 11px; color: var(--text-secondary); cursor: pointer; transition: var(--transition); line-height: 1.2; text-align: left; overflow: hidden; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }
     .voice-pill::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; background: linear-gradient(90deg, rgba(29,185,84,0.14), rgba(103,232,249,0.08)); transition: opacity 0.2s ease; }
-    .voice-pill:hover { border-color: rgba(29,185,84,0.6); color: var(--text-primary); transform: translateY(-1px); box-shadow: 0 12px 30px rgba(0,0,0,0.18); }
+    .voice-pill:hover { border-color: rgba(29,185,84,0.6); color: var(--text-primary); transform: translateY(-1px); box-shadow: 0 12px 30px rgba(0,0,0,0.14); }
     .voice-pill:hover::before { opacity: 1; }
-    .voice-pill.selected { background: linear-gradient(135deg, rgba(29,185,84,0.16), rgba(103,232,249,0.08)); border-color: rgba(29,185,84,0.7); color: var(--accent); box-shadow: inset 0 0 0 1px rgba(29,185,84,0.12), 0 0 30px rgba(29,185,84,0.14); }
-    .voice-pill.playing { background: linear-gradient(135deg, rgba(29,185,84,0.18), rgba(103,232,249,0.12)); border-color: var(--accent); color: var(--accent); animation: pulse 1s ease-in-out infinite; }
+    .voice-pill.selected { background: linear-gradient(135deg, rgba(29,185,84,0.18), rgba(103,232,249,0.12)); border-color: rgba(29,185,84,0.7); color: var(--accent); box-shadow: inset 0 0 0 1px rgba(29,185,84,0.12), 0 0 30px rgba(29,185,84,0.12); }
+    .voice-pill.playing { background: linear-gradient(135deg, rgba(29,185,84,0.2), rgba(103,232,249,0.16)); border-color: var(--accent); color: var(--accent); animation: pulse 1s ease-in-out infinite; }
     .voice-pill-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
     .voice-pill-meta { font-size: 9px; line-height: 1.35; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; letter-spacing: 0.05em; }
     .voice-pill.selected .voice-pill-meta,
     .voice-pill.playing .voice-pill-meta { color: rgba(255,255,255,0.72); }
-    .voice-pill .play-icon { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: linear-gradient(135deg, rgba(103,232,249,0.12), rgba(255,255,255,0.08)); color: var(--accent); font-size: 9px; box-shadow: 0 2px 8px rgba(0,0,0,0.2), 0 0 0 1px rgba(103,232,249,0.12); }
-    .light-theme .voice-pill .play-icon { background: rgba(255,255,255,0.9); box-shadow: 0 2px 8px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8); }
-    .light-theme .voice-pill .play-icon:hover { background: #ffffff; box-shadow: 0 4px 16px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,0,0,0.1); }
-    .voice-pill .play-icon.disabled { color: var(--text-muted); background: rgba(255,255,255,0.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04); }
+    .voice-pill .play-icon { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--voice-icon-surface); color: var(--accent); font-size: 9px; box-shadow: 0 2px 8px rgba(0,0,0,0.14), 0 0 0 1px rgba(103,232,249,0.12); transition: var(--transition); }
+    .voice-pill:hover .play-icon { background: var(--voice-icon-surface-hover); }
+    .voice-pill .play-icon.disabled { color: var(--text-muted); background: var(--voice-disabled-surface); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); }
+    [data-theme="light"] .voice-pill.selected .voice-pill-meta,
+    [data-theme="light"] .voice-pill.playing .voice-pill-meta { color: rgba(29,29,31,0.62); }
     .voice-pill .play-icon svg { width: 11px; height: 11px; fill: currentColor; }
     .voice-pill .voice-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
     .voice-empty { padding: 18px; text-align: center; color: var(--text-muted); font-size: 12px; }
@@ -337,11 +404,11 @@ INDEX_HTML = r"""<!doctype html>
     .btn-voice:hover { border-color: var(--accent); color: var(--accent); }
     .error-text { color: var(--danger); font-size: 13px; min-height: 20px; margin-top: 12px; }
     /* Jobs Panel */
-    .jobs-panel { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-top: 24px; max-width: 900px; }
+    .jobs-panel { background: var(--glass-surface); border: 1px solid var(--panel-border); border-radius: 22px; padding: 20px; margin-top: 24px; max-width: 900px; box-shadow: var(--panel-glow); }
     .jobs-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
     .jobs-title { font-size: 16px; font-weight: 700; color: var(--text-primary); }
     .jobs-list { display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto; }
-    .job-card { position: relative; overflow: hidden; display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: linear-gradient(135deg, rgba(26,26,37,0.96), rgba(16,19,28,0.92)); border: 1px solid rgba(103,232,249,0.12); border-radius: var(--radius-md); transition: var(--transition); cursor: pointer; }
+    .job-card { position: relative; overflow: hidden; display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--glass-raised); border: 1px solid var(--panel-border); border-radius: var(--radius-md); transition: var(--transition); cursor: pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }
     .job-card::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.35; background: repeating-linear-gradient(135deg, rgba(103,232,249,0.04) 0 1px, transparent 1px 20px); }
     .job-card::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: rgba(103,232,249,0.18); }
     .job-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 18px 42px rgba(0,0,0,0.24), 0 0 0 1px rgba(29,185,84,0.08); }
@@ -361,7 +428,7 @@ INDEX_HTML = r"""<!doctype html>
     .job-card.status-queued::after { background: linear-gradient(180deg, var(--warning), var(--accent-cyan)); }
     .job-card.status-error::after { background: linear-gradient(180deg, var(--danger), rgba(255,255,255,0.2)); }
     .job-actions { display: flex; gap: 8px; }
-    .job-action-btn { padding: 8px 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+    .job-action-btn { padding: 8px 12px; background: var(--glass-raised); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
     .job-action-btn svg { width: 13px; height: 13px; fill: currentColor; }
     .job-action-btn:hover { border-color: var(--accent); color: var(--accent); }
     .job-action-btn.download { background: var(--accent); color: #000; border: none; }
@@ -2398,7 +2465,14 @@ INDEX_HTML = r"""<!doctype html>
       if (!job || !job.download_url) return;
       const url = job.download_url + (job.download_url.includes('?') ? '&' : '?') + 'client_id=' + encodeURIComponent(clientId);
       const lyrics = job.lyrics || "";
-      currentTrack = { id: job.id, title: job.song_title || job.prompt || t("untitled"), url: url, lyrics: lyrics };
+      currentTrack = {
+        id: job.id,
+        title: job.song_title || job.prompt || t("untitled"),
+        url: url,
+        lyrics: lyrics,
+        lyric_timestamps: Array.isArray(job.lyric_timestamps) ? job.lyric_timestamps : [],
+        lyric_timing_source: job.lyric_timing_source || "",
+      };
       audioPlayer.src = url;
       audioPlayer.play();
       updatePlayerUI();
@@ -2863,7 +2937,7 @@ INDEX_HTML = r"""<!doctype html>
         .filter(Boolean)
         .map((line, index) => {
           const isSection = /^\[[^\]]+\]$/.test(line);
-          const text = isSection ? line : (line.replace(/^\[[^\]]+\]\s*/, "").trim() || line);
+          const text = isSection ? line : (line.replace(/^(?:\[(?:\d{2}:\d{2}(?:\.\d{1,3})?|[^\]]+)\]\s*)+/, "").trim() || line);
           return { index, text, isSection };
         });
     }
@@ -2873,6 +2947,8 @@ INDEX_HTML = r"""<!doctype html>
       if (currentTrack._lyricsSource !== source) {
         currentTrack._lyricsSource = source;
         currentTrack._lyricsRows = parseLyrics(source);
+        currentTrack._lyricsTimeline = null;
+        currentTrack._lyricsTimelineKey = "";
       }
       return currentTrack._lyricsRows || [];
     }
@@ -2899,57 +2975,107 @@ INDEX_HTML = r"""<!doctype html>
       }).join("");
       updateLyricsProgress(true);
     }
-    // ── Time-indexed lyrics sync (weighted by text length for non-timestamp lyrics) ──
-    let _lyricTimeIndex = [];  // [{start, end, index}, ...]
+    let _lyricTimeIndex = [];
     let _lyricTimeIndexKey = "";
 
     function _buildLyricTimeIndex(rows, duration) {
       const playableRows = rows.filter(row => !row.isSection && row.text);
-      if (!playableRows.length || !duration) return;
-      const totalChars = playableRows.reduce((s, r) => s + r.text.length, 0) || 1;
-      let accumulated = 0;
-      _lyricTimeIndex = playableRows.map((row, i) => {
-        const weight = row.text.length / totalChars;
-        const start = accumulated;
-        accumulated += weight;
-        return { start: start * duration, end: (i === playableRows.length - 1) ? duration : (start + weight) * duration, index: row.index };
+      if (!playableRows.length || !duration) return [];
+      const totalChars = playableRows.reduce((sum, row) => sum + Math.max(1, row.text.length), 0) || 1;
+      let cursor = 0;
+      return playableRows.map((row, idx) => {
+        const weight = Math.max(1, row.text.length) / totalChars;
+        const start = cursor * duration;
+        cursor += weight;
+        const end = idx === playableRows.length - 1 ? duration : cursor * duration;
+        return { time: start, end, row_index: row.index, text: row.text, source: "browser-weighted" };
       });
+    }
+
+    function getLyricTimeline(rows) {
+      if (!currentTrack) return [];
+      const durationKey = Number.isFinite(audioPlayer.duration) ? Math.round(audioPlayer.duration * 1000) : 0;
+      const rawKey = currentTrack.lyrics || "";
+      const externalTimestamps = Array.isArray(currentTrack.lyric_timestamps) ? currentTrack.lyric_timestamps : [];
+      const externalKey = externalTimestamps.length
+        ? externalTimestamps.length + ":" + (externalTimestamps[0].time || 0) + ":" + (externalTimestamps[externalTimestamps.length - 1].time || 0) + ":" + (currentTrack.lyric_timing_source || "")
+        : "none";
+      const cacheKey = rawKey + "::" + externalKey + "::" + durationKey;
+      if (currentTrack._lyricsTimelineKey === cacheKey && Array.isArray(currentTrack._lyricsTimeline)) {
+        return currentTrack._lyricsTimeline;
+      }
+
+      const playableRows = rows.filter(row => !row.isSection && row.text);
+      let timeline = externalTimestamps
+        .map(entry => ({
+          time: Number(entry && entry.time),
+          end: Number(entry && entry.end),
+          row_index: Number.isInteger(entry && entry.row_index) ? entry.row_index : null,
+          text: String((entry && entry.text) || "").trim(),
+          source: String((entry && entry.source) || currentTrack.lyric_timing_source || "timestamp"),
+        }))
+        .filter(entry => Number.isFinite(entry.time));
+
+      if (!timeline.length) {
+        timeline = _parseTimestamps(rawKey, rows);
+      }
+      if (!timeline.length && Number.isFinite(audioPlayer.duration) && audioPlayer.duration > 0) {
+        const rowsKey = playableRows.map(row => row.index + ":" + row.text.length).join("|");
+        const fallbackKey = (currentTrack.url || "") + "::" + rowsKey + "::" + durationKey;
+        if (fallbackKey !== _lyricTimeIndexKey) {
+          _lyricTimeIndexKey = fallbackKey;
+          _lyricTimeIndex = _buildLyricTimeIndex(rows, audioPlayer.duration);
+        }
+        timeline = _lyricTimeIndex;
+      }
+
+      timeline = timeline
+        .map((entry, idx) => {
+          let rowIndex = Number.isInteger(entry.row_index) ? entry.row_index : null;
+          if (rowIndex === null && entry.text) {
+            const match = playableRows.find(row => row.text === entry.text);
+            rowIndex = match ? match.index : null;
+          }
+          return {
+            time: Math.max(0, Number(entry.time) || 0),
+            end: Number(entry.end),
+            row_index: rowIndex,
+            text: entry.text || (playableRows[idx] ? playableRows[idx].text : ""),
+            source: entry.source || "timestamp",
+          };
+        })
+        .filter(entry => Number.isInteger(entry.row_index))
+        .sort((a, b) => a.time - b.time);
+
+      for (let i = 0; i < timeline.length; i++) {
+        const next = timeline[i + 1];
+        const fallbackEnd = next ? next.time : (Number.isFinite(audioPlayer.duration) ? audioPlayer.duration : timeline[i].time + 4);
+        const explicitEnd = Number.isFinite(timeline[i].end) ? timeline[i].end : fallbackEnd;
+        timeline[i].end = Math.max(timeline[i].time, explicitEnd, fallbackEnd);
+      }
+
+      currentTrack._lyricsTimelineKey = cacheKey;
+      currentTrack._lyricsTimeline = timeline;
+      return timeline;
     }
 
     function currentLyricRowIndex(rows) {
       const playableRows = rows.filter(row => !row.isSection && row.text);
       if (!playableRows.length) return rows[0] ? rows[0].index : -1;
-      if (!audioPlayer.duration || Number.isNaN(audioPlayer.duration)) return playableRows[0].index;
-
-      // Use timestamp-based sync if available (2+ timestamps)
-      const tsData = _parseTimestamps(currentTrack ? currentTrack.lyrics || "" : "");
-      if (tsData.length >= 2) {
-        const t = audioPlayer.currentTime;
-        for (let i = tsData.length - 1; i >= 0; i--) {
-          if (t >= tsData[i].time) {
-            const text = tsData[i].text;
-            const found = rows.find(r => r.text === text);
-            if (found) return found.index;
-          }
-        }
-        return playableRows[0].index;
-      }
-
-      // Rebuild time index if track or rows changed
-      const rowsKey = playableRows.map(r => r.index + ":" + r.text.length).join("|");
-      const cacheKey = (currentTrack ? currentTrack.src : "") + "::" + rowsKey;
-      if (cacheKey !== _lyricTimeIndexKey) {
-        _lyricTimeIndexKey = cacheKey;
-        _buildLyricTimeIndex(rows, audioPlayer.duration);
-      }
-
-      // Binary search for current time slot
-      const t = audioPlayer.currentTime;
-      let lo = 0, hi = _lyricTimeIndex.length - 1, result = playableRows[0].index;
+      const timeline = getLyricTimeline(rows);
+      if (!timeline.length) return playableRows[0].index;
+      const t = audioPlayer.currentTime || 0;
+      let lo = 0;
+      let hi = timeline.length - 1;
+      let result = timeline[0].row_index;
       while (lo <= hi) {
         const mid = (lo + hi) >> 1;
-        if (_lyricTimeIndex[mid].start <= t) { result = _lyricTimeIndex[mid].index; lo = mid + 1; }
-        else hi = mid - 1;
+        if (timeline[mid].time <= t) {
+          result = timeline[mid].row_index;
+          lo = mid + 1;
+        } else {
+          hi = mid - 1;
+        }
       }
       return result;
     }
@@ -2984,6 +3110,10 @@ INDEX_HTML = r"""<!doctype html>
       playerCurrentTime.textContent = formatTime(audioPlayer.currentTime);
       playerDuration.textContent = formatTime(audioPlayer.duration);
       updateLyricsProgress();
+    });
+    audioPlayer.addEventListener("loadedmetadata", () => {
+      playerDuration.textContent = formatTime(audioPlayer.duration || 0);
+      updateLyricsProgress(true);
     });
     audioPlayer.addEventListener("play", () => { setPlayerPlayIcon(); lyricsText.className = "lyrics-text playing"; });
     audioPlayer.addEventListener("pause", () => { setPlayerPlayIcon(); lyricsText.className = "lyrics-text"; });
@@ -4213,24 +4343,32 @@ INDEX_HTML = r"""<!doctype html>
       if (lyricsModal.classList.contains("open")) document.getElementById("lfmDuration").textContent = formatTime(audioPlayer.duration);
     });
 
-    // ── Lyrics timestamp parsing (for [00:12.34] format) ────────────
-    // If lyrics contain timestamps, use them for precise sync instead of equal division
+    // ── Lyrics timestamp parsing (for [00:12.34] / LRC format) ────────────
     const _timestampCache = new Map();
-    function _parseTimestamps(lyricsText) {
-      if (_timestampCache.has(lyricsText)) return _timestampCache.get(lyricsText);
-      const lines = lyricsText.split(/\r?\n/);
+    function _parseTimestamps(lyricsText, rows = []) {
+      const cacheKey = lyricsText + "::" + rows.length;
+      if (_timestampCache.has(cacheKey)) return _timestampCache.get(cacheKey);
+      const lines = String(lyricsText || "").split(/\r?\n/).map(line => line.trim()).filter(Boolean);
       const results = [];
+      let rowCursor = 0;
       for (const line of lines) {
-        const m = line.match(/^\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\](.*)$/);
-        if (m) {
-          const min = parseInt(m[1]), sec = parseInt(m[2]);
-          const ms = m[3] ? (m[3].length === 2 ? parseInt(m[3]) * 10 : parseInt(m[3])) : 0;
-          const time = min * 60 + sec + ms / 1000;
-          const text = m[4].trim();
-          if (text) results.push({ time, text });
-        }
+        const row = rows[rowCursor] || null;
+        rowCursor += 1;
+        if (row && row.isSection) continue;
+        const matches = [...line.matchAll(/\[(\d{2}):(\d{2})(?:\.(\d{1,3}))?\]/g)];
+        if (!matches.length) continue;
+        const text = line.replace(/^(?:\[(\d{2}):(\d{2})(?:\.(\d{1,3}))?\])+/, "").trim();
+        if (!text) continue;
+        matches.forEach(match => {
+          const min = parseInt(match[1], 10);
+          const sec = parseInt(match[2], 10);
+          const fraction = match[3] || "";
+          const ms = fraction ? parseInt(fraction.padEnd(3, "0").slice(0, 3), 10) : 0;
+          results.push({ time: min * 60 + sec + ms / 1000, text, row_index: row ? row.index : null, source: "embedded-lrc" });
+        });
       }
-      _timestampCache.set(lyricsText, results);
+      results.sort((a, b) => a.time - b.time);
+      _timestampCache.set(cacheKey, results);
       return results;
     }
   </script>
@@ -4510,26 +4648,54 @@ def clean_draft_payload(form: dict[str, Any]) -> dict[str, Any]:
     return draft
 
 
+def _lyric_timing_payload(lyrics: str, audio_path: Path | None) -> dict[str, Any]:
+    if not str(lyrics or "").strip() or not audio_path or not audio_path.is_file():
+        return {}
+    timestamps, source = build_lyric_timestamps(lyrics, audio_path)
+    if not timestamps and source == "unavailable":
+        return {}
+    payload: dict[str, Any] = {
+        "lyric_timestamps": timestamps,
+        "lyric_timing_source": source,
+    }
+    if timestamps or source != "unavailable":
+        payload["lyric_timing_version"] = LYRIC_TIMING_VERSION
+    return payload
+
+
+def refresh_job_lyric_timing(job: dict[str, Any]) -> bool:
+    if job.get("status") != "completed":
+        return False
+    if int(job.get("lyric_timing_version") or 0) >= LYRIC_TIMING_VERSION and isinstance(job.get("lyric_timestamps"), list):
+        return False
+    file_path = str(job.get("file_path", "") or "").strip()
+    if not file_path:
+        return False
+    payload = _lyric_timing_payload(str(job.get("lyrics", "")), Path(file_path))
+    if not payload:
+        return False
+    job.update(payload)
+    return True
+
+
 def public_job(job: dict[str, Any], include_lyrics: bool = False) -> dict[str, Any]:
-    result = {key: job.get(key) for key in ("id", "status", "created_at", "updated_at", "prompt", "song_title", "generated_title", "title_error", "email", "is_instrumental", "lyrics_optimizer", "file_name", "error", "email_sent", "voice_render_mode")}
+    result = {key: job.get(key) for key in ("id", "status", "created_at", "updated_at", "prompt", "song_title", "generated_title", "title_error", "email", "is_instrumental", "lyrics_optimizer", "file_name", "error", "email_sent", "voice_render_mode", "lyric_timing_source")}
     if include_lyrics:
         result["lyrics"] = job.get("lyrics", "")
         result["lyrics_idea"] = job.get("lyrics_idea", "")
         result["lyrics_extra"] = job.get("lyrics_extra", "")
         result["lyrics_language"] = job.get("lyrics_language", "")
         result["generated_lyrics"] = bool(job.get("generated_lyrics"))
+        result["lyric_timestamps"] = job.get("lyric_timestamps") or []
     if job.get("status") == "completed" and job.get("file_path"):
         result["download_url"] = f"/download/{urllib.parse.quote(str(job['id']))}"
     return result
 
 
 def admin_job(job: dict[str, Any]) -> dict[str, Any]:
-    result = public_job(job)
+    result = public_job(job, include_lyrics=True)
     result.update({
         "owner_id": job.get("owner_id"),
-        "lyrics": job.get("lyrics", ""),
-        "lyrics_idea": job.get("lyrics_idea", ""),
-        "generated_lyrics": bool(job.get("generated_lyrics")),
         "voice_mode": job.get("voice_mode"),
         "voice_clone_singing_error": job.get("voice_clone_singing_error"),
         "extra": job.get("extra", {}),
@@ -4765,7 +4931,8 @@ def generate_music(job_id: str) -> None:
             args.append("--lyrics-optimizer")
         args.extend(build_music_option_args(job.get("extra", {})))
         run_mmx(args)
-        mark_job(job_id, status="completed", file_name=file_name, file_path=str(out_path))
+        timing_updates = _lyric_timing_payload(lyrics, out_path)
+        mark_job(job_id, status="completed", file_name=file_name, file_path=str(out_path), **timing_updates)
         if job.get("email") and out_path.exists():
             ok = send_email(str(job["email"]), out_path, prompt)
             mark_job(job_id, email_sent=ok)
@@ -4817,6 +4984,7 @@ def generate_music_with_voice(job_id: str) -> None:
                     file_path=str(out_path),
                     voice_render_mode="voice_clone_singing",
                     voice_clone_singing_error=None,
+                    **_lyric_timing_payload(lyrics, out_path),
                 )
             except Exception as exc:
                 singing_error = str(exc)
@@ -4831,6 +4999,7 @@ def generate_music_with_voice(job_id: str) -> None:
                 file_path=str(out_path),
                 voice_render_mode="music_cover_fallback" if voice_mode == "voice_clone_singing" else "music_cover",
                 voice_clone_singing_error=singing_error or None,
+                **_lyric_timing_payload(lyrics, out_path),
             )
         if job.get("email") and out_path.exists():
             ok = send_email(str(job["email"]), out_path, prompt)
@@ -4963,6 +5132,9 @@ class MusicHandler(BaseHTTPRequestHandler):
                 self.send_json({"error": "Unauthorized"}, HTTPStatus.UNAUTHORIZED)
                 return
             with JOBS_LOCK:
+                dirty = any(refresh_job_lyric_timing(job) for job in JOBS.values())
+                if dirty:
+                    save_jobs_locked()
                 jobs = sorted(
                     [admin_job(job) for job in JOBS.values()],
                     key=lambda item: str(item.get("created_at", "")),
@@ -4976,8 +5148,12 @@ class MusicHandler(BaseHTTPRequestHandler):
             if client_id is None:
                 return
             with JOBS_LOCK:
+                own_jobs = [job for job in JOBS.values() if job.get("owner_id") == client_id]
+                dirty = any(refresh_job_lyric_timing(job) for job in own_jobs)
+                if dirty:
+                    save_jobs_locked()
                 jobs = sorted(
-                    [public_job(job, include_lyrics=True) for job in JOBS.values() if job.get("owner_id") == client_id],
+                    [public_job(job, include_lyrics=True) for job in own_jobs],
                     key=lambda item: str(item.get("created_at", "")),
                     reverse=True,
                 )
@@ -4994,6 +5170,8 @@ class MusicHandler(BaseHTTPRequestHandler):
                 if not job or job.get("owner_id") != client_id:
                     self.send_json({"error": "Job not found"}, HTTPStatus.NOT_FOUND)
                     return
+                if refresh_job_lyric_timing(job):
+                    save_jobs_locked()
                 self.send_json(public_job(job, include_lyrics=True))
             return
         if path.startswith("/api/drafts/"):
